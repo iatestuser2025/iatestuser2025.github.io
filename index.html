@@ -122,6 +122,25 @@
             
             let notificationTimeout;
 
+            // --- NUEVA VALIDACIÓN DE FECHAS ---
+            // Se calcula la fecha máxima para el nacimiento (mínimo 10 años de edad)
+            // y el rango para la fecha de contratación (últimos 10 años).
+            const today = new Date();
+            const maxHireDate = today.toISOString().split('T')[0]; // Hoy
+
+            const tenYearsAgo = new Date();
+            tenYearsAgo.setFullYear(today.getFullYear() - 10);
+            const maxBirthDate = tenYearsAgo.toISOString().split('T')[0]; // Hace 10 años
+            const minHireDate = tenYearsAgo.toISOString().split('T')[0]; // Hace 10 años
+
+            // Aplicar las restricciones a los campos de fecha
+            const birthdateInput = document.getElementById('birthdate');
+            const hiredateInput = document.getElementById('hiredate');
+            
+            birthdateInput.setAttribute('max', maxBirthDate);
+            hiredateInput.setAttribute('max', maxHireDate);
+            hiredateInput.setAttribute('min', minHireDate);
+
             registerButton.addEventListener('click', () => {
                 welcomeScreen.classList.add('fade-out');
                 setTimeout(() => {
@@ -149,14 +168,11 @@
                 const formData = new FormData(employeeForm);
                 const email = formData.get('email');
 
-                // --- NUEVA VALIDACIÓN ---
-                // Verifica si el correo termina en @sicar.mx (insensible a mayúsculas/minúsculas)
                 if (!email || !email.toLowerCase().endsWith('@sicar.mx')) {
                     showNotification('El correo debe pertenecer al dominio @sicar.mx', 'error');
-                    return; // Detiene el envío del formulario si la validación falla
+                    return; 
                 }
                 
-                // Si la validación es exitosa, continúa con el proceso
                 submitButton.disabled = true;
                 buttonText.classList.add('hidden');
                 buttonSpinner.classList.remove('hidden');
@@ -189,4 +205,6 @@
     </script>
 </body>
 </html>
+
+
 
