@@ -87,7 +87,7 @@
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
         // TODO: REEMPLAZA ESTO CON LA CONFIGURACIÓN DE TU PROYECTO FIREBASE
-          const firebaseConfig = {
+        const firebaseConfig = {
   apiKey: "AIzaSyANMzNXONokloi7vg2TOC6ldAMgL9dtN4Y",
   authDomain: "empleados-25292.firebaseapp.com",
   projectId: "empleados-25292",
@@ -111,7 +111,6 @@
                 showNotification("Error de configuración de Firebase. Revisa tus datos.", "error");
             }
 
-            // Referencias a las pantallas y botones
             const welcomeScreen = document.getElementById('welcome-screen');
             const formScreen = document.getElementById('form-screen');
             const registerButton = document.getElementById('register-button');
@@ -123,14 +122,13 @@
             
             let notificationTimeout;
 
-            // --- LÓGICA DE NAVEGACIÓN ---
             registerButton.addEventListener('click', () => {
                 welcomeScreen.classList.add('fade-out');
                 setTimeout(() => {
                     welcomeScreen.classList.add('hidden');
                     formScreen.classList.remove('hidden');
                     formScreen.classList.add('fade-in');
-                }, 500); // Coincide con la duración de la animación
+                }, 500);
             });
 
             function showNotification(message, type = 'success') {
@@ -147,16 +145,26 @@
 
             employeeForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
+
+                const formData = new FormData(employeeForm);
+                const email = formData.get('email');
+
+                // --- NUEVA VALIDACIÓN ---
+                // Verifica si el correo termina en @sicar.mx (insensible a mayúsculas/minúsculas)
+                if (!email || !email.toLowerCase().endsWith('@sicar.mx')) {
+                    showNotification('El correo debe pertenecer al dominio @sicar.mx', 'error');
+                    return; // Detiene el envío del formulario si la validación falla
+                }
+                
+                // Si la validación es exitosa, continúa con el proceso
                 submitButton.disabled = true;
                 buttonText.classList.add('hidden');
                 buttonSpinner.classList.remove('hidden');
 
-                const formData = new FormData(employeeForm);
                 const employeeData = {
                     name: formData.get('name'),
-                    email: formData.get('email'),
+                    email: email,
                     birthdate: formData.get('birthdate'),
-                    // Guarda la fecha de ingreso o un string vacío si se deja en blanco
                     hiredate: formData.get('hiredate') || "", 
                     createdAt: new Date()
                 };
