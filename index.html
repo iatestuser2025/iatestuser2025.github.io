@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal de Aniversarios de Empleados</title>
+    <title>Portal de Empleados SICAR</title>
     <!-- Tailwind CSS para un diseño moderno -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts: Inter -->
@@ -14,13 +15,9 @@
         body {
             font-family: 'Inter', sans-serif;
         }
-        /* Animación para mensajes de notificación */
-        .fade-in {
-            animation: fadeIn 0.5s ease-out forwards;
-        }
-        .fade-out {
-            animation: fadeOut 0.5s ease-in forwards;
-        }
+        /* Animaciones suaves */
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        .fade-out { animation: fadeOut 0.5s ease-in forwards; }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -29,70 +26,68 @@
             from { opacity: 1; transform: translateY(0); }
             to { opacity: 0; transform: translateY(-10px); }
         }
+        .hidden { display: none; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 flex items-center justify-center min-h-screen">
 
-    <div class="w-full max-w-md mx-auto bg-white rounded-2xl shadow-xl p-8">
-        <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold text-slate-900">Portal de Empleados</h1>
-            <p class="text-slate-500 mt-2">Registra un nuevo empleado para felicitarlo en su día.</p>
+    <div class="w-full max-w-md mx-auto">
+        <!-- 1. Pantalla de Bienvenida (Inicialmente visible) -->
+        <div id="welcome-screen" class="bg-white rounded-2xl shadow-xl p-8 text-center fade-in">
+            <!-- Espacio para tu logo -->
+            <img src="https://i.postimg.cc/t4s9sxw6/logo.png" alt="Logo de la Empresa" class="mx-auto mb-6 rounded-full">
+            <h1 class="text-3xl font-bold text-slate-900">Bienvenido Empleado SICAR</h1>
+            <p class="text-slate-500 mt-2 mb-8">Usa esta herramienta para registrar nuevos miembros al equipo.</p>
+            <button id="register-button" class="w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-transform transform hover:scale-105">
+                Regístrate
+            </button>
         </div>
 
-        <!-- Formulario de Registro -->
-        <form id="employee-form" class="space-y-6">
-            <div>
-                <label for="name" class="block text-sm font-medium text-slate-700 mb-1">Nombre Completo</label>
-                <input type="text" id="name" name="name" required class="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+        <!-- 2. Pantalla de Formulario (Inicialmente oculta) -->
+        <div id="form-screen" class="w-full bg-white rounded-2xl shadow-xl p-8 hidden">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-slate-900">Portal de Empleados</h1>
+                <p class="text-slate-500 mt-2">Registra un nuevo empleado para felicitarlo en su día.</p>
             </div>
 
-            <div>
-                <label for="email" class="block text-sm font-medium text-slate-700 mb-1">Correo Electrónico</label>
-                <input type="email" id="email" name="email" required class="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
-            </div>
-
-            <div>
-                <label for="birthdate" class="block text-sm font-medium text-slate-700 mb-1">Fecha de Nacimiento</label>
-                <input type="date" id="birthdate" name="birthdate" required class="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
-            </div>
-
-            <div>
-                <label for="hiredate" class="block text-sm font-medium text-slate-700 mb-1">Fecha de Ingreso</label>
-                <input type="date" id="hiredate" name="hiredate" required class="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
-            </div>
-
-            <!-- Botón de envío -->
-            <button type="submit" id="submit-button" class="w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-transform transform hover:scale-105 disabled:bg-indigo-400 disabled:cursor-not-allowed flex items-center justify-center">
-                 <span id="button-text">Registrar Empleado</span>
-                 <svg id="button-spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-            </button>
-        </form>
-
-        <!-- Contenedor para notificaciones -->
-        <div id="notification" class="fixed top-5 right-5 p-4 rounded-lg shadow-md text-white max-w-sm" style="display: none;"></div>
+            <form id="employee-form" class="space-y-6">
+                <div>
+                    <label for="name" class="block text-sm font-medium text-slate-700 mb-1">Nombre Completo</label>
+                    <input type="text" id="name" name="name" required class="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                </div>
+                <div>
+                    <label for="email" class="block text-sm font-medium text-slate-700 mb-1">Correo Electrónico</label>
+                    <input type="email" id="email" name="email" required class="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                </div>
+                <div>
+                    <label for="birthdate" class="block text-sm font-medium text-slate-700 mb-1">Fecha de Nacimiento (Obligatorio)</label>
+                    <input type="date" id="birthdate" name="birthdate" required class="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                </div>
+                <div>
+                    <label for="hiredate" class="block text-sm font-medium text-slate-700 mb-1">Fecha de Ingreso (Opcional)</label>
+                    <input type="date" id="hiredate" name="hiredate" class="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                </div>
+                <button type="submit" id="submit-button" class="w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-transform transform hover:scale-105 disabled:bg-indigo-400 disabled:cursor-not-allowed flex items-center justify-center">
+                     <span id="button-text">Registrar Empleado</span>
+                     <svg id="button-spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </button>
+            </form>
+        </div>
     </div>
 
-    <!-- Módulo de JavaScript con la lógica de Firebase -->
+    <!-- Contenedor para notificaciones -->
+    <div id="notification" class="fixed top-5 right-5 p-4 rounded-lg shadow-md text-white max-w-sm" style="display: none;"></div>
+
     <script type="module">
-        // --- IMPORTS DE FIREBASE ---
-        // NOTA: El error "Identifier '...' has already been declared" que viste
-        // suele ocurrir si estas líneas de importación están duplicadas en alguna 
-        // parte de tu archivo. Asegúrate de que este bloque de importaciones 
-        // sea el ÚNICO en todo tu código HTML.
-	import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-       
 
-        // ------------------------------------------------------------------
         // TODO: REEMPLAZA ESTO CON LA CONFIGURACIÓN DE TU PROYECTO FIREBASE
-        // ------------------------------------------------------------------
-        // Este es el ÚNICO lugar donde debe estar tu objeto de configuración.
-        // El código duplicado que causaba el error ha sido eliminado.
-        const firebaseConfig = {
+          const firebaseConfig = {
   apiKey: "AIzaSyANMzNXONokloi7vg2TOC6ldAMgL9dtN4Y",
   authDomain: "empleados-25292.firebaseapp.com",
   projectId: "empleados-25292",
@@ -100,28 +95,26 @@
   messagingSenderId: "473889523831",
   appId: "1:473889523831:web:6214d0269d36ce22209e72"
         };
-        // ------------------------------------------------------------------
 
-        // --- CÓDIGO PRINCIPAL DE LA APLICACIÓN ---
         function main() {
-            // Inicializa Firebase una sola vez.
             let app, db, auth;
             try {
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                // Inicia sesión de forma anónima para cumplir con las reglas de seguridad básicas
                 signInAnonymously(auth).catch((error) => {
                     console.error("Error al iniciar sesión anónimamente:", error);
                     showNotification("Error de autenticación. Revisa la consola.", "error");
                 });
             } catch (error) {
-                console.error("Error al inicializar Firebase. ¿Revisaste tu firebaseConfig?", error);
-                // Este mensaje aparecerá si la configuración de firebaseConfig está vacía o es incorrecta.
+                console.error("Error al inicializar Firebase:", error);
                 showNotification("Error de configuración de Firebase. Revisa tus datos.", "error");
             }
 
-            // Referencias a elementos del DOM
+            // Referencias a las pantallas y botones
+            const welcomeScreen = document.getElementById('welcome-screen');
+            const formScreen = document.getElementById('form-screen');
+            const registerButton = document.getElementById('register-button');
             const employeeForm = document.getElementById('employee-form');
             const submitButton = document.getElementById('submit-button');
             const buttonText = document.getElementById('button-text');
@@ -130,7 +123,16 @@
             
             let notificationTimeout;
 
-            // Función para mostrar notificaciones
+            // --- LÓGICA DE NAVEGACIÓN ---
+            registerButton.addEventListener('click', () => {
+                welcomeScreen.classList.add('fade-out');
+                setTimeout(() => {
+                    welcomeScreen.classList.add('hidden');
+                    formScreen.classList.remove('hidden');
+                    formScreen.classList.add('fade-in');
+                }, 500); // Coincide con la duración de la animación
+            });
+
             function showNotification(message, type = 'success') {
                 clearTimeout(notificationTimeout);
                 notification.textContent = message;
@@ -143,11 +145,8 @@
                 }, 4000);
             }
 
-            // Manejador del envío del formulario
             employeeForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-
-                // Deshabilitar botón y mostrar spinner
                 submitButton.disabled = true;
                 buttonText.classList.add('hidden');
                 buttonSpinner.classList.remove('hidden');
@@ -157,21 +156,20 @@
                     name: formData.get('name'),
                     email: formData.get('email'),
                     birthdate: formData.get('birthdate'),
-                    hiredate: formData.get('hiredate'),
-                    createdAt: new Date() // Guarda la fecha de registro
+                    // Guarda la fecha de ingreso o un string vacío si se deja en blanco
+                    hiredate: formData.get('hiredate') || "", 
+                    createdAt: new Date()
                 };
 
                 try {
-                    // Añade un nuevo documento a la colección "employees"
                     const docRef = await addDoc(collection(db, "employees"), employeeData);
                     console.log("Empleado registrado con ID: ", docRef.id);
                     showNotification("¡Empleado registrado con éxito!", "success");
-                    employeeForm.reset(); // Limpia el formulario
+                    employeeForm.reset();
                 } catch (error) {
                     console.error("Error al añadir el documento: ", error);
                     showNotification("Error al registrar al empleado. Inténtalo de nuevo.", "error");
                 } finally {
-                    // Habilitar botón y ocultar spinner
                     submitButton.disabled = false;
                     buttonText.classList.remove('hidden');
                     buttonSpinner.classList.add('hidden');
@@ -179,8 +177,6 @@
             });
         }
         
-        // --- INICIAR LA APLICACIÓN ---
-        // Se ejecuta cuando el documento HTML ha sido completamente cargado.
         document.addEventListener('DOMContentLoaded', main);
     </script>
 </body>
