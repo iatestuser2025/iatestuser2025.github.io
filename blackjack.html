@@ -96,18 +96,16 @@
     <!-- Modal para unirse/crear sala -->
     <div id="modal-overlay" class="fixed inset-0 flex items-center justify-center z-50">
         <div class="bg-gray-800 p-8 rounded-lg shadow-xl text-center w-full max-w-sm">
-            <h2 class="text-2xl font-bold mb-4">Salón de Juegos</h2>
+            <h2 class="text-2xl font-bold mb-4">Blackjack 21</h2>
             <p id="modal-error" class="text-red-400 mb-3 min-h-[20px]"></p>
             <div id="entry-options">
                  <input type="text" id="nickname-input" class="w-full bg-gray-700 text-white p-3 rounded-md mb-4" placeholder="Ingresa tu apodo...">
-                 <h3 class="text-lg font-semibold mb-2 text-gray-300">Blackjack</h3>
                  <button id="create-room-btn" class="btn bg-green-500 hover:bg-green-600 w-full text-white font-bold py-3 px-6 rounded-lg text-lg mb-3">Crear Sala Nueva</button>
                  <button id="show-join-btn" class="btn bg-blue-500 hover:bg-blue-600 w-full text-white font-bold py-3 px-6 rounded-lg text-lg mb-4">Unirse a Sala</button>
                  <hr class="border-gray-600 my-4">
-                 <button onclick="window.location.href='./texas.html'" class="btn bg-gray-600 hover:bg-gray-700 w-full text-white font-bold py-3 px-6 rounded-lg text-lg">Texas Hold'em</button>
+                 <button onclick="window.location.href='./index.html'" class="btn bg-gray-600 hover:bg-gray-700 w-full text-white font-bold py-3 px-6 rounded-lg text-lg">Volver al Salón de Juegos</button>
             </div>
             <div id="join-options" class="hidden">
-                 <h3 class="text-lg font-semibold mb-2 text-gray-300">Unirse a sala de Blackjack</h3>
                  <input type="text" id="room-id-input" class="w-full bg-gray-700 text-white p-3 rounded-md mb-4" placeholder="Ingresa ID de la sala...">
                  <button id="join-room-btn" class="btn bg-blue-500 hover:bg-blue-600 w-full text-white font-bold py-3 px-6 rounded-lg text-lg mb-3">Unirse</button>
                  <button id="back-to-entry-btn" class="text-gray-400 hover:text-white">Volver</button>
@@ -205,7 +203,6 @@
         const backToEntryBtn = document.getElementById("back-to-entry-btn");
         const modalErrorEl = document.getElementById("modal-error");
         
-        // Elementos del Chat
         const mainGameCol = document.getElementById("main-game-col");
         const chatContainer = document.getElementById("chat-container");
         const chatMessages = document.getElementById("chat-messages");
@@ -215,8 +212,11 @@
         const chatToggleBtn = document.getElementById("chat-toggle-btn");
         const chatNotification = document.getElementById("chat-notification");
 
-        // ... (Lógica de autenticación y modales sin cambios) ...
+        onAuthStateChanged(auth, user => { if (user) currentUser = user; });
+        await signInAnonymously(auth);
 
+        function validateNickname() { const nickname = nicknameInput.value.trim(); if (nickname.length < 3) { modalErrorEl.textContent = "El apodo debe tener al menos 3 caracteres."; return null; } modalErrorEl.textContent = ""; return nickname; }
+        
         function subscribeToGame(ref) {
             if (unsubscribe) unsubscribe();
             unsubscribe = onSnapshot(ref, (docSnap) => {
@@ -225,7 +225,6 @@
                     renderGame(currentGameData);
                 } else {
                     console.error("El documento del juego no existe o no se puede leer.");
-                    // Opcional: mostrar un error al usuario.
                 }
             });
             modalOverlay.classList.add("hidden");
@@ -233,16 +232,13 @@
             gameContainer.classList.add("lg:grid", "lg:grid-cols-3", "lg:gap-8");
             chatToggleBtn.classList.remove("hidden");
         }
-        
-        // ... (Funciones de cartas sin cambios) ...
 
         function renderGame(data) {
-            if (!data) return; // Guard clause para evitar errores si no hay datos
+            if (!data) return;
             
             roomIdEl.textContent = data.roomId || "";
             userIdEl.textContent = currentUser.uid;
-
-            // Render Croupier
+            
             dealerCardsEl.innerHTML = "";
             let dealerSum = 0;
             if (data.dealer && data.dealer.hand.length > 0) {
@@ -257,7 +253,6 @@
             }
             dealerSumEl.textContent = dealerSum || "";
             
-            // Render Jugadores
              playersArea.innerHTML = "";
             data.players.forEach((player, index) => {
                 const playerDiv = document.createElement('div');
@@ -286,8 +281,6 @@
                 playersArea.appendChild(playerDiv);
             });
 
-
-            // Render Chat
             const newMessages = data.chatMessages || [];
             if (newMessages.length > lastMessageCount && !isChatVisible) {
                 const lastMessage = newMessages[newMessages.length - 1];
@@ -300,7 +293,7 @@
             chatMessages.innerHTML = '';
             newMessages.forEach(msg => {
                 const sender = data.players.find(p => p.uid === msg.senderUid);
-                const senderColor = sender ? sender.color : '#cbd5e0'; // Color gris por defecto
+                const senderColor = sender ? sender.color : '#cbd5e0';
                 const msgDiv = document.createElement('div');
                 msgDiv.classList.add('mb-2', 'p-2', 'rounded-md', 'bg-gray-700', 'break-words');
                 msgDiv.innerHTML = `<strong class="font-bold" style="color: ${senderColor};">${msg.senderName}:</strong> ${msg.text}`;
@@ -308,15 +301,11 @@
             });
             chatMessages.scrollTop = chatMessages.scrollHeight;
 
-            // Lógica de botones
             const currentPlayer = data.players[data.currentPlayerIndex];
             const amICurrentPlayer = currentPlayer?.uid === currentUser.uid;
             const isCreator = data.creatorUid === currentUser.uid;
             
-            startGameBtn.classList.add('hidden'); 
-            hitBtn.classList.add('hidden'); 
-            standBtn.classList.add('hidden'); 
-            playAgainBtn.classList.add('hidden');
+            [startGameBtn, hitBtn, standBtn, playAgainBtn].forEach(btn => btn.classList.add('hidden'));
 
             if (data.status === 'finished') {
                 messageEl.textContent = data.message || "La partida ha terminado.";
@@ -343,53 +332,12 @@
             }
         }
         
-        // ... (Toda la lógica del juego: startGame, playAgain, hit, stand, etc. sin cambios) ...
-
-        // --- LÓGICA DEL CHAT ---
-        async function sendMessage() {
-            const text = chatInput.value.trim();
-            if (text === "") return;
-            const me = currentGameData.players.find(p => p.uid === currentUser.uid);
-            if (!me) return;
-            const newMessage = { senderName: me.name, senderUid: currentUser.uid, text: text, timestamp: new Date() };
-            await updateDoc(gameRef, { chatMessages: arrayUnion(newMessage) });
-            chatInput.value = "";
-        }
-        
-        function toggleChat() {
-            isChatVisible = !isChatVisible;
-            if (isChatVisible) {
-                chatContainer.classList.remove("hidden");
-                mainGameCol.classList.remove("lg:col-span-3");
-                mainGameCol.classList.add("lg:col-span-2");
-                chatNotification.classList.add("hidden");
-            } else {
-                chatContainer.classList.add("hidden");
-                mainGameCol.classList.remove("lg:col-span-2");
-                mainGameCol.classList.add("lg:col-span-3");
-            }
-        }
-
-        chatToggleBtn.addEventListener("click", toggleChat);
-        sendChatBtn.addEventListener("click", sendMessage);
-        chatInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
-        emojiPicker.addEventListener("click", (e) => { if (e.target.classList.contains("emoji-btn")) { chatInput.value += e.target.textContent; chatInput.focus(); } });
-
-        // Event Listeners principales
-        showJoinBtn.addEventListener('click', () => { entryOptions.classList.add('hidden'); joinOptions.classList.remove('hidden'); modalErrorEl.textContent = ''; });
-        backToEntryBtn.addEventListener('click', () => { joinOptions.classList.add('hidden'); entryOptions.classList.remove('hidden'); modalErrorEl.textContent = ''; });
-        
-        // --- COPIAR Y PEGAR FUNCIONES COMPLETAS QUE NO CAMBIAN ---
-        onAuthStateChanged(auth, user => { if (user) currentUser = user; });
-        await signInAnonymously(auth);
-        function validateNickname() { const nickname = nicknameInput.value.trim(); if (nickname.length < 3) { modalErrorEl.textContent = "El apodo debe tener al menos 3 caracteres."; return null; } modalErrorEl.textContent = ""; return nickname; }
-        createRoomBtn.addEventListener('click', async () => { const nickname = validateNickname(); if (!nickname) return; const roomId = Math.floor(100000 + Math.random() * 900000).toString(); gameRef = doc(db, 'blackjack-games', roomId); const newPlayer = { uid: currentUser.uid, name: nickname, hand: [], sum: 0, status: 'waiting', color: playerColors[0] }; const newGameData = { roomId: roomId, players: [newPlayer], dealer: { hand: [], sum: 0 }, deck: [], status: 'waiting', creatorUid: currentUser.uid, gamePhase: 'waiting', currentPlayerIndex: 0, message: "", chatMessages: [] }; await setDoc(gameRef, newGameData); subscribeToGame(gameRef); });
-        joinRoomBtn.addEventListener('click', async () => { const nickname = validateNickname(); if (!nickname) return; const roomId = roomIdInput.value.trim(); if (!roomId) { modalErrorEl.textContent = "Debes ingresar un ID de sala."; return; } gameRef = doc(db, 'blackjack-games', roomId); const gameDoc = await getDoc(gameRef); if (!gameDoc.exists()) { modalErrorEl.textContent = "Sala no encontrada."; return; } const gameData = gameDoc.data(); if (gameData.status !== 'waiting') { modalErrorEl.textContent = "La partida ya ha comenzado."; return; } if (gameData.players.length >= 5) { modalErrorEl.textContent = "La sala está llena."; return; } if (!gameData.players.some(p => p.uid === currentUser.uid)) { const newPlayer = { uid: currentUser.uid, name: nickname, hand: [], sum: 0, status: 'waiting', color: playerColors[gameData.players.length % playerColors.length] }; gameData.players.push(newPlayer); await setDoc(gameRef, gameData, { merge: true }); } subscribeToGame(gameRef); });
         function buildDeck() { const suits = ["heart", "diamond", "spade", "club"]; const values = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]; const suitSymbols = { "heart": "♥", "diamond": "♦", "spade": "♠", "club": "♣" }; let deck = []; for (let suit of suits) { for (let value of values) { deck.push({ value, suit, symbol: suitSymbols[suit] }); } } return deck; }
         function shuffleDeck(deck) { for (let i = deck.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[deck[i], deck[j]] = [deck[j], deck[i]]; } return deck; }
         function getCardValue(card) { if (card.value === "A") return 11; if (["K", "Q", "J"].includes(card.value)) return 10; return parseInt(card.value); }
         function getSum(hand) { let sum = hand.reduce((total, card) => total + getCardValue(card), 0); let aceCount = hand.filter(card => card.value === 'A').length; while (sum > 21 && aceCount > 0) { sum -= 10; aceCount--; } return sum; }
         function createCardElement(card, isHidden = false) { const cardDiv = document.createElement("div"); cardDiv.classList.add("card", card.suit); if (isHidden) { cardDiv.classList.add("card-back"); } else { cardDiv.innerHTML = `<div class="text-left">${card.value}${card.symbol}</div><div class="text-center suit">${card.symbol}</div><div class="text-right transform rotate-180">${card.value}${card.symbol}</div>`; } return cardDiv; }
+
         async function startGame() { const data = { ...currentGameData }; data.status = 'playing'; data.gamePhase = 'playing'; data.deck = shuffleDeck(buildDeck()); data.players.forEach(player => { player.hand = [data.deck.pop(), data.deck.pop()]; player.sum = getSum(player.hand); player.status = 'playing'; if (player.sum === 21) player.status = 'blackjack'; }); data.dealer.hand = [data.deck.pop(), data.deck.pop()]; data.dealer.sum = getSum(data.dealer.hand); await setDoc(gameRef, data); await checkTurn(data); }
         async function playAgain() { if (currentGameData.creatorUid !== currentUser.uid) return; const data = { ...currentGameData }; data.status = 'playing'; data.gamePhase = 'playing'; data.deck = shuffleDeck(buildDeck()); data.message = ""; data.currentPlayerIndex = 0; data.chatMessages = []; data.players.forEach(player => { player.hand = [data.deck.pop(), data.deck.pop()]; player.sum = getSum(player.hand); player.status = 'playing'; if (player.sum === 21) player.status = 'blackjack'; }); data.dealer.hand = [data.deck.pop(), data.deck.pop()]; data.dealer.sum = getSum(data.dealer.hand); await setDoc(gameRef, data); await checkTurn(data); }
         async function hit() { const data = { ...currentGameData }; const player = data.players[data.currentPlayerIndex]; if (player.uid !== currentUser.uid || data.gamePhase !== 'playing') return; player.hand.push(data.deck.pop()); player.sum = getSum(player.hand); if (player.sum > 21) { player.status = 'busted'; } else if (player.hand.length === 5) { player.status = 'quintilla'; await setDoc(gameRef, data); await endGameWithQuintilla(player); return; } await setDoc(gameRef, data); if (player.status === 'busted') await advanceTurn(); }
@@ -398,7 +346,20 @@
         async function advanceTurn() { const data = { ...currentGameData }; let nextIndex = data.currentPlayerIndex + 1; while(nextIndex < data.players.length && data.players[nextIndex].status !== 'playing') { nextIndex++; } if (nextIndex >= data.players.length) { data.gamePhase = 'dealer-turn'; await setDoc(gameRef, data); await dealerTurn(); } else { data.currentPlayerIndex = nextIndex; await setDoc(gameRef, data); await checkTurn(data); } }
         async function checkTurn(data) { const player = data.players[data.currentPlayerIndex]; if(player && (player.status === 'blackjack' || player.status === 'quintilla')) { await advanceTurn(); } }
         async function dealerTurn() { const data = { ...currentGameData }; while (data.dealer.sum < 17) { data.dealer.hand.push(data.deck.pop()); data.dealer.sum = getSum(data.dealer.hand); } let finalMessage = "Resultados: "; data.players.forEach(player => { if(player.status === 'busted') { finalMessage += `${player.name} perdió. `; } else if (player.status === 'blackjack') { finalMessage += `${player.name} tiene Blackjack! `; } else if (player.status === 'quintilla') { finalMessage += `${player.name} tiene Quintilla! `; } else if (data.dealer.sum > 21 || player.sum > data.dealer.sum) { finalMessage += `${player.name} gana! `; } else if (player.sum < data.dealer.sum) { finalMessage += `${player.name} pierde. `; } else { finalMessage += `${player.name} empata. `; } }); data.gamePhase = 'finished'; data.status = 'finished'; data.message = finalMessage; await setDoc(gameRef, data); }
+        
+        async function sendMessage() { const text = chatInput.value.trim(); if (text === "") return; const me = currentGameData.players.find(p => p.uid === currentUser.uid); if (!me) return; const newMessage = { senderName: me.name, senderUid: currentUser.uid, text: text, timestamp: new Date() }; await updateDoc(gameRef, { chatMessages: arrayUnion(newMessage) }); chatInput.value = ""; }
+        function toggleChat() { isChatVisible = !isChatVisible; if (isChatVisible) { chatContainer.classList.remove("hidden"); mainGameCol.classList.remove("lg:col-span-3"); mainGameCol.classList.add("lg:col-span-2"); chatNotification.classList.add("hidden"); } else { chatContainer.classList.add("hidden"); mainGameCol.classList.remove("lg:col-span-2"); mainGameCol.classList.add("lg:col-span-3"); } }
+
+        chatToggleBtn.addEventListener("click", toggleChat);
+        sendChatBtn.addEventListener("click", sendMessage);
+        chatInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
+        emojiPicker.addEventListener("click", (e) => { if (e.target.classList.contains("emoji-btn")) { chatInput.value += e.target.textContent; chatInput.focus(); } });
+
         startGameBtn.addEventListener("click", startGame); hitBtn.addEventListener("click", hit); standBtn.addEventListener("click", stand); playAgainBtn.addEventListener("click", playAgain);
+        showJoinBtn.addEventListener('click', () => { entryOptions.classList.add('hidden'); joinOptions.classList.remove('hidden'); modalErrorEl.textContent = ''; });
+        backToEntryBtn.addEventListener('click', () => { joinOptions.classList.add('hidden'); entryOptions.classList.remove('hidden'); modalErrorEl.textContent = ''; });
+        createRoomBtn.addEventListener('click', async () => { const nickname = validateNickname(); if (!nickname) return; const roomId = Math.floor(100000 + Math.random() * 900000).toString(); gameRef = doc(db, 'blackjack-games', roomId); const newPlayer = { uid: currentUser.uid, name: nickname, hand: [], sum: 0, status: 'waiting', color: playerColors[0] }; const newGameData = { roomId, players: [newPlayer], dealer: { hand: [], sum: 0 }, deck: [], status: 'waiting', creatorUid: currentUser.uid, gamePhase: 'waiting', currentPlayerIndex: 0, message: "", chatMessages: [] }; await setDoc(gameRef, newGameData); subscribeToGame(gameRef); });
+        joinRoomBtn.addEventListener('click', async () => { const nickname = validateNickname(); if (!nickname) return; const roomId = roomIdInput.value.trim(); if (!roomId) { modalErrorEl.textContent = "Debes ingresar un ID de sala."; return; } gameRef = doc(db, 'blackjack-games', roomId); const gameDoc = await getDoc(gameRef); if (!gameDoc.exists()) { modalErrorEl.textContent = "Sala no encontrada."; return; } const gameData = gameDoc.data(); if (gameData.status !== 'waiting') { modalErrorEl.textContent = "La partida ya ha comenzado."; return; } if (gameData.players.length >= 5) { modalErrorEl.textContent = "La sala está llena."; return; } if (!gameData.players.some(p => p.uid === currentUser.uid)) { const newPlayer = { uid: currentUser.uid, name: nickname, hand: [], sum: 0, status: 'waiting', color: playerColors[gameData.players.length % playerColors.length] }; await updateDoc(gameRef, { players: arrayUnion(newPlayer) }); } subscribeToGame(gameRef); });
     </script>
 </body>
 </html>
