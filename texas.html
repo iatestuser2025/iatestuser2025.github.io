@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Texas Hold'em Poker Multijugador</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #0d3a2d; /* Verde oscuro de mesa de poker */
+            color: #e2e8f0;
+        }
+        .card {
+            width: 80px;
+            height: 112px;
+            border-radius: 8px;
+            background-color: white;
+            color: black;
+            display: inline-flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            position: relative;
+            margin: 4px;
+        }
+        .card-back {
+            background: linear-gradient(135deg, #b91c1c, #991b1b);
+        }
+        .card .suit { font-size: 32px; }
+        .card.heart, .card.diamond { color: #dc2626; }
+        .card.spade, .card.club { color: #1f2937; }
+        .btn { transition: all 0.2s ease-in-out; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: translateY(0); box-shadow: none; }
+        .player-area {
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .player-area.active-player {
+            border-color: #f59e0b;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+        }
+        .player-area.folded {
+            opacity: 0.5;
+        }
+        #modal-overlay {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+        .hidden { display: none; }
+        #chat-container {
+            height: calc(100vh - 100px);
+            max-height: 800px;
+            transition: all 0.3s ease-in-out;
+        }
+        #chat-messages::-webkit-scrollbar { width: 8px; }
+        #chat-messages::-webkit-scrollbar-track { background: #1f2937; }
+        #chat-messages::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 4px;}
+        #chat-toggle-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+        }
+        #chat-notification {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 12px;
+            height: 12px;
+            background-color: #ef4444;
+            border-radius: 50%;
+            border: 2px solid #0d3a2d;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <!-- Chat Toggle Button -->
+    <button id="chat-toggle-btn" class="btn bg-gray-700 hover:bg-gray-600 p-3 rounded-full shadow-lg hidden">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+        <span id="chat-notification" class="hidden"></span>
+    </button>
+    
+    <!-- Lobby Modal -->
+    <div id="modal-overlay" class="fixed inset-0 flex items-center justify-center z-50">
+        <div class="bg-gray-800 p-8 rounded-lg shadow-xl text-center w-full max-w-sm">
+            <h2 class="text-2xl font-bold mb-4">Salón de Póker</h2>
+            <p id="modal-error" class="text-red-400 mb-3 min-h-[20px]"></p>
+            <div id="entry-options">
+                 <input type="text" id="nickname-input" class="w-full bg-gray-700 text-white p-3 rounded-md mb-4" placeholder="Ingresa tu apodo...">
+                 <h3 class="text-lg font-semibold mb-2 text-gray-300">Texas Hold'em</h3>
+                 <button id="create-room-btn" class="btn bg-green-500 hover:bg-green-600 w-full text-white font-bold py-3 px-6 rounded-lg text-lg mb-3">Crear Sala Nueva</button>
+                 <button id="show-join-btn" class="btn bg-blue-500 hover:bg-blue-600 w-full text-white font-bold py-3 px-6 rounded-lg text-lg mb-4">Unirse a Sala</button>
+                 <hr class="border-gray-600 my-4">
+                 <button onclick="window.location.href='./blackjack.html'" class="btn bg-gray-600 hover:bg-gray-700 w-full text-white font-bold py-3 px-6 rounded-lg text-lg">Jugar Blackjack</button>
+            </div>
+            <div id="join-options" class="hidden">
+                 <h3 class="text-lg font-semibold mb-2 text-gray-300">Unirse a sala de Poker</h3>
+                 <input type="text" id="room-id-input" class="w-full bg-gray-700 text-white p-3 rounded-md mb-4" placeholder="Ingresa ID de la sala...">
+                 <button id="join-room-btn" class="btn bg-blue-500 hover:bg-blue-600 w-full text-white font-bold py-3 px-6 rounded-lg text-lg mb-3">Unirse</button>
+                 <button id="back-to-entry-btn" class="text-gray-400 hover:text-white">Volver</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Container -->
+    <div id="game-container" class="w-full max-w-screen-2xl mx-auto text-center hidden">
+        <div id="main-game-col" class="lg:col-span-2 transition-all duration-300">
+            <h1 class="text-4xl md:text-5xl font-bold mb-2 text-white">Texas Hold'em</h1>
+            <p class="text-lg mb-2">ID de la Sala: <strong id="room-id-el" class="text-yellow-300 font-mono"></strong></p>
+            <p id="message-el" class="text-xl text-yellow-300 font-semibold mb-6 min-h-[28px]"></p>
+            
+            <div class="mb-6 bg-black/30 p-4 rounded-lg min-h-[150px]">
+                <h2 class="text-2xl font-semibold mb-2">Cartas Comunitarias</h2>
+                <div id="community-cards-el" class="flex flex-wrap justify-center items-center"></div>
+            </div>
+
+            <div id="players-area" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6"></div>
+
+            <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
+                <button id="start-game-btn" class="btn bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">INICIAR JUEGO</button>
+                <button id="action-btn" class="btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">CONTINUAR</button>
+                <button id="fold-btn" class="btn bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">RETIRARSE</button>
+                <button id="play-again-btn" class="btn bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">JUGAR DE NUEVO</button>
+            </div>
+        </div>
+
+        <!-- Chat Column -->
+        <div id="chat-container" class="lg:col-span-1 bg-gray-800/50 rounded-lg p-4 flex flex-col">
+            <h3 class="text-2xl font-bold mb-4 text-center">Chat de la Sala</h3>
+            <div id="chat-messages" class="flex-grow overflow-y-auto mb-4 pr-2"></div>
+            <div id="emoji-picker" class="mb-2">
+                <button class="emoji-btn text-2xl p-1">😂</button>
+                <button class="emoji-btn text-2xl p-1">👍</button>
+                <button class="emoji-btn text-2xl p-1">🔥</button>
+                <button class="emoji-btn text-2xl p-1">😢</button>
+                <button class="emoji-btn text-2xl p-1">😎</button>
+            </div>
+            <div class="flex">
+                <input type="text" id="chat-input" class="w-full bg-gray-700 text-white p-3 rounded-l-md" placeholder="Escribe un mensaje...">
+                <button id="send-chat-btn" class="btn bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-r-md">Enviar</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc, getDoc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        const firebaseConfig = {
+          apiKey: "AIzaSyA6uydlodXo1vnyqoocwzHytwt5W0riIDQ",
+          authDomain: "blackjack-d6b7b.firebaseapp.com",
+          projectId: "blackjack-d6b7b",
+          storageBucket: "blackjack-d6b7b.appspot.com",
+          messagingSenderId: "705363226577",
+          appId: "1:705363226577:web:214cf8baa2c9fb48e73af0"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+        let currentGameData = null;
+        let gameRef = null;
+        let unsubscribe = null;
+        let isChatVisible = true;
+        let lastMessageCount = 0;
+        const playerColors = ['#60a5fa', '#34d399', '#f87171', '#fbbf24', '#a78bfa'];
+
+        // UI Elements
+        const modalOverlay = document.getElementById("modal-overlay");
+        const nicknameInput = document.getElementById("nickname-input");
+        const gameContainer = document.getElementById("game-container");
+        const roomIdEl = document.getElementById("room-id-el");
+        const createRoomBtn = document.getElementById("create-room-btn");
+        const joinRoomBtn = document.getElementById("join-room-btn");
+        const roomIdInput = document.getElementById("room-id-input");
+        const modalErrorEl = document.getElementById("modal-error");
+        const messageEl = document.getElementById("message-el");
+        const communityCardsEl = document.getElementById("community-cards-el");
+        const playersArea = document.getElementById("players-area");
+        const startGameBtn = document.getElementById("start-game-btn");
+        const actionBtn = document.getElementById("action-btn");
+        const foldBtn = document.getElementById("fold-btn");
+        const playAgainBtn = document.getElementById("play-again-btn");
+        const mainGameCol = document.getElementById("main-game-col");
+        const chatContainer = document.getElementById("chat-container");
+        const chatMessages = document.getElementById("chat-messages");
+        const chatInput = document.getElementById("chat-input");
+        const sendChatBtn = document.getElementById("send-chat-btn");
+        const emojiPicker = document.getElementById("emoji-picker");
+        const chatToggleBtn = document.getElementById("chat-toggle-btn");
+        const chatNotification = document.getElementById("chat-notification");
+        
+        onAuthStateChanged(auth, user => { if (user) currentUser = user; });
+        await signInAnonymously(auth);
+
+        function subscribeToGame(ref) {
+            if (unsubscribe) unsubscribe();
+            unsubscribe = onSnapshot(ref, (docSnap) => {
+                if (docSnap.exists()) {
+                    currentGameData = docSnap.data();
+                    renderGame(currentGameData);
+                }
+            });
+            modalOverlay.classList.add("hidden");
+            gameContainer.classList.remove("hidden");
+            gameContainer.classList.add("lg:grid", "lg:grid-cols-3", "lg:gap-8");
+            chatToggleBtn.classList.remove("hidden");
+        }
+        
+        function renderGame(data) {
+            roomIdEl.textContent = data.roomId;
+            messageEl.textContent = data.message;
+
+            communityCardsEl.innerHTML = '';
+            data.communityCards.forEach(card => communityCardsEl.appendChild(createCardElement(card)));
+
+            playersArea.innerHTML = '';
+            data.players.forEach((player, index) => {
+                const playerDiv = document.createElement('div');
+                playerDiv.classList.add('player-area', 'bg-black/30', 'p-4', 'rounded-lg');
+                if (player.status === 'folded') playerDiv.classList.add('folded');
+                if (data.currentPlayerIndex === index && data.status === 'playing') playerDiv.classList.add('active-player');
+
+                let handDescription = player.handDescription || '';
+                if(data.status === 'finished' && player.status !== 'folded') {
+                    handDescription = `<span class="text-yellow-300">${player.handDescription}</span>`;
+                }
+
+                playerDiv.innerHTML = `
+                    <h3 class="text-xl font-bold truncate" style="color: ${player.color};">${player.name}</h3>
+                    <p class="font-semibold text-lg mb-2 min-h-[28px]">${handDescription}</p>
+                    <div class="cards-container flex flex-wrap justify-center min-h-[112px]"></div>
+                `;
+                const cardsContainer = playerDiv.querySelector('.cards-container');
+                player.hand.forEach(card => {
+                    const isMyHand = player.uid === currentUser.uid;
+                    const showCards = data.status === 'finished' || isMyHand;
+                    cardsContainer.appendChild(createCardElement(card, !showCards));
+                });
+                playersArea.appendChild(playerDiv);
+            });
+
+            const currentPlayer = data.players[data.currentPlayerIndex];
+            const amICurrentPlayer = currentPlayer?.uid === currentUser.uid;
+            const isCreator = data.creatorUid === currentUser.uid;
+
+            [startGameBtn, actionBtn, foldBtn, playAgainBtn].forEach(btn => btn.classList.add('hidden'));
+
+            if (data.status === 'waiting') {
+                startGameBtn.classList.remove('hidden');
+                startGameBtn.disabled = !isCreator;
+            } else if (data.status === 'playing') {
+                actionBtn.classList.remove('hidden');
+                // FIX: No mostrar botón de retirarse en la última ronda (river)
+                if (data.gamePhase !== 'river') {
+                    foldBtn.classList.remove('hidden');
+                }
+                actionBtn.disabled = !amICurrentPlayer || currentPlayer.status !== 'playing';
+                foldBtn.disabled = !amICurrentPlayer || currentPlayer.status !== 'playing';
+            } else if (data.status === 'finished') {
+                playAgainBtn.classList.remove('hidden');
+                playAgainBtn.disabled = !isCreator;
+            }
+            
+            // Lógica del Chat
+            const newMessages = data.chatMessages || [];
+            if (newMessages.length > lastMessageCount && !isChatVisible) {
+                const lastMessage = newMessages[newMessages.length - 1];
+                if (lastMessage.senderUid !== currentUser.uid) {
+                    chatNotification.classList.remove("hidden");
+                }
+            }
+            lastMessageCount = newMessages.length;
+
+            chatMessages.innerHTML = '';
+            newMessages.forEach(msg => {
+                const sender = data.players.find(p => p.uid === msg.senderUid);
+                const senderColor = sender ? sender.color : '#cbd5e0';
+                const msgDiv = document.createElement('div');
+                msgDiv.classList.add('mb-2', 'p-2', 'rounded-md', 'bg-gray-700', 'break-words');
+                msgDiv.innerHTML = `<strong class="font-bold" style="color: ${senderColor};">${msg.senderName}:</strong> ${msg.text}`;
+                chatMessages.appendChild(msgDiv);
+            });
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        async function startGame() {
+            const data = { ...currentGameData };
+            data.deck = shuffleDeck(buildDeck());
+            data.communityCards = [];
+            data.players.forEach(p => {
+                p.hand = [data.deck.pop(), data.deck.pop()];
+                p.status = 'playing';
+                p.handDescription = '';
+            });
+            data.status = 'playing';
+            data.gamePhase = 'pre-flop';
+            data.currentPlayerIndex = 0;
+            data.message = `Ronda de decisiones. Turno de ${data.players[0].name}.`;
+            await updateDoc(gameRef, data);
+        }
+        
+        async function playerAction(didFold) {
+            const data = { ...currentGameData };
+            const player = data.players[data.currentPlayerIndex];
+            if (player.uid !== currentUser.uid) return;
+            
+            if (didFold) {
+                player.status = 'folded';
+            } else {
+                player.status = 'acted';
+            }
+            await updateDoc(gameRef, data);
+            await advanceTurn();
+        }
+
+        async function advanceTurn() {
+            const data = { ...currentGameData };
+            const activePlayers = data.players.filter(p => p.status !== 'folded');
+            
+            if (activePlayers.length <= 1) {
+                return await showdown();
+            }
+
+            let nextIndex = (data.currentPlayerIndex + 1) % data.players.length;
+            while(data.players[nextIndex].status === 'folded' || data.players[nextIndex].status === 'acted') {
+                 if(nextIndex === data.currentPlayerIndex) break; // Evitar bucle infinito
+                 nextIndex = (nextIndex + 1) % data.players.length;
+            }
+
+            const remainingToAct = data.players.filter(p => p.status === 'playing');
+            if (remainingToAct.length === 0) {
+                 data.players.forEach(p => { if(p.status === 'acted') p.status = 'playing' });
+                 const firstPlayerIndex = data.players.findIndex(p => p.status === 'playing');
+                 data.currentPlayerIndex = firstPlayerIndex !== -1 ? firstPlayerIndex : 0;
+                 await advanceGamePhase();
+            } else {
+                data.currentPlayerIndex = nextIndex;
+                data.message = `Turno de ${data.players[nextIndex].name}.`;
+                await updateDoc(gameRef, data);
+            }
+        }
+
+        async function advanceGamePhase() {
+            const data = { ...currentGameData };
+            switch(data.gamePhase) {
+                case 'pre-flop':
+                    data.gamePhase = 'flop';
+                    data.communityCards.push(data.deck.pop(), data.deck.pop(), data.deck.pop());
+                    data.message = 'Flop revelado. Nueva ronda de decisiones.';
+                    break;
+                case 'flop':
+                    data.gamePhase = 'turn';
+                    data.communityCards.push(data.deck.pop());
+                    data.message = 'Turn revelado. Nueva ronda de decisiones.';
+                    break;
+                case 'turn':
+                    data.gamePhase = 'river';
+                    data.communityCards.push(data.deck.pop());
+                    data.message = 'River revelado. Ronda final de decisiones.';
+                    break;
+                case 'river':
+                    return await showdown();
+            }
+            await updateDoc(gameRef, data);
+        }
+
+        async function showdown() {
+            const data = { ...currentGameData };
+            data.status = 'finished';
+            let bestHandRank = -1;
+            let winners = [];
+
+            data.players.forEach(player => {
+                if (player.status !== 'folded') {
+                    const sevenCards = [...player.hand, ...data.communityCards];
+                    const evaluation = evaluateHand(sevenCards);
+                    player.handDescription = evaluation.name;
+                    player.handRank = evaluation.rank;
+                    player.handValue = evaluation.value;
+
+                    if (evaluation.rank > bestHandRank) {
+                        bestHandRank = evaluation.rank;
+                        winners = [player];
+                    } else if (evaluation.rank === bestHandRank) {
+                         winners.push(player);
+                    }
+                }
+            });
+            
+            if (winners.length > 1) {
+                data.message = `¡Empate entre ${winners.map(w => w.name).join(' y ')} con ${winners[0].handDescription}!`;
+            } else if (winners.length === 1) {
+                data.message = `¡${winners[0].name} gana con ${winners[0].handDescription}!`;
+            } else {
+                 const lastManStanding = data.players.find(p => p.status !== 'folded');
+                 if(lastManStanding) data.message = `¡${lastManStanding.name} gana porque los demás se retiraron!`;
+            }
+            
+            await updateDoc(gameRef, data);
+        }
+        
+        function evaluateHand(cards) {
+            const Ranks = "23456789TJQKA".split('').reduce((o, c, i) => ({...o, [c]: i}), {});
+            
+            cards.sort((a, b) => Ranks[b.value] - Ranks[a.value]);
+
+            const getCounts = (hand) => hand.reduce((o, c) => ({...o, [Ranks[c.value]]: (o[Ranks[c.value]] || 0) + 1}), {});
+            const getSuitCounts = (hand) => hand.reduce((o, c) => ({...o, [c.suit]: (o[c.suit] || 0) + 1}), {});
+
+            function* getCombinations(array, k) {
+                if (k === 0) { yield []; return; }
+                for (let i = 0; i <= array.length - k; i++) {
+                    for (const combo of getCombinations(array.slice(i + 1), k - 1)) {
+                        yield [array[i], ...combo];
+                    }
+                }
+            }
+
+            let bestHand = { rank: 0, name: 'Carta Alta', value: 0 };
+            
+            for (const hand of getCombinations(cards, 5)) {
+                hand.sort((a,b) => Ranks[b.value] - Ranks[a.value]);
+                const counts = getCounts(hand);
+                const suitCounts = getSuitCounts(hand);
+                const values = Object.keys(counts).map(Number).sort((a,b) => b-a);
+                const isFlush = Object.values(suitCounts).some(v => v >= 5);
+                
+                const uniqueValues = Array.from(new Set(hand.map(c => Ranks[c.value]))).sort((a,b) => b-a);
+                let isStraight = false;
+                if(uniqueValues.length >= 5){
+                    if(uniqueValues[0] - uniqueValues[4] === 4) isStraight = true;
+                }
+                const isAceLowStraight = JSON.stringify(uniqueValues) === JSON.stringify([12, 3, 2, 1, 0]);
+
+                let rank = 0, name = 'Carta Alta';
+                
+                if (isStraight && isFlush) { name = 'Escalera de Color'; rank = 8; }
+                else if (Object.values(counts).includes(4)) { name = 'Póker'; rank = 7; }
+                else if (Object.values(counts).includes(3) && Object.values(counts).includes(2)) { name = 'Full'; rank = 6; }
+                else if (isFlush) { name = 'Color'; rank = 5; }
+                else if (isStraight || isAceLowStraight) { name = 'Escalera'; rank = 4; }
+                else if (Object.values(counts).includes(3)) { name = 'Trío'; rank = 3; }
+                else if (Object.values(counts).filter(v => v === 2).length >= 2) { name = 'Doble Par'; rank = 2; }
+                else if (Object.values(counts).includes(2)) { name = 'Par'; rank = 1; }
+                
+                if(rank > bestHand.rank) bestHand = {rank, name, value: values[0]};
+            }
+            return bestHand;
+        }
+
+        async function sendMessage() {
+            const text = chatInput.value.trim();
+            if (text === "") return;
+            const me = currentGameData.players.find(p => p.uid === currentUser.uid);
+            if (!me) return;
+            const newMessage = { senderName: me.name, senderUid: currentUser.uid, text: text, timestamp: new Date() };
+            await updateDoc(gameRef, { chatMessages: arrayUnion(newMessage) });
+            chatInput.value = "";
+        }
+        
+        function toggleChat() {
+            isChatVisible = !isChatVisible;
+            if (isChatVisible) {
+                chatContainer.classList.remove("hidden");
+                mainGameCol.classList.remove("lg:col-span-3");
+                mainGameCol.classList.add("lg:col-span-2");
+                chatNotification.classList.add("hidden");
+            } else {
+                chatContainer.classList.add("hidden");
+                mainGameCol.classList.remove("lg:col-span-2");
+                mainGameCol.classList.add("lg:col-span-3");
+            }
+        }
+
+        function buildDeck() { const s="heart,diamond,spade,club".split(","),v="2,3,4,5,6,7,8,9,T,J,Q,K,A".split(","); return s.flatMap(suit=>v.map(value=>({value,suit}))) }
+        function shuffleDeck(d) { for(let i=d.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[d[i],d[j]]=[d[j],d[i]]}return d}
+        function createCardElement(c,h=false){const e=document.createElement("div");e.className=`card ${c.suit}`;if(h)e.classList.add("card-back");else{const s={"heart":"♥","diamond":"♦","spade":"♠","club":"♣"};e.innerHTML=`<div class="text-left">${c.value}${s[c.suit]}</div><div class="text-center suit">${s[c.suit]}</div><div class="text-right transform rotate-180">${c.value}${s[c.suit]}</div>`}return e}
+        
+        function validateNickname() { const nickname = nicknameInput.value.trim(); if (nickname.length < 3) { modalErrorEl.textContent = "El apodo debe tener al menos 3 caracteres."; return null; } modalErrorEl.textContent = ""; return nickname; }
+
+        // Event Listeners
+        startGameBtn.addEventListener('click', startGame);
+        actionBtn.addEventListener('click', () => playerAction(false));
+        foldBtn.addEventListener('click', () => playerAction(true));
+        playAgainBtn.addEventListener('click', startGame);
+        chatToggleBtn.addEventListener("click", toggleChat);
+        sendChatBtn.addEventListener("click", sendMessage);
+        chatInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
+        emojiPicker.addEventListener("click", (e) => { if (e.target.classList.contains("emoji-btn")) { chatInput.value += e.target.textContent; chatInput.focus(); } });
+
+        document.getElementById('show-join-btn').addEventListener('click', () => { document.getElementById('entry-options').classList.add('hidden'); document.getElementById('join-options').classList.remove('hidden'); modalErrorEl.textContent = ''; });
+        document.getElementById('back-to-entry-btn').addEventListener('click', () => { document.getElementById('join-options').classList.add('hidden'); document.getElementById('entry-options').classList.remove('hidden'); modalErrorEl.textContent = ''; });
+        createRoomBtn.addEventListener('click', async () => { const nickname = validateNickname(); if (!nickname) return; const roomId = Math.floor(100000 + Math.random() * 900000).toString(); gameRef = doc(db, 'texas-games', roomId); const newPlayer = { uid: currentUser.uid, name: nickname, hand: [], status: 'waiting', color: playerColors[0] }; const newGameData = { roomId, players: [newPlayer], communityCards: [], deck: [], status: 'waiting', creatorUid: currentUser.uid, gamePhase: 'waiting', currentPlayerIndex: 0, message: `Sala ${roomId} creada. Esperando jugadores...`, chatMessages:[]}; await setDoc(gameRef, newGameData); subscribeToGame(gameRef); });
+        joinRoomBtn.addEventListener('click', async () => { const nickname = validateNickname(); if (!nickname) return; const roomId = roomIdInput.value.trim(); if (!roomId) { modalErrorEl.textContent = "Debes ingresar un ID de sala."; return; } gameRef = doc(db, 'texas-games', roomId); const gameDoc = await getDoc(gameRef); if (!gameDoc.exists()) { modalErrorEl.textContent = "Sala no encontrada."; return; } const gameData = gameDoc.data(); if (gameData.status !== 'waiting') { modalErrorEl.textContent = "La partida ya ha comenzado."; return; } if (gameData.players.length >= 5) { modalErrorEl.textContent = "La sala está llena."; return; } if (!gameData.players.some(p => p.uid === currentUser.uid)) { const newPlayer = { uid: currentUser.uid, name: nickname, hand: [], status: 'waiting', color: playerColors[gameData.players.length % playerColors.length] }; await updateDoc(gameRef, { players: arrayUnion(newPlayer) }); } subscribeToGame(gameRef); });
+    </script>
+</body>
+</html>
+
