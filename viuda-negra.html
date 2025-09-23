@@ -61,9 +61,61 @@
             background-color: rgba(0, 0, 0, 0.7);
         }
         .hidden { display: none; }
+        
+        /* Estilos del Chat Flotante */
+        #chat-toggle-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+        }
+        #chat-notification {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 12px;
+            height: 12px;
+            background-color: #ef4444;
+            border-radius: 50%;
+            border: 2px solid #2d3748;
+        }
+        #chat-container {
+            position: fixed;
+            top: 80px;
+            left: 20px;
+            width: 350px;
+            max-width: 90vw;
+            height: 500px;
+            max-height: 70vh;
+            z-index: 99;
+        }
+        #chat-messages::-webkit-scrollbar { width: 8px; }
+        #chat-messages::-webkit-scrollbar-track { background: #1f2937; }
+        #chat-messages::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 4px;}
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
+
+    <!-- Botón y Contenedor del Chat -->
+    <button id="chat-toggle-btn" class="btn bg-gray-700 hover:bg-gray-600 p-3 rounded-full shadow-lg hidden">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+        <span id="chat-notification" class="hidden"></span>
+    </button>
+    <div id="chat-container" class="bg-gray-800/90 backdrop-blur-sm rounded-lg p-4 flex-col hidden">
+        <h3 class="text-xl font-bold mb-4 text-center">Chat de la Sala</h3>
+        <div id="chat-messages" class="flex-grow overflow-y-auto mb-4 pr-2"></div>
+        <div id="emoji-picker" class="mb-2">
+            <button class="emoji-btn text-2xl p-1">😂</button>
+            <button class="emoji-btn text-2xl p-1">👍</button>
+            <button class="emoji-btn text-2xl p-1">🔥</button>
+            <button class="emoji-btn text-2xl p-1">😢</button>
+            <button class="emoji-btn text-2xl p-1">😎</button>
+        </div>
+        <div class="flex">
+            <input type="text" id="chat-input" class="w-full bg-gray-700 text-white p-3 rounded-l-md" placeholder="Escribe un mensaje...">
+            <button id="send-chat-btn" class="btn bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-r-md">Enviar</button>
+        </div>
+    </div>
 
     <!-- Lobby Modal -->
     <div id="modal-overlay" class="fixed inset-0 flex items-center justify-center z-50">
@@ -131,6 +183,8 @@
         let gameRef = null;
         let unsubscribe = null;
         let selectedCardFromHand = null;
+        let isChatVisible = false;
+        let lastMessageCount = 0;
         const playerColors = ['#60a5fa', '#34d399', '#f87171', '#fbbf24', '#a78bfa', '#ec4899'];
 
         // UI Elements
@@ -151,26 +205,18 @@
         const roomIdInput = document.getElementById("room-id-input");
         const modalErrorEl = document.getElementById("modal-error");
         
+        const chatContainer = document.getElementById("chat-container");
+        const chatMessages = document.getElementById("chat-messages");
+        const chatInput = document.getElementById("chat-input");
+        const sendChatBtn = document.getElementById("send-chat-btn");
+        const emojiPicker = document.getElementById("emoji-picker");
+        const chatToggleBtn = document.getElementById("chat-toggle-btn");
+        const chatNotification = document.getElementById("chat-notification");
+        
         onAuthStateChanged(auth, user => { if (user) currentUser = user; });
         await signInAnonymously(auth);
 
-        function subscribeToGame(ref) { /* ... same as other games ... */ }
-        function renderGame(data) { /* ... logic to draw game state ... */ }
-        async function startGame() { /* ... deals cards and starts widow phase ... */ }
-        async function handleWidowDecision(accepted) { /* ... logic for widow hand ... */ }
-        async function handleCardExchange(pileCard) { /* ... logic for taking and discarding ... */ }
-        async function plantarse() { /* ... logic to stand ... */ }
-        async function advanceTurn() { /* ... logic to move to next player ... */ }
-        async function showdown() { /* ... evaluate hands and find winner ... */ }
-        function evaluateHand(cards) { /* ... same as Texas Hold'em ... */ }
-        function buildDeck() { /* ... */ }
-        function shuffleDeck(deck) { /* ... */ }
-        function createCardElement(card, source) { /* ... */ }
-        function validateNickname() { /* ... */ }
-
-        // --- Implementation of core functions ---
-        
-        subscribeToGame = function(ref) {
+        function subscribeToGame(ref) {
             if (unsubscribe) unsubscribe();
             unsubscribe = onSnapshot(ref, (docSnap) => {
                 if (docSnap.exists()) {
@@ -180,9 +226,10 @@
             });
             modalOverlay.classList.add("hidden");
             gameContainer.classList.remove("hidden");
+            chatToggleBtn.classList.remove("hidden");
         }
 
-        renderGame = function(data) {
+        function renderGame(data) {
             roomIdEl.textContent = data.roomId;
             messageEl.textContent = data.message;
             communityPileEl.innerHTML = '';
@@ -225,190 +272,56 @@
                 playAgainBtn.classList.remove('hidden');
                 playAgainBtn.disabled = data.creatorUid !== currentUser.uid;
             }
-        }
 
-        startGame = async function() {
-            const data = { ...currentGameData };
-            data.deck = shuffleDeck(buildDeck());
-            data.players.forEach(p => p.hand = [data.deck.pop(), data.deck.pop(), data.deck.pop(), data.deck.pop(), data.deck.pop()]);
-            data.widowHand = [data.deck.pop(), data.deck.pop(), data.deck.pop(), data.deck.pop(), data.deck.pop()];
-            data.communityPile = [];
-            data.status = 'widow-phase';
-            data.widowDecisionIndex = 0;
-            data.message = `Turno de ${data.players[0].name} para decidir sobre la viuda.`;
-            await updateDoc(gameRef, data);
-        }
-
-        handleWidowDecision = async function(accepted) {
-            const data = { ...currentGameData };
-            const decider = data.players[data.widowDecisionIndex];
-            if (decider.uid !== currentUser.uid) return;
-
-            if (accepted) {
-                data.communityPile = [...decider.hand];
-                decider.hand = [...data.widowHand];
-                data.widowHand = [];
-                data.status = 'playing';
-                data.currentPlayerIndex = 0;
-                data.message = `Turno de ${data.players[0].name}. Toma una carta de la mesa.`;
-            } else {
-                let nextIndex = data.widowDecisionIndex + 1;
-                if (nextIndex >= data.players.length) {
-                    data.communityPile = [...data.widowHand];
-                    data.widowHand = [];
-                    data.status = 'playing';
-                    data.currentPlayerIndex = 0;
-                    data.message = `Nadie quiso la viuda. Turno de ${data.players[0].name}.`;
-                } else {
-                    data.widowDecisionIndex = nextIndex;
-                    data.message = `Turno de ${data.players[nextIndex].name} para decidir sobre la viuda.`;
+            const newMessages = data.chatMessages || [];
+            if (newMessages.length > lastMessageCount && !isChatVisible) {
+                const lastMessage = newMessages[newMessages.length - 1];
+                if (lastMessage.senderUid !== currentUser.uid) {
+                    chatNotification.classList.remove("hidden");
                 }
             }
-            await updateDoc(gameRef, data);
-        }
-        
-        handleCardExchange = async function(pileCard) {
-            if (!selectedCardFromHand) return;
-            const data = { ...currentGameData };
-            const player = data.players[data.currentPlayerIndex];
-            
-            // Swap cards
-            const handCardIndex = player.hand.findIndex(c => c.value === selectedCardFromHand.value && c.suit === selectedCardFromHand.suit);
-            const pileCardIndex = data.communityPile.findIndex(c => c.value === pileCard.value && c.suit === pileCard.suit);
-
-            if(handCardIndex > -1 && pileCardIndex > -1) {
-                player.hand.splice(handCardIndex, 1, pileCard);
-                data.communityPile.splice(pileCardIndex, 1, selectedCardFromHand);
-            }
-            
-            selectedCardFromHand = null;
-            await advanceTurn();
-        }
-
-        plantarse = async function() {
-            const data = { ...currentGameData };
-            const player = data.players[data.currentPlayerIndex];
-            if (player.uid !== currentUser.uid) return;
-            player.status = 'planted';
-            if (!data.plantedPlayerUid) {
-                data.plantedPlayerUid = player.uid;
-            }
-            await updateDoc(gameRef, data);
-            await advanceTurn();
-        }
-
-        advanceTurn = async function() {
-            const data = { ...currentGameData };
-            let nextIndex = (data.currentPlayerIndex + 1) % data.players.length;
-            
-            if (data.players[nextIndex].uid === data.plantedPlayerUid) {
-                await showdown();
-            } else {
-                data.currentPlayerIndex = nextIndex;
-                data.message = `Turno de ${data.players[nextIndex].name}.`;
-                await updateDoc(gameRef, data);
-            }
-        }
-
-        showdown = async function() {
-            const data = { ...currentGameData };
-            data.status = 'finished';
-            let bestHandRank = -1;
-            let winners = [];
-
-            data.players.forEach(player => {
-                const evaluation = evaluateHand(player.hand);
-                player.handDescription = evaluation.name;
-                player.handRank = evaluation.rank;
-                if (evaluation.rank > bestHandRank) {
-                    bestHandRank = evaluation.rank;
-                    winners = [player];
-                } else if (evaluation.rank === bestHandRank) {
-                    winners.push(player);
-                }
+            lastMessageCount = newMessages.length;
+            chatMessages.innerHTML = '';
+            newMessages.forEach(msg => {
+                const sender = data.players.find(p => p.uid === msg.senderUid);
+                const senderColor = sender ? sender.color : '#cbd5e0';
+                const msgDiv = document.createElement('div');
+                msgDiv.classList.add('mb-2', 'p-2', 'rounded-md', 'bg-gray-700', 'break-words');
+                msgDiv.innerHTML = `<strong class="font-bold" style="color: ${senderColor};">${msg.senderName}:</strong> ${msg.text}`;
+                chatMessages.appendChild(msgDiv);
             });
-            
-            if (winners.length > 1) {
-                data.message = `¡Empate entre ${winners.map(w => w.name).join(' y ')} con ${winners[0].handDescription}!`;
-            } else if (winners.length === 1) {
-                data.message = `¡${winners[0].name} gana con ${winners[0].handDescription}!`;
-            }
-            await updateDoc(gameRef, data);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
-        evaluateHand = function(cards) {
-            // Re-using the same robust evaluation logic from Texas Hold'em
-            const Ranks = "23456789TJQKA".split('').reduce((o, c, i) => ({...o, [c]: i}), {});
-            let hand = [...cards];
-            hand.sort((a,b) => Ranks[b.value] - Ranks[a.value]);
-            const counts = hand.reduce((o, c) => ({...o, [Ranks[c.value]]: (o[Ranks[c.value]] || 0) + 1}), {});
-            const suitCounts = hand.reduce((o, c) => ({...o, [c.suit]: (o[c.suit] || 0) + 1}), {});
-            const values = Object.keys(counts).map(Number).sort((a,b) => b-a);
-            const isFlush = Object.values(suitCounts).some(v => v >= 5);
-            const uniqueValues = Array.from(new Set(hand.map(c => Ranks[c.value]))).sort((a,b) => b-a);
-            let isStraight = uniqueValues.length === 5 && (uniqueValues[0] - uniqueValues[4] === 4);
-            const isAceLowStraight = JSON.stringify(uniqueValues) === JSON.stringify([12, 3, 2, 1, 0]);
+        async function startGame() { const data = { ...currentGameData }; data.deck = shuffleDeck(buildDeck()); data.players.forEach(p => {p.hand = [data.deck.pop(), data.deck.pop(), data.deck.pop(), data.deck.pop(), data.deck.pop()]; p.status = 'playing'}); data.widowHand = [data.deck.pop(), data.deck.pop(), data.deck.pop(), data.deck.pop(), data.deck.pop()]; data.communityPile = []; data.status = 'widow-phase'; data.widowDecisionIndex = 0; data.plantedPlayerUid = null; data.message = `Turno de ${data.players[0].name} para decidir sobre la viuda.`; await updateDoc(gameRef, data); }
+        async function handleWidowDecision(accepted) { const data = { ...currentGameData }; const decider = data.players[data.widowDecisionIndex]; if (decider.uid !== currentUser.uid) return; if (accepted) { data.communityPile = [...decider.hand]; decider.hand = [...data.widowHand]; data.widowHand = []; data.status = 'playing'; data.currentPlayerIndex = 0; data.message = `Turno de ${data.players[0].name}. Toma una carta de la mesa.`; } else { let nextIndex = data.widowDecisionIndex + 1; if (nextIndex >= data.players.length) { data.communityPile = [...data.widowHand]; data.widowHand = []; data.status = 'playing'; data.currentPlayerIndex = 0; data.message = `Nadie quiso la viuda. Turno de ${data.players[0].name}.`; } else { data.widowDecisionIndex = nextIndex; data.message = `Turno de ${data.players[nextIndex].name} para decidir sobre la viuda.`; } } await updateDoc(gameRef, data); }
+        async function handleCardExchange(pileCard) { if (!selectedCardFromHand) return; const data = { ...currentGameData }; const player = data.players[data.currentPlayerIndex]; const handCardIndex = player.hand.findIndex(c => c.value === selectedCardFromHand.value && c.suit === selectedCardFromHand.suit); const pileCardIndex = data.communityPile.findIndex(c => c.value === pileCard.value && c.suit === pileCard.suit); if(handCardIndex > -1 && pileCardIndex > -1) { player.hand.splice(handCardIndex, 1, pileCard); data.communityPile.splice(pileCardIndex, 1, selectedCardFromHand); } selectedCardFromHand = null; await updateDoc(gameRef, data); await advanceTurn(); }
+        async function plantarse() { const data = { ...currentGameData }; const player = data.players[data.currentPlayerIndex]; if (player.uid !== currentUser.uid) return; player.status = 'planted'; if (!data.plantedPlayerUid) { data.plantedPlayerUid = player.uid; } await updateDoc(gameRef, data); await advanceTurn(); }
+        async function advanceTurn() { const data = { ...currentGameData }; let nextIndex = (data.currentPlayerIndex + 1) % data.players.length; if (data.players[nextIndex].uid === data.plantedPlayerUid) { await showdown(); } else { data.currentPlayerIndex = nextIndex; data.message = `Turno de ${data.players[nextIndex].name}.`; await updateDoc(gameRef, data); } }
+        async function showdown() { const data = { ...currentGameData }; data.status = 'finished'; let bestHandRank = -1; let winners = []; data.players.forEach(player => { const evaluation = evaluateHand(player.hand); player.handDescription = evaluation.name; player.handRank = evaluation.rank; if (evaluation.rank > bestHandRank) { bestHandRank = evaluation.rank; winners = [player]; } else if (evaluation.rank === bestHandRank) { winners.push(player); } }); if (winners.length > 1) { data.message = `¡Empate entre ${winners.map(w => w.name).join(' y ')} con ${winners[0].handDescription}!`; } else if (winners.length === 1) { data.message = `¡${winners[0].name} gana con ${winners[0].handDescription}!`; } await updateDoc(gameRef, data); }
+        function evaluateHand(cards) { const Ranks = "23456789TJQKA".split('').reduce((o, c, i) => ({...o, [c]: i}), {}); let hand = [...cards]; hand.sort((a,b) => Ranks[b.value] - Ranks[a.value]); const counts = hand.reduce((o, c) => ({...o, [Ranks[c.value]]: (o[Ranks[c.value]] || 0) + 1}), {}); const suitCounts = hand.reduce((o, c) => ({...o, [c.suit]: (o[c.suit] || 0) + 1}), {}); const values = Object.keys(counts).map(Number).sort((a,b) => b-a); const isFlush = Object.values(suitCounts).some(v => v >= 5); const uniqueValues = Array.from(new Set(hand.map(c => Ranks[c.value]))).sort((a,b) => b-a); let isStraight = uniqueValues.length === 5 && (uniqueValues[0] - uniqueValues[4] === 4); const isAceLowStraight = JSON.stringify(uniqueValues) === JSON.stringify([12, 3, 2, 1, 0]); let rank = 0, name = 'Carta Alta'; if (isStraight && isFlush) { name = 'Escalera de Color'; rank = 8; } else if (Object.values(counts).includes(4)) { name = 'Póker'; rank = 7; } else if (Object.values(counts).includes(3) && Object.values(counts).includes(2)) { name = 'Full'; rank = 6; } else if (isFlush) { name = 'Color'; rank = 5; } else if (isStraight || isAceLowStraight) { name = 'Escalera'; rank = 4; } else if (Object.values(counts).includes(3)) { name = 'Trío'; rank = 3; } else if (Object.values(counts).filter(v => v === 2).length >= 2) { name = 'Doble Par'; rank = 2; } else if (Object.values(counts).includes(2)) { name = 'Par'; rank = 1; } return { rank, name }; }
+        function buildDeck() { const s="heart,diamond,spade,club".split(","),v="2,3,4,5,6,7,8,9,T,J,Q,K,A".split(","); return s.flatMap(suit=>v.map(value=>({value,suit}))) }
+        function shuffleDeck(d) { for(let i=d.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[d[i],d[j]]=[d[j],d[i]]}return d}
+        function createCardElement(card, source, show=true) { const cardDiv = document.createElement("div"); cardDiv.dataset.id = `${card.value}-${card.suit}`; cardDiv.classList.add("card", card.suit); if (!show) { cardDiv.classList.add("card-back"); } else { const s = {"heart":"♥","diamond":"♦","spade":"♠","club":"♣"}; cardDiv.innerHTML = `<div class="text-left">${card.value}${s[card.suit]}</div><div class="text-center suit">${s[card.suit]}</div><div class="text-right transform rotate-180">${card.value}${s[card.suit]}</div>`; } const p = currentGameData.players[currentGameData.currentPlayerIndex]; const isMyTurn = p && p.uid === currentUser.uid; if (isMyTurn && show && currentGameData.status === 'playing') { if (source === 'hand') { cardDiv.onclick = () => { document.querySelectorAll('.card.selected').forEach(c => c.classList.remove('selected')); cardDiv.classList.add('selected'); selectedCardFromHand = card; messageEl.textContent = "Ahora selecciona una carta de la mesa para tomar."; }; } else if (source === 'pile') { cardDiv.onclick = () => handleCardExchange(card); } } return cardDiv; }
+        function validateNickname() { const n = nicknameInput.value.trim(); if(n.length < 3) {modalErrorEl.textContent = "Apodo muy corto."; return null;} modalErrorEl.textContent = ""; return n;}
+        async function sendMessage() { const text = chatInput.value.trim(); if (text === "") return; const me = currentGameData.players.find(p => p.uid === currentUser.uid); if (!me) return; const newMessage = { senderName: me.name, senderUid: currentUser.uid, text: text, timestamp: new Date() }; await updateDoc(gameRef, { chatMessages: arrayUnion(newMessage) }); chatInput.value = ""; }
+        function toggleChat() { isChatVisible = !isChatVisible; if (isChatVisible) { chatContainer.classList.remove("hidden"); chatContainer.classList.add("flex"); chatNotification.classList.add("hidden"); } else { chatContainer.classList.add("hidden"); chatContainer.classList.remove("flex"); } }
 
-            let rank = 0, name = 'Carta Alta';
-            if (isStraight && isFlush) { name = 'Escalera de Color'; rank = 8; }
-            else if (Object.values(counts).includes(4)) { name = 'Póker'; rank = 7; }
-            else if (Object.values(counts).includes(3) && Object.values(counts).includes(2)) { name = 'Full'; rank = 6; }
-            else if (isFlush) { name = 'Color'; rank = 5; }
-            else if (isStraight || isAceLowStraight) { name = 'Escalera'; rank = 4; }
-            else if (Object.values(counts).includes(3)) { name = 'Trío'; rank = 3; }
-            else if (Object.values(counts).filter(v => v === 2).length >= 2) { name = 'Doble Par'; rank = 2; }
-            else if (Object.values(counts).includes(2)) { name = 'Par'; rank = 1; }
-            return { rank, name };
-        }
-
-        buildDeck = function() { const s="heart,diamond,spade,club".split(","),v="2,3,4,5,6,7,8,9,T,J,Q,K,A".split(","); return s.flatMap(suit=>v.map(value=>({value,suit}))) }
-        shuffleDeck = function(d) { for(let i=d.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[d[i],d[j]]=[d[j],d[i]]}return d}
-        
-        createCardElement = function(card, source, show=true) {
-            const cardDiv = document.createElement("div");
-            const cardIdentifier = `${card.value}-${card.suit}`;
-            cardDiv.dataset.id = cardIdentifier;
-            cardDiv.classList.add("card", card.suit);
-            if (!show) {
-                cardDiv.classList.add("card-back");
-            } else {
-                const suitSymbols = {"heart":"♥","diamond":"♦","spade":"♠","club":"♣"};
-                cardDiv.innerHTML = `<div class="text-left">${card.value}${suitSymbols[card.suit]}</div><div class="text-center suit">${suitSymbols[card.suit]}</div><div class="text-right transform rotate-180">${card.value}${suitSymbols[card.suit]}</div>`;
-            }
-
-            const player = currentGameData.players[currentGameData.currentPlayerIndex];
-            const isMyTurn = player && player.uid === currentUser.uid;
-
-            if (isMyTurn && show && currentGameData.status === 'playing') {
-                if (source === 'hand') {
-                    cardDiv.onclick = () => {
-                        document.querySelectorAll('.card.selected').forEach(c => c.classList.remove('selected'));
-                        cardDiv.classList.add('selected');
-                        selectedCardFromHand = card;
-                        messageEl.textContent = "Ahora selecciona una carta de la mesa para tomar.";
-                    };
-                } else if (source === 'pile') {
-                    cardDiv.onclick = () => handleCardExchange(card);
-                }
-            }
-            return cardDiv;
-        }
-
-        validateNickname = function() { const n = nicknameInput.value.trim(); if(n.length < 3) {modalErrorEl.textContent = "Apodo muy corto."; return null;} modalErrorEl.textContent = ""; return n;}
-        
         // Event Listeners
         document.getElementById('show-join-btn').addEventListener('click', () => { document.getElementById('entry-options').classList.add('hidden'); document.getElementById('join-options').classList.remove('hidden'); });
         document.getElementById('back-to-entry-btn').addEventListener('click', () => { document.getElementById('join-options').classList.add('hidden'); document.getElementById('entry-options').classList.remove('hidden'); });
-        createRoomBtn.addEventListener('click', async () => { const n = validateNickname(); if(!n)return; const id=Math.floor(1e5+Math.random()*9e5).toString(); gameRef=doc(db,'viuda-negra-games',id); const p={uid:currentUser.uid,name:n,hand:[],status:'waiting',color:playerColors[0]}; const g={roomId:id,players:[p],status:'waiting',creatorUid:currentUser.uid,widowHand:[],communityPile:[],currentPlayerIndex:0,widowDecisionIndex:0,message:`Sala ${id} creada.`}; await setDoc(gameRef,g); subscribeToGame(gameRef); });
+        createRoomBtn.addEventListener('click', async () => { const n = validateNickname(); if(!n)return; const id=Math.floor(1e5+Math.random()*9e5).toString(); gameRef=doc(db,'viuda-negra-games',id); const p={uid:currentUser.uid,name:n,hand:[],status:'waiting',color:playerColors[0]}; const g={roomId:id,players:[p],status:'waiting',creatorUid:currentUser.uid,widowHand:[],communityPile:[],currentPlayerIndex:0,widowDecisionIndex:0,message:`Sala ${id} creada.`, chatMessages:[]}; await setDoc(gameRef,g); subscribeToGame(gameRef); });
         joinRoomBtn.addEventListener('click', async () => { const n = validateNickname(); if(!n)return; const id=roomIdInput.value.trim(); if(!id){modalErrorEl.textContent="Ingresa ID.";return} gameRef=doc(db,'viuda-negra-games',id); const docSnap=await getDoc(gameRef); if(!docSnap.exists()){modalErrorEl.textContent="Sala no encontrada.";return} const d=docSnap.data(); if(d.status!=='waiting'){modalErrorEl.textContent="Juego en curso.";return} if(d.players.length>=6){modalErrorEl.textContent="Sala llena.";return} if(!d.players.some(p=>p.uid===currentUser.uid)){const p={uid:currentUser.uid,name:n,hand:[],status:'waiting',color:playerColors[d.players.length]};await updateDoc(gameRef,{players:arrayUnion(p)})} subscribeToGame(gameRef); });
         startGameBtn.addEventListener('click', startGame);
         acceptWidowBtn.addEventListener('click', () => handleWidowDecision(true));
         declineWidowBtn.addEventListener('click', () => handleWidowDecision(false));
         plantarseBtn.addEventListener('click', plantarse);
         playAgainBtn.addEventListener('click', startGame);
+        chatToggleBtn.addEventListener("click", toggleChat);
+        sendChatBtn.addEventListener("click", sendMessage);
+        chatInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
+        emojiPicker.addEventListener("click", (e) => { if (e.target.classList.contains("emoji-btn")) { chatInput.value += e.target.textContent; chatInput.focus(); } });
     </script>
 </body>
 </html>
-
-    
 
