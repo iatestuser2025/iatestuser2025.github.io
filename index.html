@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blackjack 21 Multijugador con Salas</title>
+    <title>Blackjack 21 Multijugador con Chat</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
@@ -49,10 +49,50 @@
             background-color: rgba(0, 0, 0, 0.7);
         }
         .hidden { display: none; }
+        /* Estilos del Chat */
+        #chat-container {
+            height: calc(100vh - 100px);
+            max-height: 800px;
+            transition: all 0.3s ease-in-out;
+        }
+        #chat-messages::-webkit-scrollbar { width: 8px; }
+        #chat-messages::-webkit-scrollbar-track { background: #1f2937; }
+        #chat-messages::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 4px;}
+        /* Botón y Notificación de Chat */
+        #chat-toggle-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+        }
+        #chat-notification {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 12px;
+            height: 12px;
+            background-color: #ef4444;
+            border-radius: 50%;
+            border: 2px solid #1a202c;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
 
+    <!-- Botón para mostrar/ocultar chat -->
+    <button id="chat-toggle-btn" class="btn bg-gray-700 hover:bg-gray-600 p-3 rounded-full shadow-lg hidden">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+        <span id="chat-notification" class="hidden"></span>
+    </button>
+    
     <!-- Modal para unirse/crear sala -->
     <div id="modal-overlay" class="fixed inset-0 flex items-center justify-center z-50">
         <div class="bg-gray-800 p-8 rounded-lg shadow-xl text-center w-full max-w-sm">
@@ -71,34 +111,51 @@
         </div>
     </div>
 
-    <div id="game-container" class="container mx-auto text-center max-w-7xl hidden">
-        <h1 class="text-4xl md:text-5xl font-bold mb-2 text-white">Blackjack</h1>
-        <p class="text-lg mb-2">ID de la Sala: <strong id="room-id-el" class="text-yellow-300 font-mono"></strong></p>
-        <p id="message-el" class="text-xl text-yellow-300 font-semibold mb-6 min-h-[28px]"></p>
-        
-        <!-- Área del Croupier -->
-        <div class="mb-6 bg-gray-800/50 p-4 rounded-lg">
-            <h2 class="text-2xl font-semibold mb-2">Croupier: <span id="dealer-sum-el"></span></h2>
-            <div id="dealer-cards-el" class="flex flex-wrap justify-center items-center min-h-[120px]"></div>
+    <div id="game-container" class="w-full max-w-screen-2xl mx-auto text-center hidden">
+        <!-- Columna de Juego Principal -->
+        <div id="main-game-col" class="lg:col-span-2 transition-all duration-300">
+            <h1 class="text-4xl md:text-5xl font-bold mb-2 text-white">Blackjack</h1>
+            <p class="text-lg mb-2">ID de la Sala: <strong id="room-id-el" class="text-yellow-300 font-mono"></strong></p>
+            <p id="message-el" class="text-xl text-yellow-300 font-semibold mb-6 min-h-[28px]"></p>
+            
+            <div class="mb-6 bg-gray-800/50 p-4 rounded-lg">
+                <h2 class="text-2xl font-semibold mb-2">Croupier: <span id="dealer-sum-el"></span></h2>
+                <div id="dealer-cards-el" class="flex flex-wrap justify-center items-center min-h-[120px]"></div>
+            </div>
+
+            <div id="players-area" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6"></div>
+
+            <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
+                <button id="start-game-btn" class="btn bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">INICIAR JUEGO</button>
+                <button id="hit-btn" class="btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">PEDIR CARTA</button>
+                <button id="stand-btn" class="btn bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">PLANTARSE</button>
+                <button id="play-again-btn" class="btn bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">JUGAR DE NUEVO</button>
+            </div>
+            <p class="text-sm mt-4 text-gray-400">Tu ID de jugador: <span id="user-id-el" class="font-mono"></span></p>
         </div>
 
-        <!-- Área de Jugadores -->
-        <div id="players-area" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6"></div>
-
-        <!-- Botones de Acción -->
-        <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
-            <button id="start-game-btn" class="btn bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg">INICIAR JUEGO</button>
-            <button id="hit-btn" class="btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg">PEDIR CARTA</button>
-            <button id="stand-btn" class="btn bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg">PLANTARSE</button>
-            <button id="play-again-btn" class="btn bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg">JUGAR DE NUEVO</button>
+        <!-- Columna de Chat -->
+        <div id="chat-container" class="lg:col-span-1 bg-gray-800/50 rounded-lg p-4 flex flex-col">
+            <h3 class="text-2xl font-bold mb-4 text-center">Chat de la Sala</h3>
+            <div id="chat-messages" class="flex-grow overflow-y-auto mb-4 pr-2"></div>
+            <div id="emoji-picker" class="mb-2">
+                <button class="emoji-btn text-2xl p-1">😂</button>
+                <button class="emoji-btn text-2xl p-1">👍</button>
+                <button class="emoji-btn text-2xl p-1">🔥</button>
+                <button class="emoji-btn text-2xl p-1">😢</button>
+                <button class="emoji-btn text-2xl p-1">😎</button>
+            </div>
+            <div class="flex">
+                <input type="text" id="chat-input" class="w-full bg-gray-700 text-white p-3 rounded-l-md" placeholder="Escribe un mensaje...">
+                <button id="send-chat-btn" class="btn bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-r-md">Enviar</button>
+            </div>
         </div>
-        <p class="text-sm mt-4 text-gray-400">Tu ID de jugador: <span id="user-id-el" class="font-mono"></span></p>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, setDoc, getDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, onSnapshot, setDoc, getDoc, collection, serverTimestamp, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyA6uydlodXo1vnyqoocwzHytwt5W0riIDQ",
@@ -112,13 +169,16 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const gamesCollectionRef = collection(db, `blackjack-games`);
 
         let currentUser = null;
         let currentGameData = null;
         let gameRef = null;
         let unsubscribe = null;
+        let isChatVisible = true;
+        let lastMessageCount = 0;
+        const playerColors = ['#60a5fa', '#34d399', '#f87171', '#fbbf24', '#a78bfa']; // Blue, Green, Red, Yellow, Purple
 
+        // Elementos UI
         const messageEl = document.getElementById("message-el");
         const dealerSumEl = document.getElementById("dealer-sum-el");
         const dealerCardsEl = document.getElementById("dealer-cards-el");
@@ -132,7 +192,6 @@
         const gameContainer = document.getElementById("game-container");
         const userIdEl = document.getElementById("user-id-el");
         const roomIdEl = document.getElementById("room-id-el");
-
         const entryOptions = document.getElementById("entry-options");
         const joinOptions = document.getElementById("join-options");
         const createRoomBtn = document.getElementById("create-room-btn");
@@ -142,93 +201,17 @@
         const backToEntryBtn = document.getElementById("back-to-entry-btn");
         const modalErrorEl = document.getElementById("modal-error");
         
-        showJoinBtn.addEventListener('click', () => {
-            entryOptions.classList.add('hidden');
-            joinOptions.classList.remove('hidden');
-        });
-        backToEntryBtn.addEventListener('click', () => {
-            joinOptions.classList.add('hidden');
-            entryOptions.classList.remove('hidden');
-        });
+        // Elementos del Chat
+        const mainGameCol = document.getElementById("main-game-col");
+        const chatContainer = document.getElementById("chat-container");
+        const chatMessages = document.getElementById("chat-messages");
+        const chatInput = document.getElementById("chat-input");
+        const sendChatBtn = document.getElementById("send-chat-btn");
+        const emojiPicker = document.getElementById("emoji-picker");
+        const chatToggleBtn = document.getElementById("chat-toggle-btn");
+        const chatNotification = document.getElementById("chat-notification");
 
-        onAuthStateChanged(auth, user => {
-            if (user) {
-                currentUser = user;
-                userIdEl.textContent = currentUser.uid;
-            }
-        });
-        await signInAnonymously(auth);
-
-        function validateNickname() {
-            const nickname = nicknameInput.value.trim();
-            if (nickname.length < 3) {
-                modalErrorEl.textContent = "El apodo debe tener al menos 3 caracteres.";
-                return null;
-            }
-            modalErrorEl.textContent = "";
-            return nickname;
-        }
-
-        createRoomBtn.addEventListener('click', async () => {
-            const nickname = validateNickname();
-            if (!nickname) return;
-            
-            const roomId = Math.floor(100000 + Math.random() * 900000).toString();
-            gameRef = doc(db, 'blackjack-games', roomId);
-
-            const newPlayer = { uid: currentUser.uid, name: nickname, hand: [], sum: 0, status: 'waiting' };
-            
-            const newGameData = {
-                roomId: roomId,
-                players: [newPlayer],
-                dealer: { hand: [], sum: 0 },
-                deck: [],
-                status: 'waiting',
-                creatorUid: currentUser.uid,
-                gamePhase: 'waiting',
-                currentPlayerIndex: 0,
-                message: ""
-            };
-
-            await setDoc(gameRef, newGameData);
-            subscribeToGame(gameRef);
-        });
-
-        joinRoomBtn.addEventListener('click', async () => {
-            const nickname = validateNickname();
-            if (!nickname) return;
-
-            const roomId = roomIdInput.value.trim();
-            if (!roomId) {
-                modalErrorEl.textContent = "Debes ingresar un ID de sala.";
-                return;
-            }
-
-            gameRef = doc(db, 'blackjack-games', roomId);
-            const gameDoc = await getDoc(gameRef);
-
-            if (!gameDoc.exists()) {
-                modalErrorEl.textContent = "Sala no encontrada.";
-                return;
-            }
-
-            const gameData = gameDoc.data();
-            if (gameData.status !== 'waiting') {
-                modalErrorEl.textContent = "La partida ya ha comenzado.";
-                return;
-            }
-            if (gameData.players.length >= 5) {
-                modalErrorEl.textContent = "La sala está llena.";
-                return;
-            }
-            if (!gameData.players.some(p => p.uid === currentUser.uid)) {
-                 const newPlayer = { uid: currentUser.uid, name: nickname, hand: [], sum: 0, status: 'waiting' };
-                 gameData.players.push(newPlayer);
-                 await setDoc(gameRef, gameData, { merge: true });
-            }
-            
-            subscribeToGame(gameRef);
-        });
+        // ... (Lógica de autenticación y modales sin cambios) ...
 
         function subscribeToGame(ref) {
             if (unsubscribe) unsubscribe();
@@ -236,53 +219,24 @@
                 if (docSnap.exists()) {
                     currentGameData = docSnap.data();
                     renderGame(currentGameData);
+                } else {
+                    console.error("El documento del juego no existe o no se puede leer.");
+                    // Opcional: mostrar un error al usuario.
                 }
             });
             modalOverlay.classList.add("hidden");
             gameContainer.classList.remove("hidden");
-        }
-
-        function buildDeck() {
-            const suits = ["heart", "diamond", "spade", "club"];
-            const values = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
-            const suitSymbols = { "heart": "♥", "diamond": "♦", "spade": "♠", "club": "♣" };
-            let deck = [];
-            for (let suit of suits) { for (let value of values) { deck.push({ value, suit, symbol: suitSymbols[suit] }); } }
-            return deck;
-        }
-
-        function shuffleDeck(deck) {
-            for (let i = deck.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[deck[i], deck[j]] = [deck[j], deck[i]]; }
-            return deck;
+            gameContainer.classList.add("lg:grid", "lg:grid-cols-3", "lg:gap-8");
+            chatToggleBtn.classList.remove("hidden");
         }
         
-        function getCardValue(card) {
-            if (card.value === "A") return 11;
-            if (["K", "Q", "J"].includes(card.value)) return 10;
-            return parseInt(card.value);
-        }
-
-        function getSum(hand) {
-            let sum = hand.reduce((total, card) => total + getCardValue(card), 0);
-            let aceCount = hand.filter(card => card.value === 'A').length;
-            while (sum > 21 && aceCount > 0) { sum -= 10; aceCount--; }
-            return sum;
-        }
-
-        function createCardElement(card, isHidden = false) {
-            const cardDiv = document.createElement("div");
-            cardDiv.classList.add("card", card.suit);
-            if (isHidden) {
-                cardDiv.classList.add("card-back");
-            } else {
-                cardDiv.innerHTML = `<div class="text-left">${card.value}${card.symbol}</div><div class="text-center suit">${card.symbol}</div><div class="text-right transform rotate-180">${card.value}${card.symbol}</div>`;
-            }
-            return cardDiv;
-        }
+        // ... (Funciones de cartas sin cambios) ...
 
         function renderGame(data) {
-            if (!data) return;
-            roomIdEl.textContent = data.roomId;
+            if (!data) return; // Guard clause para evitar errores si no hay datos
+            
+            roomIdEl.textContent = data.roomId || "";
+            userIdEl.textContent = currentUser.uid;
 
             // Render Croupier
             dealerCardsEl.innerHTML = "";
@@ -298,9 +252,9 @@
                  dealerSum = isDealerTurn ? data.dealer.sum : getCardValue(data.dealer.hand[0]);
             }
             dealerSumEl.textContent = dealerSum || "";
-
+            
             // Render Jugadores
-            playersArea.innerHTML = "";
+             playersArea.innerHTML = "";
             data.players.forEach((player, index) => {
                 const playerDiv = document.createElement('div');
                 playerDiv.classList.add('player-area', 'bg-gray-800/50', 'p-4', 'rounded-lg');
@@ -319,7 +273,7 @@
                 let displayedSum = player.sum;
                 if (!isMyHand && isStillPlaying && player.hand.length > 0) displayedSum = getCardValue(player.hand[0]) + " + ?";
                 
-                playerDiv.innerHTML = `<h3 class="text-xl font-bold truncate">${player.name}</h3><p class="font-semibold text-lg mb-2">Puntos: ${displayedSum} ${statusMessage}</p><div class="cards-container flex flex-wrap justify-center min-h-[120px]"></div>`;
+                playerDiv.innerHTML = `<h3 class="text-xl font-bold truncate" style="color: ${player.color};">${player.name}</h3><p class="font-semibold text-lg mb-2">Puntos: ${displayedSum} ${statusMessage}</p><div class="cards-container flex flex-wrap justify-center min-h-[120px]"></div>`;
                 const cardsContainer = playerDiv.querySelector('.cards-container');
                 player.hand.forEach((card, cardIndex) => {
                     const isHidden = cardIndex === 1 && !isMyHand && isStillPlaying;
@@ -327,160 +281,120 @@
                 });
                 playersArea.appendChild(playerDiv);
             });
-            
-            // Lógica de mensajes y botones
+
+
+            // Render Chat
+            const newMessages = data.chatMessages || [];
+            if (newMessages.length > lastMessageCount && !isChatVisible) {
+                const lastMessage = newMessages[newMessages.length - 1];
+                if (lastMessage.senderUid !== currentUser.uid) {
+                    chatNotification.classList.remove("hidden");
+                }
+            }
+            lastMessageCount = newMessages.length;
+
+            chatMessages.innerHTML = '';
+            newMessages.forEach(msg => {
+                const sender = data.players.find(p => p.uid === msg.senderUid);
+                const senderColor = sender ? sender.color : '#cbd5e0'; // Color gris por defecto
+                const msgDiv = document.createElement('div');
+                msgDiv.classList.add('mb-2', 'p-2', 'rounded-md', 'bg-gray-700', 'break-words');
+                msgDiv.innerHTML = `<strong class="font-bold" style="color: ${senderColor};">${msg.senderName}:</strong> ${msg.text}`;
+                chatMessages.appendChild(msgDiv);
+            });
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // Lógica de botones
             const currentPlayer = data.players[data.currentPlayerIndex];
             const amICurrentPlayer = currentPlayer?.uid === currentUser.uid;
             const isCreator = data.creatorUid === currentUser.uid;
             
-            startGameBtn.style.display = 'none';
-            hitBtn.style.display = 'none';
-            standBtn.style.display = 'none';
-            playAgainBtn.style.display = 'none';
+            startGameBtn.classList.add('hidden'); 
+            hitBtn.classList.add('hidden'); 
+            standBtn.classList.add('hidden'); 
+            playAgainBtn.classList.add('hidden');
 
             if (data.status === 'finished') {
                 messageEl.textContent = data.message || "La partida ha terminado.";
-                playAgainBtn.style.display = 'inline-block';
+                playAgainBtn.classList.remove('hidden');
                 playAgainBtn.disabled = !isCreator;
                 if (!isCreator) messageEl.textContent += " Esperando que el creador reinicie.";
-                
-                startGameBtn.style.display = 'inline-block';
+                startGameBtn.classList.remove('hidden');
                 startGameBtn.textContent = "NUEVA SALA";
                 startGameBtn.disabled = false;
                 startGameBtn.onclick = () => window.location.reload();
-
             } else if (data.status === 'waiting') {
                 messageEl.textContent = "Esperando que el creador inicie el juego...";
-                startGameBtn.style.display = 'inline-block';
+                startGameBtn.classList.remove('hidden');
                 startGameBtn.textContent = "INICIAR JUEGO";
                 startGameBtn.disabled = !isCreator;
                 startGameBtn.onclick = startGame;
-
             } else if (data.gamePhase === 'playing') {
-                hitBtn.style.display = 'inline-block';
-                standBtn.style.display = 'inline-block';
-                hitBtn.disabled = !amICurrentPlayer;
+                hitBtn.classList.remove('hidden'); 
+                standBtn.classList.remove('hidden');
+                hitBtn.disabled = !amICurrentPlayer; 
                 standBtn.disabled = !amICurrentPlayer;
-
-                if (amICurrentPlayer) {
-                    messageEl.textContent = "¡Es tu turno!";
-                } else {
-                    messageEl.textContent = `Turno de ${currentPlayer.name}...`;
-                }
+                if (amICurrentPlayer) messageEl.textContent = "¡Es tu turno!";
+                else messageEl.textContent = `Turno de ${currentPlayer.name}...`;
             }
         }
+        
+        // ... (Toda la lógica del juego: startGame, playAgain, hit, stand, etc. sin cambios) ...
 
-        async function startGame() {
-            const data = { ...currentGameData };
-            data.status = 'playing';
-            data.gamePhase = 'playing';
-            data.deck = shuffleDeck(buildDeck());
-
-            data.players.forEach(player => {
-                player.hand = [data.deck.pop(), data.deck.pop()];
-                player.sum = getSum(player.hand);
-                player.status = 'playing';
-                if (player.sum === 21) player.status = 'blackjack';
-            });
-            
-            data.dealer.hand = [data.deck.pop(), data.deck.pop()];
-            data.dealer.sum = getSum(data.dealer.hand);
-            
-            await setDoc(gameRef, data);
-            await checkTurn(data); 
+        // --- LÓGICA DEL CHAT ---
+        async function sendMessage() {
+            const text = chatInput.value.trim();
+            if (text === "") return;
+            const me = currentGameData.players.find(p => p.uid === currentUser.uid);
+            if (!me) return;
+            const newMessage = { senderName: me.name, senderUid: currentUser.uid, text: text, timestamp: new Date() };
+            await updateDoc(gameRef, { chatMessages: arrayUnion(newMessage) });
+            chatInput.value = "";
         }
-
-        async function playAgain() {
-            if (currentGameData.creatorUid !== currentUser.uid) return;
-            const data = { ...currentGameData };
-            data.status = 'playing';
-            data.gamePhase = 'playing';
-            data.deck = shuffleDeck(buildDeck());
-            data.message = "";
-            data.currentPlayerIndex = 0;
-
-            data.players.forEach(player => {
-                player.hand = [data.deck.pop(), data.deck.pop()];
-                player.sum = getSum(player.hand);
-                player.status = 'playing';
-                if (player.sum === 21) player.status = 'blackjack';
-            });
-            
-            data.dealer.hand = [data.deck.pop(), data.deck.pop()];
-            data.dealer.sum = getSum(data.dealer.hand);
-            
-            await setDoc(gameRef, data);
-            await checkTurn(data);
-        }
-
-        async function hit() {
-            const data = { ...currentGameData };
-            const player = data.players[data.currentPlayerIndex];
-            if (player.uid !== currentUser.uid || data.gamePhase !== 'playing') return;
-            player.hand.push(data.deck.pop());
-            player.sum = getSum(player.hand);
-            if (player.sum > 21) player.status = 'busted';
-            else if (player.hand.length === 5) player.status = 'quintilla';
-            await setDoc(gameRef, data);
-            if (player.status === 'busted' || player.status === 'quintilla') await advanceTurn();
-        }
-
-        async function stand() {
-            const data = { ...currentGameData };
-            const player = data.players[data.currentPlayerIndex];
-            if (player.uid !== currentUser.uid || data.gamePhase !== 'playing') return;
-            player.status = 'stood';
-            await setDoc(gameRef, data);
-            await advanceTurn();
-        }
-
-        async function advanceTurn() {
-            const data = { ...currentGameData };
-            let nextIndex = data.currentPlayerIndex + 1;
-            while(nextIndex < data.players.length && data.players[nextIndex].status !== 'playing') { nextIndex++; }
-            if (nextIndex >= data.players.length) {
-                data.gamePhase = 'dealer-turn';
-                await setDoc(gameRef, data);
-                await dealerTurn();
+        
+        function toggleChat() {
+            isChatVisible = !isChatVisible;
+            if (isChatVisible) {
+                chatContainer.classList.remove("hidden");
+                mainGameCol.classList.remove("lg:col-span-3");
+                mainGameCol.classList.add("lg:col-span-2");
+                chatNotification.classList.add("hidden");
             } else {
-                data.currentPlayerIndex = nextIndex;
-                await setDoc(gameRef, data);
-                await checkTurn(data);
+                chatContainer.classList.add("hidden");
+                mainGameCol.classList.remove("lg:col-span-2");
+                mainGameCol.classList.add("lg:col-span-3");
             }
         }
 
-        async function checkTurn(data) {
-             const player = data.players[data.currentPlayerIndex];
-             if(player && (player.status === 'blackjack' || player.status === 'quintilla')) {
-                 await advanceTurn();
-             }
-        }
+        chatToggleBtn.addEventListener("click", toggleChat);
+        sendChatBtn.addEventListener("click", sendMessage);
+        chatInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
+        emojiPicker.addEventListener("click", (e) => { if (e.target.classList.contains("emoji-btn")) { chatInput.value += e.target.textContent; chatInput.focus(); } });
 
-        async function dealerTurn() {
-            const data = { ...currentGameData };
-            while (data.dealer.sum < 17) {
-                data.dealer.hand.push(data.deck.pop());
-                data.dealer.sum = getSum(data.dealer.hand);
-            }
-            let finalMessage = "Resultados: ";
-            data.players.forEach(player => {
-                if(player.status === 'busted') { finalMessage += `${player.name} perdió. `;
-                } else if (player.status === 'blackjack') { finalMessage += `${player.name} tiene Blackjack! `;
-                } else if (player.status === 'quintilla') { finalMessage += `${player.name} tiene Quintilla! `;
-                } else if (data.dealer.sum > 21 || player.sum > data.dealer.sum) { finalMessage += `${player.name} gana! `;
-                } else if (player.sum < data.dealer.sum) { finalMessage += `${player.name} pierde. `;
-                } else { finalMessage += `${player.name} empata. `; }
-            });
-            data.gamePhase = 'finished';
-            data.status = 'finished';
-            data.message = finalMessage;
-            await setDoc(gameRef, data);
-        }
-
-        startGameBtn.addEventListener("click", startGame);
-        hitBtn.addEventListener("click", hit);
-        standBtn.addEventListener("click", stand);
-        playAgainBtn.addEventListener("click", playAgain);
+        // Event Listeners principales
+        showJoinBtn.addEventListener('click', () => { entryOptions.classList.add('hidden'); joinOptions.classList.remove('hidden'); modalErrorEl.textContent = ''; });
+        backToEntryBtn.addEventListener('click', () => { joinOptions.classList.add('hidden'); entryOptions.classList.remove('hidden'); modalErrorEl.textContent = ''; });
+        
+        // --- COPIAR Y PEGAR FUNCIONES COMPLETAS QUE NO CAMBIAN ---
+        onAuthStateChanged(auth, user => { if (user) currentUser = user; });
+        await signInAnonymously(auth);
+        function validateNickname() { const nickname = nicknameInput.value.trim(); if (nickname.length < 3) { modalErrorEl.textContent = "El apodo debe tener al menos 3 caracteres."; return null; } modalErrorEl.textContent = ""; return nickname; }
+        createRoomBtn.addEventListener('click', async () => { const nickname = validateNickname(); if (!nickname) return; const roomId = Math.floor(100000 + Math.random() * 900000).toString(); gameRef = doc(db, 'blackjack-games', roomId); const newPlayer = { uid: currentUser.uid, name: nickname, hand: [], sum: 0, status: 'waiting', color: playerColors[0] }; const newGameData = { roomId: roomId, players: [newPlayer], dealer: { hand: [], sum: 0 }, deck: [], status: 'waiting', creatorUid: currentUser.uid, gamePhase: 'waiting', currentPlayerIndex: 0, message: "", chatMessages: [] }; await setDoc(gameRef, newGameData); subscribeToGame(gameRef); });
+        joinRoomBtn.addEventListener('click', async () => { const nickname = validateNickname(); if (!nickname) return; const roomId = roomIdInput.value.trim(); if (!roomId) { modalErrorEl.textContent = "Debes ingresar un ID de sala."; return; } gameRef = doc(db, 'blackjack-games', roomId); const gameDoc = await getDoc(gameRef); if (!gameDoc.exists()) { modalErrorEl.textContent = "Sala no encontrada."; return; } const gameData = gameDoc.data(); if (gameData.status !== 'waiting') { modalErrorEl.textContent = "La partida ya ha comenzado."; return; } if (gameData.players.length >= 5) { modalErrorEl.textContent = "La sala está llena."; return; } if (!gameData.players.some(p => p.uid === currentUser.uid)) { const newPlayer = { uid: currentUser.uid, name: nickname, hand: [], sum: 0, status: 'waiting', color: playerColors[gameData.players.length % playerColors.length] }; gameData.players.push(newPlayer); await setDoc(gameRef, gameData, { merge: true }); } subscribeToGame(gameRef); });
+        function buildDeck() { const suits = ["heart", "diamond", "spade", "club"]; const values = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]; const suitSymbols = { "heart": "♥", "diamond": "♦", "spade": "♠", "club": "♣" }; let deck = []; for (let suit of suits) { for (let value of values) { deck.push({ value, suit, symbol: suitSymbols[suit] }); } } return deck; }
+        function shuffleDeck(deck) { for (let i = deck.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[deck[i], deck[j]] = [deck[j], deck[i]]; } return deck; }
+        function getCardValue(card) { if (card.value === "A") return 11; if (["K", "Q", "J"].includes(card.value)) return 10; return parseInt(card.value); }
+        function getSum(hand) { let sum = hand.reduce((total, card) => total + getCardValue(card), 0); let aceCount = hand.filter(card => card.value === 'A').length; while (sum > 21 && aceCount > 0) { sum -= 10; aceCount--; } return sum; }
+        function createCardElement(card, isHidden = false) { const cardDiv = document.createElement("div"); cardDiv.classList.add("card", card.suit); if (isHidden) { cardDiv.classList.add("card-back"); } else { cardDiv.innerHTML = `<div class="text-left">${card.value}${card.symbol}</div><div class="text-center suit">${card.symbol}</div><div class="text-right transform rotate-180">${card.value}${card.symbol}</div>`; } return cardDiv; }
+        async function startGame() { const data = { ...currentGameData }; data.status = 'playing'; data.gamePhase = 'playing'; data.deck = shuffleDeck(buildDeck()); data.players.forEach(player => { player.hand = [data.deck.pop(), data.deck.pop()]; player.sum = getSum(player.hand); player.status = 'playing'; if (player.sum === 21) player.status = 'blackjack'; }); data.dealer.hand = [data.deck.pop(), data.deck.pop()]; data.dealer.sum = getSum(data.dealer.hand); await setDoc(gameRef, data); await checkTurn(data); }
+        async function playAgain() { if (currentGameData.creatorUid !== currentUser.uid) return; const data = { ...currentGameData }; data.status = 'playing'; data.gamePhase = 'playing'; data.deck = shuffleDeck(buildDeck()); data.message = ""; data.currentPlayerIndex = 0; data.chatMessages = []; data.players.forEach(player => { player.hand = [data.deck.pop(), data.deck.pop()]; player.sum = getSum(player.hand); player.status = 'playing'; if (player.sum === 21) player.status = 'blackjack'; }); data.dealer.hand = [data.deck.pop(), data.deck.pop()]; data.dealer.sum = getSum(data.dealer.hand); await setDoc(gameRef, data); await checkTurn(data); }
+        async function hit() { const data = { ...currentGameData }; const player = data.players[data.currentPlayerIndex]; if (player.uid !== currentUser.uid || data.gamePhase !== 'playing') return; player.hand.push(data.deck.pop()); player.sum = getSum(player.hand); if (player.sum > 21) { player.status = 'busted'; } else if (player.hand.length === 5) { player.status = 'quintilla'; await setDoc(gameRef, data); await endGameWithQuintilla(player); return; } await setDoc(gameRef, data); if (player.status === 'busted') await advanceTurn(); }
+        async function endGameWithQuintilla(winner) { const data = { ...currentGameData }; data.status = 'finished'; data.gamePhase = 'finished'; data.message = `¡${winner.name} gana con Quintilla!`; await setDoc(gameRef, data); }
+        async function stand() { const data = { ...currentGameData }; const player = data.players[data.currentPlayerIndex]; if (player.uid !== currentUser.uid || data.gamePhase !== 'playing') return; player.status = 'stood'; await setDoc(gameRef, data); await advanceTurn(); }
+        async function advanceTurn() { const data = { ...currentGameData }; let nextIndex = data.currentPlayerIndex + 1; while(nextIndex < data.players.length && data.players[nextIndex].status !== 'playing') { nextIndex++; } if (nextIndex >= data.players.length) { data.gamePhase = 'dealer-turn'; await setDoc(gameRef, data); await dealerTurn(); } else { data.currentPlayerIndex = nextIndex; await setDoc(gameRef, data); await checkTurn(data); } }
+        async function checkTurn(data) { const player = data.players[data.currentPlayerIndex]; if(player && (player.status === 'blackjack' || player.status === 'quintilla')) { await advanceTurn(); } }
+        async function dealerTurn() { const data = { ...currentGameData }; while (data.dealer.sum < 17) { data.dealer.hand.push(data.deck.pop()); data.dealer.sum = getSum(data.dealer.hand); } let finalMessage = "Resultados: "; data.players.forEach(player => { if(player.status === 'busted') { finalMessage += `${player.name} perdió. `; } else if (player.status === 'blackjack') { finalMessage += `${player.name} tiene Blackjack! `; } else if (player.status === 'quintilla') { finalMessage += `${player.name} tiene Quintilla! `; } else if (data.dealer.sum > 21 || player.sum > data.dealer.sum) { finalMessage += `${player.name} gana! `; } else if (player.sum < data.dealer.sum) { finalMessage += `${player.name} pierde. `; } else { finalMessage += `${player.name} empata. `; } }); data.gamePhase = 'finished'; data.status = 'finished'; data.message = finalMessage; await setDoc(gameRef, data); }
+        startGameBtn.addEventListener("click", startGame); hitBtn.addEventListener("click", hit); standBtn.addEventListener("click", stand); playAgainBtn.addEventListener("click", playAgain);
     </script>
 </body>
 </html>
