@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dominó Clásico Multijugador</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+        body { font-family: 'Poppins', sans-serif; background-color: #0d3a2d; color: #e2e8f0; }
+        .domino-tile { width: 40px; height: 80px; background-color: white; border: 1px solid black; border-radius: 6px; display: flex; flex-direction: column; margin: 2px; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+        .domino-tile.horizontal { width: 80px; height: 40px; flex-direction: row; }
+        .half { flex-grow: 1; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); padding: 3px; }
+        .dot { width: 6px; height: 6px; background-color: black; border-radius: 50%; justify-self: center; align-self: center; }
+        .divider { height: 2px; background-color: black; margin: 0 4px; }
+        .horizontal .divider { height: auto; width: 2px; margin: 4px 0; }
+        .btn { transition: all 0.2s ease-in-out; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: translateY(0); box-shadow: none; }
+        .player-area { border: 2px solid transparent; transition: all 0.3s ease; }
+        .player-area.active-player { border-color: #f59e0b; box-shadow: 0 0 15px rgba(245, 158, 11, 0.5); }
+        .player-hand .domino-tile:hover { transform: translateY(-8px); cursor: pointer; }
+        .player-hand .domino-tile.playable { border-color: #f59e0b; border-width: 3px;}
+        .player-hand .domino-tile.selected { border-color: #34d399; border-width: 3px; transform: translateY(-8px); }
+        .hidden { display: none; }
+        #chat-toggle-btn { position: fixed; top: 20px; left: 20px; z-index: 100; }
+        #chat-notification { position: absolute; top: 0; right: 0; width: 12px; height: 12px; background-color: #ef4444; border-radius: 50%; border: 2px solid #0d3a2d; }
+        #chat-container { position: fixed; top: 80px; left: 20px; width: 350px; max-width: 90vw; height: 500px; max-height: 70vh; z-index: 99; }
+        #chat-messages::-webkit-scrollbar { width: 8px; }
+        #chat-messages::-webkit-scrollbar-track { background: #1f2937; }
+        #chat-messages::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 4px;}
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <!-- Chat -->
+    <button id="chat-toggle-btn" class="btn bg-gray-700 hover:bg-gray-600 p-3 rounded-full shadow-lg hidden">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+        <span id="chat-notification" class="hidden"></span>
+    </button>
+    <div id="chat-container" class="bg-gray-800/90 backdrop-blur-sm rounded-lg p-4 flex-col hidden">
+        <h3 class="text-xl font-bold mb-4 text-center">Chat de la Sala</h3>
+        <div id="chat-messages" class="flex-grow overflow-y-auto mb-4 pr-2"></div>
+        <div id="emoji-picker" class="mb-2">
+            <button class="emoji-btn text-2xl p-1">😂</button><button class="emoji-btn text-2xl p-1">👍</button><button class="emoji-btn text-2xl p-1">🔥</button><button class="emoji-btn text-2xl p-1">😢</button><button class="emoji-btn text-2xl p-1">😎</button>
+        </div>
+        <div class="flex">
+            <input type="text" id="chat-input" class="w-full bg-gray-700 text-white p-3 rounded-l-md" placeholder="Escribe un mensaje...">
+            <button id="send-chat-btn" class="btn bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-r-md">Enviar</button>
+        </div>
+    </div>
+
+    <!-- Lobby Modal -->
+    <div id="modal-overlay" class="fixed inset-0 flex items-center justify-center z-50">
+        <div class="bg-gray-800 p-8 rounded-lg shadow-xl text-center w-full max-w-sm">
+            <h2 class="text-2xl font-bold mb-4">Dominó Clásico</h2>
+            <p id="modal-error" class="text-red-400 mb-3 min-h-[20px]"></p>
+            <div id="entry-options">
+                 <input type="text" id="nickname-input" class="w-full bg-gray-700 text-white p-3 rounded-md mb-4" placeholder="Ingresa tu apodo...">
+                 <button id="create-room-btn" class="btn bg-green-500 hover:bg-green-600 w-full text-white font-bold py-3 px-6 rounded-lg text-lg mb-3">Crear Sala Nueva</button>
+                 <button id="show-join-btn" class="btn bg-blue-500 hover:bg-blue-600 w-full text-white font-bold py-3 px-6 rounded-lg text-lg mb-4">Unirse a Sala</button>
+                 <hr class="border-gray-600 my-4">
+                 <button onclick="window.location.href='./index.html'" class="btn bg-gray-600 hover:bg-gray-700 w-full text-white font-bold py-3 px-6 rounded-lg text-lg">Volver al Salón de Juegos</button>
+            </div>
+            <div id="join-options" class="hidden">
+                 <input type="text" id="room-id-input" class="w-full bg-gray-700 text-white p-3 rounded-md mb-4" placeholder="Ingresa ID de la sala...">
+                 <button id="join-room-btn" class="btn bg-blue-500 hover:bg-blue-600 w-full text-white font-bold py-3 px-6 rounded-lg text-lg mb-3">Unirse</button>
+                 <button id="back-to-entry-btn" class="text-gray-400 hover:text-white">Volver</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Container -->
+    <div id="game-container" class="w-full h-screen max-w-screen-2xl mx-auto text-center hidden flex flex-col">
+        <div class="flex-shrink-0">
+            <h1 class="text-4xl md:text-5xl font-bold mb-2 text-white">Dominó</h1>
+            <p class="text-lg mb-2">ID de la Sala: <strong id="room-id-el" class="text-yellow-300 font-mono"></strong></p>
+            <p id="message-el" class="text-xl text-yellow-300 font-semibold mb-6 min-h-[28px]"></p>
+        </div>
+        
+        <div id="board-area" class="flex-grow bg-black/30 p-4 rounded-lg flex items-center justify-center overflow-auto">
+            <div id="domino-chain" class="flex items-center"></div>
+        </div>
+
+        <div id="players-area" class="flex-shrink-0 grid grid-cols-2 md:grid-cols-4 gap-4 my-4"></div>
+
+        <div id="my-hand-area" class="flex-shrink-0 bg-black/30 p-4 rounded-lg">
+             <h2 class="text-xl font-semibold mb-2">Mis Fichas</h2>
+             <div id="my-hand" class="flex flex-wrap justify-center items-center min-h-[90px]"></div>
+        </div>
+
+        <div class="flex-shrink-0 flex justify-center space-x-4 mt-4">
+            <button id="start-game-btn" class="btn bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">INICIAR JUEGO</button>
+            <button id="pass-turn-btn" class="btn bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">PASAR</button>
+            <button id="play-again-btn" class="btn bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">JUGAR DE NUEVO</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc, getDoc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        const firebaseConfig = {
+          apiKey: "AIzaSyA6uydlodXo1vnyqoocwzHytwt5W0riIDQ",
+          authDomain: "blackjack-d6b7b.firebaseapp.com",
+          projectId: "blackjack-d6b7b",
+          storageBucket: "blackjack-d6b7b.appspot.com",
+          messagingSenderId: "705363226577",
+          appId: "1:705363226577:web:214cf8baa2c9fb48e73af0"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser, currentGameData, gameRef, unsubscribe;
+        let selectedTile = null;
+        let isChatVisible = false;
+        let lastMessageCount = 0;
+        const playerColors = ['#60a5fa', '#34d399', '#f87171', '#fbbf24'];
+
+        const ui = {
+            modal: document.getElementById("modal-overlay"),
+            nickname: document.getElementById("nickname-input"),
+            game: document.getElementById("game-container"),
+            roomId: document.getElementById("room-id-el"),
+            message: document.getElementById("message-el"),
+            chain: document.getElementById("domino-chain"),
+            players: document.getElementById("players-area"),
+            myHand: document.getElementById("my-hand"),
+            startBtn: document.getElementById("start-game-btn"),
+            passBtn: document.getElementById("pass-turn-btn"),
+            playAgainBtn: document.getElementById("play-again-btn"),
+            createBtn: document.getElementById("create-room-btn"),
+            joinBtn: document.getElementById("join-room-btn"),
+            roomIdInput: document.getElementById("room-id-input"),
+            modalError: document.getElementById("modal-error"),
+            chatContainer: document.getElementById("chat-container"),
+            chatMessages: document.getElementById("chat-messages"),
+            chatInput: document.getElementById("chat-input"),
+            sendChatBtn: document.getElementById("send-chat-btn"),
+            emojiPicker: document.getElementById("emoji-picker"),
+            chatToggleBtn: document.getElementById("chat-toggle-btn"),
+            chatNotification: document.getElementById("chat-notification"),
+        };
+
+        onAuthStateChanged(auth, user => { if (user) currentUser = user; });
+        await signInAnonymously(auth);
+
+        function subscribeToGame(ref) {
+            if (unsubscribe) unsubscribe();
+            unsubscribe = onSnapshot(ref, (docSnap) => {
+                if (docSnap.exists()) {
+                    currentGameData = docSnap.data();
+                    renderGame(currentGameData);
+                }
+            });
+            ui.modal.classList.add("hidden");
+            ui.game.classList.remove("hidden");
+            ui.chatToggleBtn.classList.remove("hidden");
+        }
+
+        function renderGame(data) {
+            ui.roomId.textContent = data.roomId;
+            ui.message.textContent = data.message;
+            
+            ui.chain.innerHTML = '';
+            data.board.forEach(tile => ui.chain.appendChild(createTileElement(tile, 'board')));
+
+            const me = data.players.find(p => p.uid === currentUser.uid);
+            ui.myHand.innerHTML = '';
+            if (me) {
+                me.hand.forEach(tile => ui.myHand.appendChild(createTileElement(tile, 'hand')));
+            }
+
+            ui.players.innerHTML = '';
+            data.players.forEach((player, index) => {
+                if (player.uid === currentUser.uid) return;
+                const playerDiv = document.createElement('div');
+                playerDiv.className = 'player-area bg-black/30 p-2 rounded-lg';
+                if(data.currentPlayerIndex === index) playerDiv.classList.add('active-player');
+                playerDiv.innerHTML = `<h3 class="font-bold truncate" style="color:${player.color}">${player.name}</h3><p>${player.hand.length} fichas</p>`;
+                ui.players.appendChild(playerDiv);
+            });
+            
+            const isMyTurn = data.players[data.currentPlayerIndex]?.uid === currentUser.uid;
+            [ui.startBtn, ui.passBtn, ui.playAgainBtn].forEach(b => b.classList.add('hidden'));
+
+            if (data.status === 'waiting') {
+                ui.startBtn.classList.remove('hidden');
+                ui.startBtn.disabled = data.creatorUid !== currentUser.uid || data.players.length < 2;
+            } else if (data.status === 'playing' && isMyTurn) {
+                ui.passBtn.classList.remove('hidden');
+            } else if (data.status === 'finished') {
+                ui.playAgainBtn.classList.remove('hidden');
+                ui.playAgainBtn.disabled = data.creatorUid !== currentUser.uid;
+            }
+
+            const newMessages = data.chatMessages || [];
+            if (newMessages.length > lastMessageCount && !isChatVisible) {
+                const lastMessage = newMessages[newMessages.length - 1];
+                if (lastMessage.senderUid !== currentUser.uid) {
+                    ui.chatNotification.classList.remove("hidden");
+                }
+            }
+            lastMessageCount = newMessages.length;
+            ui.chatMessages.innerHTML = '';
+            newMessages.forEach(msg => {
+                const sender = data.players.find(p => p.uid === msg.senderUid);
+                const senderColor = sender ? sender.color : '#cbd5e0';
+                const msgDiv = document.createElement('div');
+                msgDiv.classList.add('mb-2','p-2','rounded-md','bg-gray-700','break-words');
+                msgDiv.innerHTML = `<strong class="font-bold" style="color: ${senderColor};">${msg.senderName}:</strong> ${msg.text}`;
+                ui.chatMessages.appendChild(msgDiv);
+            });
+            ui.chatMessages.scrollTop = ui.chatMessages.scrollHeight;
+        }
+        
+        async function startGame() {
+            const data = { ...currentGameData };
+            const dominoSet = buildDominoSet();
+            shuffle(dominoSet);
+
+            data.players.forEach(p => p.hand = dominoSet.splice(0, 7));
+            
+            let startingPlayerIndex = -1, highestDouble = -1;
+            data.players.forEach((p, i) => {
+                p.hand.forEach(tile => {
+                    if (tile.a === tile.b && tile.a > highestDouble) {
+                        highestDouble = tile.a;
+                        startingPlayerIndex = i;
+                    }
+                });
+            });
+            
+            if (startingPlayerIndex === -1) {
+                let highestTileValue = -1;
+                 data.players.forEach((p, i) => {
+                    p.hand.forEach(tile => {
+                       if(tile.a + tile.b > highestTileValue) {
+                           highestTileValue = tile.a + tile.b;
+                           startingPlayerIndex = i;
+                       }
+                    });
+                });
+            }
+            
+            const starter = data.players[startingPlayerIndex];
+            const startTile = highestDouble !== -1 
+                ? starter.hand.splice(starter.hand.findIndex(t => t.a === highestDouble && t.b === highestDouble), 1)[0]
+                : starter.hand.splice(starter.hand.findIndex(t => t.a + t.b === highestTileValue), 1)[0];
+            
+            data.board = [startTile];
+            data.ends = [startTile.a, startTile.b];
+            data.status = 'playing';
+            data.currentPlayerIndex = (startingPlayerIndex + 1) % data.players.length;
+            data.message = `Comienza ${starter.name}. Turno de ${data.players[data.currentPlayerIndex].name}.`;
+            data.chatMessages = [];
+            await updateDoc(gameRef, data);
+        }
+
+        // --- Utility Functions ---
+        function shuffle(arr) { 
+            for (let i = arr.length - 1; i > 0; i--) { 
+                const j = Math.floor(Math.random() * (i + 1)); 
+                [arr[i], arr[j]] = [arr[j], arr[i]]; 
+            } 
+        }
+
+        function validateNickname() { 
+            const n = ui.nickname.value.trim(); 
+            if(n.length < 3) {
+                ui.modalError.textContent = "Apodo muy corto."; 
+                return null;
+            } 
+            ui.modalError.textContent = ""; 
+            return n;
+        }
+        
+        function buildDominoSet() { 
+            const tiles = []; 
+            for (let i = 0; i <= 6; i++) { 
+                for (let j = i; j <= 6; j++) { 
+                    tiles.push({ a: i, b: j }); 
+                } 
+            } 
+            return tiles; 
+        }
+
+        function createTileElement(tile, source) { 
+            const tileDiv = document.createElement('div'); 
+            tileDiv.className = 'domino-tile'; 
+            if (tile.a === tile.b) tileDiv.classList.add('horizontal'); 
+            const createHalf = (num) => { 
+                const half = document.createElement('div'); 
+                half.className = 'half'; 
+                const dots = [ [], [[2,2]], [[1,1],[3,3]], [[1,1],[2,2],[3,3]], [[1,1],[1,3],[3,1],[3,3]], [[1,1],[1,3],[2,2],[3,1],[3,3]], [[1,1],[1,3],[2,1],[2,3],[3,1],[3,3]] ]; 
+                if(dots[num]) dots[num].forEach(p => {
+                    const d=document.createElement('div');
+                    d.className='dot';
+                    d.style.gridArea=`${p[0]}/${p[1]}`;
+                    half.appendChild(d);
+                }); 
+                return half; 
+            }; 
+            tileDiv.appendChild(createHalf(tile.a)); 
+            const divider = document.createElement('div'); 
+            divider.className = 'divider'; 
+            tileDiv.appendChild(divider); 
+            tileDiv.appendChild(createHalf(tile.b)); 
+            return tileDiv; 
+        }
+        
+        async function sendMessage() { 
+            const text = ui.chatInput.value.trim(); 
+            if (text === "") return; 
+            const me = currentGameData.players.find(p => p.uid === currentUser.uid); 
+            if (!me) return; 
+            const newMessage = { senderName: me.name, senderUid: currentUser.uid, text: text, timestamp: new Date() }; 
+            await updateDoc(gameRef, { chatMessages: arrayUnion(newMessage) }); 
+            ui.chatInput.value = ""; 
+        }
+
+        function toggleChat() { 
+            isChatVisible = !isChatVisible; 
+            if (isChatVisible) { 
+                ui.chatContainer.classList.remove("hidden"); 
+                ui.chatContainer.classList.add("flex"); 
+                ui.chatNotification.classList.add("hidden"); 
+            } else { 
+                ui.chatContainer.classList.add("hidden"); 
+                ui.chatContainer.classList.remove("flex"); 
+            } 
+        }
+
+        // Event Listeners
+        document.getElementById('show-join-btn').addEventListener('click', () => { document.getElementById('entry-options').classList.add('hidden'); document.getElementById('join-options').classList.remove('hidden'); });
+        document.getElementById('back-to-entry-btn').addEventListener('click', () => { document.getElementById('join-options').classList.add('hidden'); document.getElementById('entry-options').classList.remove('hidden'); });
+        ui.createBtn.addEventListener('click', async () => { const n = validateNickname(); if(!n)return; const id = Math.floor(1e5+Math.random()*9e5).toString(); gameRef = doc(db,'domino-games',id); const p = {uid:currentUser.uid,name:n,hand:[],color:playerColors[0]}; const g = {roomId:id,players:[p],status:'waiting',creatorUid:currentUser.uid,board:[],ends:[],currentPlayerIndex:0,message:`Sala ${id} creada.`, chatMessages:[]}; await setDoc(gameRef,g); subscribeToGame(gameRef); });
+        ui.joinBtn.addEventListener('click', async () => { const n = validateNickname(); if(!n)return; const id=ui.roomIdInput.value.trim(); if(!id){ui.modalError.textContent="Ingresa ID.";return} gameRef=doc(db,'domino-games',id); const docSnap=await getDoc(gameRef); if(!docSnap.exists()){ui.modalError.textContent="Sala no encontrada.";return} const d=docSnap.data(); if(d.status!=='waiting'){ui.modalError.textContent="Juego en curso.";return} if(d.players.length>=4){ui.modalError.textContent="Sala llena.";return} if(!d.players.some(p=>p.uid===currentUser.uid)){const p={uid:currentUser.uid,name:n,hand:[],color:playerColors[d.players.length]};await updateDoc(gameRef,{players:arrayUnion(p)})} subscribeToGame(gameRef); });
+        ui.startBtn.addEventListener('click', startGame);
+        ui.chatToggleBtn.addEventListener("click", toggleChat);
+        ui.sendChatBtn.addEventListener("click", sendMessage);
+        ui.chatInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
+        ui.emojiPicker.addEventListener("click", (e) => { if (e.target.classList.contains("emoji-btn")) { ui.chatInput.value += e.target.textContent; ui.chatInput.focus(); } });
+    </script>
+</body>
+</html>
+
