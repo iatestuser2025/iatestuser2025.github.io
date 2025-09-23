@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viuda Negra - Juego de Cartas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #2d3748;
+            color: #e2e8f0;
+        }
+        .card {
+            width: 80px;
+            height: 112px;
+            border-radius: 8px;
+            background-color: white;
+            color: black;
+            display: inline-flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            position: relative;
+            margin: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+        }
+        .card:hover {
+            transform: translateY(-4px) scale(1.05);
+        }
+        .card.selected {
+            border: 3px solid #f59e0b;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.7);
+        }
+        .card-back {
+            background: linear-gradient(135deg, #1a202c, #2d3748);
+        }
+        .card .suit { font-size: 32px; }
+        .card.heart, .card.diamond { color: #dc2626; }
+        .card.spade, .card.club { color: #1f2937; }
+        .btn { transition: all 0.2s ease-in-out; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: translateY(0); box-shadow: none; }
+        .player-area {
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .player-area.active-player {
+            border-color: #f59e0b;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+        }
+        .player-area.planted {
+            border-color: #34d399;
+        }
+        #modal-overlay {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+        .hidden { display: none; }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <!-- Lobby Modal -->
+    <div id="modal-overlay" class="fixed inset-0 flex items-center justify-center z-50">
+        <div class="bg-gray-800 p-8 rounded-lg shadow-xl text-center w-full max-w-sm">
+            <h2 class="text-2xl font-bold mb-4">Viuda Negra</h2>
+            <p id="modal-error" class="text-red-400 mb-3 min-h-[20px]"></p>
+            <div id="entry-options">
+                 <input type="text" id="nickname-input" class="w-full bg-gray-700 text-white p-3 rounded-md mb-4" placeholder="Ingresa tu apodo...">
+                 <button id="create-room-btn" class="btn bg-green-500 hover:bg-green-600 w-full text-white font-bold py-3 px-6 rounded-lg text-lg mb-3">Crear Sala Nueva</button>
+                 <button id="show-join-btn" class="btn bg-blue-500 hover:bg-blue-600 w-full text-white font-bold py-3 px-6 rounded-lg text-lg mb-4">Unirse a Sala</button>
+                 <hr class="border-gray-600 my-4">
+                 <button onclick="window.location.href='./index.html'" class="btn bg-gray-600 hover:bg-gray-700 w-full text-white font-bold py-3 px-6 rounded-lg text-lg">Volver al Salón de Juegos</button>
+            </div>
+            <div id="join-options" class="hidden">
+                 <h3 class="text-lg font-semibold mb-2 text-gray-300">Unirse a sala de Viuda Negra</h3>
+                 <input type="text" id="room-id-input" class="w-full bg-gray-700 text-white p-3 rounded-md mb-4" placeholder="Ingresa ID de la sala...">
+                 <button id="join-room-btn" class="btn bg-blue-500 hover:bg-blue-600 w-full text-white font-bold py-3 px-6 rounded-lg text-lg mb-3">Unirse</button>
+                 <button id="back-to-entry-btn" class="text-gray-400 hover:text-white">Volver</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Container -->
+    <div id="game-container" class="w-full max-w-screen-2xl mx-auto text-center hidden">
+        <h1 class="text-4xl md:text-5xl font-bold mb-2 text-white">Viuda Negra</h1>
+        <p class="text-lg mb-2">ID de la Sala: <strong id="room-id-el" class="text-yellow-300 font-mono"></strong></p>
+        <p id="message-el" class="text-xl text-yellow-300 font-semibold mb-6 min-h-[28px]"></p>
+        
+        <div class="mb-6 bg-black/30 p-4 rounded-lg min-h-[150px]">
+            <h2 class="text-2xl font-semibold mb-2">Cartas en la Mesa</h2>
+            <div id="community-pile-el" class="flex flex-wrap justify-center items-center"></div>
+        </div>
+
+        <div id="players-area" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6"></div>
+
+        <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
+            <button id="start-game-btn" class="btn bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">INICIAR JUEGO</button>
+            <button id="accept-widow-btn" class="btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">ACEPTAR VIUDA</button>
+            <button id="decline-widow-btn" class="btn bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">PASAR</button>
+            <button id="plantarse-btn" class="btn bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">PLANTARSE</button>
+            <button id="play-again-btn" class="btn bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">JUGAR DE NUEVO</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc, getDoc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        const firebaseConfig = {
+          apiKey: "AIzaSyA6uydlodXo1vnyqoocwzHytwt5W0riIDQ",
+          authDomain: "blackjack-d6b7b.firebaseapp.com",
+          projectId: "blackjack-d6b7b",
+          storageBucket: "blackjack-d6b7b.appspot.com",
+          messagingSenderId: "705363226577",
+          appId: "1:705363226577:web:214cf8baa2c9fb48e73af0"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+        let currentGameData = null;
+        let gameRef = null;
+        let unsubscribe = null;
+        let selectedCardFromHand = null;
+        const playerColors = ['#60a5fa', '#34d399', '#f87171', '#fbbf24', '#a78bfa', '#ec4899'];
+
+        // UI Elements
+        const modalOverlay = document.getElementById("modal-overlay");
+        const nicknameInput = document.getElementById("nickname-input");
+        const gameContainer = document.getElementById("game-container");
+        const roomIdEl = document.getElementById("room-id-el");
+        const messageEl = document.getElementById("message-el");
+        const communityPileEl = document.getElementById("community-pile-el");
+        const playersArea = document.getElementById("players-area");
+        const startGameBtn = document.getElementById("start-game-btn");
+        const acceptWidowBtn = document.getElementById("accept-widow-btn");
+        const declineWidowBtn = document.getElementById("decline-widow-btn");
+        const plantarseBtn = document.getElementById("plantarse-btn");
+        const playAgainBtn = document.getElementById("play-again-btn");
+        const createRoomBtn = document.getElementById("create-room-btn");
+        const joinRoomBtn = document.getElementById("join-room-btn");
+        const roomIdInput = document.getElementById("room-id-input");
+        const modalErrorEl = document.getElementById("modal-error");
+        
+        onAuthStateChanged(auth, user => { if (user) currentUser = user; });
+        await signInAnonymously(auth);
+
+        function subscribeToGame(ref) { /* ... same as other games ... */ }
+        function renderGame(data) { /* ... logic to draw game state ... */ }
+        async function startGame() { /* ... deals cards and starts widow phase ... */ }
+        async function handleWidowDecision(accepted) { /* ... logic for widow hand ... */ }
+        async function handleCardExchange(pileCard) { /* ... logic for taking and discarding ... */ }
+        async function plantarse() { /* ... logic to stand ... */ }
+        async function advanceTurn() { /* ... logic to move to next player ... */ }
+        async function showdown() { /* ... evaluate hands and find winner ... */ }
+        function evaluateHand(cards) { /* ... same as Texas Hold'em ... */ }
+        function buildDeck() { /* ... */ }
+        function shuffleDeck(deck) { /* ... */ }
+        function createCardElement(card, source) { /* ... */ }
+        function validateNickname() { /* ... */ }
+
+        // --- Implementation of core functions ---
+        
+        subscribeToGame = function(ref) {
+            if (unsubscribe) unsubscribe();
+            unsubscribe = onSnapshot(ref, (docSnap) => {
+                if (docSnap.exists()) {
+                    currentGameData = docSnap.data();
+                    renderGame(currentGameData);
+                }
+            });
+            modalOverlay.classList.add("hidden");
+            gameContainer.classList.remove("hidden");
+        }
+
+        renderGame = function(data) {
+            roomIdEl.textContent = data.roomId;
+            messageEl.textContent = data.message;
+            communityPileEl.innerHTML = '';
+            data.communityPile.forEach(card => communityPileEl.appendChild(createCardElement(card, 'pile')));
+
+            playersArea.innerHTML = '';
+            data.players.forEach((player, index) => {
+                const playerDiv = document.createElement('div');
+                playerDiv.classList.add('player-area', 'bg-black/30', 'p-4', 'rounded-lg');
+                if (player.status === 'planted') playerDiv.classList.add('planted');
+                if (data.currentPlayerIndex === index && data.status === 'playing') playerDiv.classList.add('active-player');
+
+                let handDesc = data.status === 'finished' ? player.handDescription || '' : '';
+                playerDiv.innerHTML = `
+                    <h3 class="text-xl font-bold truncate" style="color: ${player.color};">${player.name}</h3>
+                    <p class="font-semibold text-lg mb-2 min-h-[28px] text-yellow-300">${handDesc}</p>
+                    <div class="cards-container flex flex-wrap justify-center min-h-[112px]"></div>`;
+                const cardsContainer = playerDiv.querySelector('.cards-container');
+                player.hand.forEach(card => {
+                    const showCards = data.status === 'finished' || player.uid === currentUser.uid;
+                    cardsContainer.appendChild(createCardElement(card, 'hand', showCards));
+                });
+                playersArea.appendChild(playerDiv);
+            });
+
+            [startGameBtn, acceptWidowBtn, declineWidowBtn, plantarseBtn, playAgainBtn].forEach(b => b.classList.add('hidden'));
+            
+            const isMyTurn = (data.currentPlayerIndex === data.players.findIndex(p => p.uid === currentUser.uid));
+            const amIWidowDecider = (data.widowDecisionIndex === data.players.findIndex(p => p.uid === currentUser.uid));
+
+            if (data.status === 'waiting') {
+                startGameBtn.classList.remove('hidden');
+                startGameBtn.disabled = data.creatorUid !== currentUser.uid;
+            } else if (data.status === 'widow-phase' && amIWidowDecider) {
+                acceptWidowBtn.classList.remove('hidden');
+                declineWidowBtn.classList.remove('hidden');
+            } else if (data.status === 'playing' && isMyTurn) {
+                plantarseBtn.classList.remove('hidden');
+            } else if (data.status === 'finished') {
+                playAgainBtn.classList.remove('hidden');
+                playAgainBtn.disabled = data.creatorUid !== currentUser.uid;
+            }
+        }
+
+        startGame = async function() {
+            const data = { ...currentGameData };
+            data.deck = shuffleDeck(buildDeck());
+            data.players.forEach(p => p.hand = [data.deck.pop(), data.deck.pop(), data.deck.pop(), data.deck.pop(), data.deck.pop()]);
+            data.widowHand = [data.deck.pop(), data.deck.pop(), data.deck.pop(), data.deck.pop(), data.deck.pop()];
+            data.communityPile = [];
+            data.status = 'widow-phase';
+            data.widowDecisionIndex = 0;
+            data.message = `Turno de ${data.players[0].name} para decidir sobre la viuda.`;
+            await updateDoc(gameRef, data);
+        }
+
+        handleWidowDecision = async function(accepted) {
+            const data = { ...currentGameData };
+            const decider = data.players[data.widowDecisionIndex];
+            if (decider.uid !== currentUser.uid) return;
+
+            if (accepted) {
+                data.communityPile = [...decider.hand];
+                decider.hand = [...data.widowHand];
+                data.widowHand = [];
+                data.status = 'playing';
+                data.currentPlayerIndex = 0;
+                data.message = `Turno de ${data.players[0].name}. Toma una carta de la mesa.`;
+            } else {
+                let nextIndex = data.widowDecisionIndex + 1;
+                if (nextIndex >= data.players.length) {
+                    data.communityPile = [...data.widowHand];
+                    data.widowHand = [];
+                    data.status = 'playing';
+                    data.currentPlayerIndex = 0;
+                    data.message = `Nadie quiso la viuda. Turno de ${data.players[0].name}.`;
+                } else {
+                    data.widowDecisionIndex = nextIndex;
+                    data.message = `Turno de ${data.players[nextIndex].name} para decidir sobre la viuda.`;
+                }
+            }
+            await updateDoc(gameRef, data);
+        }
+        
+        handleCardExchange = async function(pileCard) {
+            if (!selectedCardFromHand) return;
+            const data = { ...currentGameData };
+            const player = data.players[data.currentPlayerIndex];
+            
+            // Swap cards
+            const handCardIndex = player.hand.findIndex(c => c.value === selectedCardFromHand.value && c.suit === selectedCardFromHand.suit);
+            const pileCardIndex = data.communityPile.findIndex(c => c.value === pileCard.value && c.suit === pileCard.suit);
+
+            if(handCardIndex > -1 && pileCardIndex > -1) {
+                player.hand.splice(handCardIndex, 1, pileCard);
+                data.communityPile.splice(pileCardIndex, 1, selectedCardFromHand);
+            }
+            
+            selectedCardFromHand = null;
+            await advanceTurn();
+        }
+
+        plantarse = async function() {
+            const data = { ...currentGameData };
+            const player = data.players[data.currentPlayerIndex];
+            if (player.uid !== currentUser.uid) return;
+            player.status = 'planted';
+            if (!data.plantedPlayerUid) {
+                data.plantedPlayerUid = player.uid;
+            }
+            await updateDoc(gameRef, data);
+            await advanceTurn();
+        }
+
+        advanceTurn = async function() {
+            const data = { ...currentGameData };
+            let nextIndex = (data.currentPlayerIndex + 1) % data.players.length;
+            
+            if (data.players[nextIndex].uid === data.plantedPlayerUid) {
+                await showdown();
+            } else {
+                data.currentPlayerIndex = nextIndex;
+                data.message = `Turno de ${data.players[nextIndex].name}.`;
+                await updateDoc(gameRef, data);
+            }
+        }
+
+        showdown = async function() {
+            const data = { ...currentGameData };
+            data.status = 'finished';
+            let bestHandRank = -1;
+            let winners = [];
+
+            data.players.forEach(player => {
+                const evaluation = evaluateHand(player.hand);
+                player.handDescription = evaluation.name;
+                player.handRank = evaluation.rank;
+                if (evaluation.rank > bestHandRank) {
+                    bestHandRank = evaluation.rank;
+                    winners = [player];
+                } else if (evaluation.rank === bestHandRank) {
+                    winners.push(player);
+                }
+            });
+            
+            if (winners.length > 1) {
+                data.message = `¡Empate entre ${winners.map(w => w.name).join(' y ')} con ${winners[0].handDescription}!`;
+            } else if (winners.length === 1) {
+                data.message = `¡${winners[0].name} gana con ${winners[0].handDescription}!`;
+            }
+            await updateDoc(gameRef, data);
+        }
+
+        evaluateHand = function(cards) {
+            // Re-using the same robust evaluation logic from Texas Hold'em
+            const Ranks = "23456789TJQKA".split('').reduce((o, c, i) => ({...o, [c]: i}), {});
+            let hand = [...cards];
+            hand.sort((a,b) => Ranks[b.value] - Ranks[a.value]);
+            const counts = hand.reduce((o, c) => ({...o, [Ranks[c.value]]: (o[Ranks[c.value]] || 0) + 1}), {});
+            const suitCounts = hand.reduce((o, c) => ({...o, [c.suit]: (o[c.suit] || 0) + 1}), {});
+            const values = Object.keys(counts).map(Number).sort((a,b) => b-a);
+            const isFlush = Object.values(suitCounts).some(v => v >= 5);
+            const uniqueValues = Array.from(new Set(hand.map(c => Ranks[c.value]))).sort((a,b) => b-a);
+            let isStraight = uniqueValues.length === 5 && (uniqueValues[0] - uniqueValues[4] === 4);
+            const isAceLowStraight = JSON.stringify(uniqueValues) === JSON.stringify([12, 3, 2, 1, 0]);
+
+            let rank = 0, name = 'Carta Alta';
+            if (isStraight && isFlush) { name = 'Escalera de Color'; rank = 8; }
+            else if (Object.values(counts).includes(4)) { name = 'Póker'; rank = 7; }
+            else if (Object.values(counts).includes(3) && Object.values(counts).includes(2)) { name = 'Full'; rank = 6; }
+            else if (isFlush) { name = 'Color'; rank = 5; }
+            else if (isStraight || isAceLowStraight) { name = 'Escalera'; rank = 4; }
+            else if (Object.values(counts).includes(3)) { name = 'Trío'; rank = 3; }
+            else if (Object.values(counts).filter(v => v === 2).length >= 2) { name = 'Doble Par'; rank = 2; }
+            else if (Object.values(counts).includes(2)) { name = 'Par'; rank = 1; }
+            return { rank, name };
+        }
+
+        buildDeck = function() { const s="heart,diamond,spade,club".split(","),v="2,3,4,5,6,7,8,9,T,J,Q,K,A".split(","); return s.flatMap(suit=>v.map(value=>({value,suit}))) }
+        shuffleDeck = function(d) { for(let i=d.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[d[i],d[j]]=[d[j],d[i]]}return d}
+        
+        createCardElement = function(card, source, show=true) {
+            const cardDiv = document.createElement("div");
+            const cardIdentifier = `${card.value}-${card.suit}`;
+            cardDiv.dataset.id = cardIdentifier;
+            cardDiv.classList.add("card", card.suit);
+            if (!show) {
+                cardDiv.classList.add("card-back");
+            } else {
+                const suitSymbols = {"heart":"♥","diamond":"♦","spade":"♠","club":"♣"};
+                cardDiv.innerHTML = `<div class="text-left">${card.value}${suitSymbols[card.suit]}</div><div class="text-center suit">${suitSymbols[card.suit]}</div><div class="text-right transform rotate-180">${card.value}${suitSymbols[card.suit]}</div>`;
+            }
+
+            const player = currentGameData.players[currentGameData.currentPlayerIndex];
+            const isMyTurn = player && player.uid === currentUser.uid;
+
+            if (isMyTurn && show && currentGameData.status === 'playing') {
+                if (source === 'hand') {
+                    cardDiv.onclick = () => {
+                        document.querySelectorAll('.card.selected').forEach(c => c.classList.remove('selected'));
+                        cardDiv.classList.add('selected');
+                        selectedCardFromHand = card;
+                        messageEl.textContent = "Ahora selecciona una carta de la mesa para tomar.";
+                    };
+                } else if (source === 'pile') {
+                    cardDiv.onclick = () => handleCardExchange(card);
+                }
+            }
+            return cardDiv;
+        }
+
+        validateNickname = function() { const n = nicknameInput.value.trim(); if(n.length < 3) {modalErrorEl.textContent = "Apodo muy corto."; return null;} modalErrorEl.textContent = ""; return n;}
+        
+        // Event Listeners
+        document.getElementById('show-join-btn').addEventListener('click', () => { document.getElementById('entry-options').classList.add('hidden'); document.getElementById('join-options').classList.remove('hidden'); });
+        document.getElementById('back-to-entry-btn').addEventListener('click', () => { document.getElementById('join-options').classList.add('hidden'); document.getElementById('entry-options').classList.remove('hidden'); });
+        createRoomBtn.addEventListener('click', async () => { const n = validateNickname(); if(!n)return; const id=Math.floor(1e5+Math.random()*9e5).toString(); gameRef=doc(db,'viuda-negra-games',id); const p={uid:currentUser.uid,name:n,hand:[],status:'waiting',color:playerColors[0]}; const g={roomId:id,players:[p],status:'waiting',creatorUid:currentUser.uid,widowHand:[],communityPile:[],currentPlayerIndex:0,widowDecisionIndex:0,message:`Sala ${id} creada.`}; await setDoc(gameRef,g); subscribeToGame(gameRef); });
+        joinRoomBtn.addEventListener('click', async () => { const n = validateNickname(); if(!n)return; const id=roomIdInput.value.trim(); if(!id){modalErrorEl.textContent="Ingresa ID.";return} gameRef=doc(db,'viuda-negra-games',id); const docSnap=await getDoc(gameRef); if(!docSnap.exists()){modalErrorEl.textContent="Sala no encontrada.";return} const d=docSnap.data(); if(d.status!=='waiting'){modalErrorEl.textContent="Juego en curso.";return} if(d.players.length>=6){modalErrorEl.textContent="Sala llena.";return} if(!d.players.some(p=>p.uid===currentUser.uid)){const p={uid:currentUser.uid,name:n,hand:[],status:'waiting',color:playerColors[d.players.length]};await updateDoc(gameRef,{players:arrayUnion(p)})} subscribeToGame(gameRef); });
+        startGameBtn.addEventListener('click', startGame);
+        acceptWidowBtn.addEventListener('click', () => handleWidowDecision(true));
+        declineWidowBtn.addEventListener('click', () => handleWidowDecision(false));
+        plantarseBtn.addEventListener('click', plantarse);
+        playAgainBtn.addEventListener('click', startGame);
+    </script>
+</body>
+</html>
+
+    
+
