@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salón de Juegos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #1a202c; /* Mismo fondo oscuro que el blackjack */
+            color: #e2e8f0;
+        }
+        .game-card {
+            background-color: #2d3748;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        .game-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+            border-color: #f59e0b; /* Borde dorado al pasar el ratón */
+        }
+        .game-card h2 {
+            color: #f59e0b; /* Títulos en dorado */
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-4xl mx-auto text-center">
+        <h1 class="text-4xl md:text-6xl font-bold mb-4 text-white animate-pulse">Salón de Juegos</h1>
+        <p class="text-lg md:text-xl text-gray-400 mb-12">Elige tu juego y únete a la diversión.</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Tarjeta para Blackjack -->
+            <a href="./blackjack.html" class="game-card p-8 rounded-lg shadow-xl cursor-pointer">
+                <div class="text-6xl mb-4">♣️</div>
+                <h2 class="text-3xl font-bold mb-2">Blackjack 21</h2>
+                <p class="text-gray-400">¿Podrás vencer al croupier? Consigue 21 y gana.</p>
+            </a>
+
+            <!-- Tarjeta para Texas Hold'em -->
+            <a href="./texas.html" class="game-card p-8 rounded-lg shadow-xl cursor-pointer">
+                <div class="text-6xl mb-4">♠️</div>
+                <h2 class="text-3xl font-bold mb-2">Texas Hold'em</h2>
+                <p class="text-gray-400">Muestra tu mejor mano en el juego de póker más famoso.</p>
+            </a>
+        </div>
+    </div>
+
+</body>
+</html>
