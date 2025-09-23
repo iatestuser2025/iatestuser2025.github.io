@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -296,10 +294,20 @@
             let dealerSum = 0;
             if (data.dealer && data.dealer.hand.length > 0) {
                  const isDealerTurn = data.gamePhase === 'dealer-turn' || data.gamePhase === 'finished';
-                 dealerCardsEl.appendChild(createCardElement(data.dealer.hand[0]));
-                 if (data.dealer.hand.length > 1) {
-                    dealerCardsEl.appendChild(createCardElement(data.dealer.hand[1], !isDealerTurn));
+                 
+                 if (isDealerTurn) {
+                    // Si es el turno del croupier o el juego terminó, muestra todas sus cartas
+                    data.dealer.hand.forEach(card => {
+                        dealerCardsEl.appendChild(createCardElement(card));
+                    });
+                 } else {
+                    // Si no, muestra la primera carta y la segunda oculta
+                    dealerCardsEl.appendChild(createCardElement(data.dealer.hand[0]));
+                    if (data.dealer.hand.length > 1) {
+                       dealerCardsEl.appendChild(createCardElement(data.dealer.hand[1], true));
+                    }
                  }
+
                  dealerSum = isDealerTurn ? data.dealer.sum : getCardValue(data.dealer.hand[0]);
             }
             dealerSumEl.textContent = dealerSum || "";
@@ -456,4 +464,6 @@
     </script>
 </body>
 </html>
+
+
 
