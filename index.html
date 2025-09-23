@@ -90,6 +90,7 @@
             <button id="start-game-btn" class="btn bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg">INICIAR JUEGO</button>
             <button id="hit-btn" class="btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg">PEDIR CARTA</button>
             <button id="stand-btn" class="btn bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg">PLANTARSE</button>
+            <button id="play-again-btn" class="btn bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg">JUGAR DE NUEVO</button>
         </div>
         <p class="text-sm mt-4 text-gray-400">Tu ID de jugador: <span id="user-id-el" class="font-mono"></span></p>
     </div>
@@ -116,7 +117,7 @@
         let currentUser = null;
         let currentGameData = null;
         let gameRef = null;
-        let unsubscribe = null; // Para detener el listener de snapshot
+        let unsubscribe = null;
 
         const messageEl = document.getElementById("message-el");
         const dealerSumEl = document.getElementById("dealer-sum-el");
@@ -125,13 +126,13 @@
         const startGameBtn = document.getElementById("start-game-btn");
         const hitBtn = document.getElementById("hit-btn");
         const standBtn = document.getElementById("stand-btn");
+        const playAgainBtn = document.getElementById("play-again-btn");
         const modalOverlay = document.getElementById("modal-overlay");
         const nicknameInput = document.getElementById("nickname-input");
         const gameContainer = document.getElementById("game-container");
         const userIdEl = document.getElementById("user-id-el");
         const roomIdEl = document.getElementById("room-id-el");
 
-        // --- LÓGICA DEL MODAL ---
         const entryOptions = document.getElementById("entry-options");
         const joinOptions = document.getElementById("join-options");
         const createRoomBtn = document.getElementById("create-room-btn");
@@ -150,7 +151,6 @@
             entryOptions.classList.remove('hidden');
         });
 
-        // --- AUTENTICACIÓN ---
         onAuthStateChanged(auth, user => {
             if (user) {
                 currentUser = user;
@@ -169,7 +169,6 @@
             return nickname;
         }
 
-        // --- LÓGICA DE SALAS ---
         createRoomBtn.addEventListener('click', async () => {
             const nickname = validateNickname();
             if (!nickname) return;
@@ -184,7 +183,7 @@
                 players: [newPlayer],
                 dealer: { hand: [], sum: 0 },
                 deck: [],
-                status: 'waiting', // waiting, playing, finished
+                status: 'waiting',
                 creatorUid: currentUser.uid,
                 gamePhase: 'waiting',
                 currentPlayerIndex: 0,
@@ -222,9 +221,7 @@
                 modalErrorEl.textContent = "La sala está llena.";
                 return;
             }
-            if (gameData.players.some(p => p.uid === currentUser.uid)) {
-                // El jugador ya está en la sala, lo dejamos entrar
-            } else {
+            if (!gameData.players.some(p => p.uid === currentUser.uid)) {
                  const newPlayer = { uid: currentUser.uid, name: nickname, hand: [], sum: 0, status: 'waiting' };
                  gameData.players.push(newPlayer);
                  await setDoc(gameRef, gameData, { merge: true });
@@ -234,7 +231,7 @@
         });
 
         function subscribeToGame(ref) {
-            if (unsubscribe) unsubscribe(); // Detiene el listener anterior si existe
+            if (unsubscribe) unsubscribe();
             unsubscribe = onSnapshot(ref, (docSnap) => {
                 if (docSnap.exists()) {
                     currentGameData = docSnap.data();
@@ -245,7 +242,6 @@
             gameContainer.classList.remove("hidden");
         }
 
-        // --- FUNCIONES BÁSICAS DE CARTAS (sin cambios) ---
         function buildDeck() {
             const suits = ["heart", "diamond", "spade", "club"];
             const values = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
@@ -273,7 +269,6 @@
             return sum;
         }
 
-        // --- RENDERIZADO DEL JUEGO ---
         function createCardElement(card, isHidden = false) {
             const cardDiv = document.createElement("div");
             cardDiv.classList.add("card", card.suit);
@@ -294,20 +289,12 @@
             let dealerSum = 0;
             if (data.dealer && data.dealer.hand.length > 0) {
                  const isDealerTurn = data.gamePhase === 'dealer-turn' || data.gamePhase === 'finished';
-                 
                  if (isDealerTurn) {
-                    // Si es el turno del croupier o el juego terminó, muestra todas sus cartas
-                    data.dealer.hand.forEach(card => {
-                        dealerCardsEl.appendChild(createCardElement(card));
-                    });
+                    data.dealer.hand.forEach(card => dealerCardsEl.appendChild(createCardElement(card)));
                  } else {
-                    // Si no, muestra la primera carta y la segunda oculta
                     dealerCardsEl.appendChild(createCardElement(data.dealer.hand[0]));
-                    if (data.dealer.hand.length > 1) {
-                       dealerCardsEl.appendChild(createCardElement(data.dealer.hand[1], true));
-                    }
+                    if (data.dealer.hand.length > 1) dealerCardsEl.appendChild(createCardElement(data.dealer.hand[1], true));
                  }
-
                  dealerSum = isDealerTurn ? data.dealer.sum : getCardValue(data.dealer.hand[0]);
             }
             dealerSumEl.textContent = dealerSum || "";
@@ -317,9 +304,7 @@
             data.players.forEach((player, index) => {
                 const playerDiv = document.createElement('div');
                 playerDiv.classList.add('player-area', 'bg-gray-800/50', 'p-4', 'rounded-lg');
-                if (data.currentPlayerIndex === index && data.gamePhase === 'playing') {
-                    playerDiv.classList.add('active-player');
-                }
+                if (data.currentPlayerIndex === index && data.gamePhase === 'playing') playerDiv.classList.add('active-player');
                 
                 let statusMessage = '';
                 switch(player.status) {
@@ -332,46 +317,59 @@
                 const isMyHand = player.uid === currentUser.uid;
                 const isStillPlaying = player.status === 'playing';
                 let displayedSum = player.sum;
-
-                if (!isMyHand && isStillPlaying && player.hand.length > 0) {
-                     displayedSum = getCardValue(player.hand[0]) + " + ?";
-                }
+                if (!isMyHand && isStillPlaying && player.hand.length > 0) displayedSum = getCardValue(player.hand[0]) + " + ?";
                 
                 playerDiv.innerHTML = `<h3 class="text-xl font-bold truncate">${player.name}</h3><p class="font-semibold text-lg mb-2">Puntos: ${displayedSum} ${statusMessage}</p><div class="cards-container flex flex-wrap justify-center min-h-[120px]"></div>`;
                 const cardsContainer = playerDiv.querySelector('.cards-container');
-                
                 player.hand.forEach((card, cardIndex) => {
                     const isHidden = cardIndex === 1 && !isMyHand && isStillPlaying;
                     cardsContainer.appendChild(createCardElement(card, isHidden));
                 });
-
                 playersArea.appendChild(playerDiv);
             });
             
             // Lógica de mensajes y botones
             const currentPlayer = data.players[data.currentPlayerIndex];
             const amICurrentPlayer = currentPlayer?.uid === currentUser.uid;
-            
             const isCreator = data.creatorUid === currentUser.uid;
-            startGameBtn.disabled = !isCreator || data.status !== 'waiting';
-            hitBtn.disabled = !amICurrentPlayer || data.gamePhase !== 'playing';
-            standBtn.disabled = !amICurrentPlayer || data.gamePhase !== 'playing';
+            
+            startGameBtn.style.display = 'none';
+            hitBtn.style.display = 'none';
+            standBtn.style.display = 'none';
+            playAgainBtn.style.display = 'none';
 
             if (data.status === 'finished') {
                 messageEl.textContent = data.message || "La partida ha terminado.";
-                startGameBtn.textContent = "CREAR NUEVA SALA";
+                playAgainBtn.style.display = 'inline-block';
+                playAgainBtn.disabled = !isCreator;
+                if (!isCreator) messageEl.textContent += " Esperando que el creador reinicie.";
+                
+                startGameBtn.style.display = 'inline-block';
+                startGameBtn.textContent = "NUEVA SALA";
                 startGameBtn.disabled = false;
                 startGameBtn.onclick = () => window.location.reload();
+
             } else if (data.status === 'waiting') {
                 messageEl.textContent = "Esperando que el creador inicie el juego...";
-            } else if (data.gamePhase === 'playing' && amICurrentPlayer) {
-                messageEl.textContent = "¡Es tu turno!";
+                startGameBtn.style.display = 'inline-block';
+                startGameBtn.textContent = "INICIAR JUEGO";
+                startGameBtn.disabled = !isCreator;
+                startGameBtn.onclick = startGame;
+
             } else if (data.gamePhase === 'playing') {
-                 messageEl.textContent = `Turno de ${currentPlayer.name}...`;
+                hitBtn.style.display = 'inline-block';
+                standBtn.style.display = 'inline-block';
+                hitBtn.disabled = !amICurrentPlayer;
+                standBtn.disabled = !amICurrentPlayer;
+
+                if (amICurrentPlayer) {
+                    messageEl.textContent = "¡Es tu turno!";
+                } else {
+                    messageEl.textContent = `Turno de ${currentPlayer.name}...`;
+                }
             }
         }
 
-        // --- ACCIONES DEL JUEGO ---
         async function startGame() {
             const data = { ...currentGameData };
             data.status = 'playing';
@@ -392,10 +390,72 @@
             await checkTurn(data); 
         }
 
-        async function hit() { /* ... Lógica sin cambios ... */ }
-        async function stand() { /* ... Lógica sin cambios ... */ }
-        async function advanceTurn() { /* ... Lógica sin cambios ... */ }
-        async function checkTurn(data) { /* ... Lógica sin cambios ... */ }
+        async function playAgain() {
+            if (currentGameData.creatorUid !== currentUser.uid) return;
+            const data = { ...currentGameData };
+            data.status = 'playing';
+            data.gamePhase = 'playing';
+            data.deck = shuffleDeck(buildDeck());
+            data.message = "";
+            data.currentPlayerIndex = 0;
+
+            data.players.forEach(player => {
+                player.hand = [data.deck.pop(), data.deck.pop()];
+                player.sum = getSum(player.hand);
+                player.status = 'playing';
+                if (player.sum === 21) player.status = 'blackjack';
+            });
+            
+            data.dealer.hand = [data.deck.pop(), data.deck.pop()];
+            data.dealer.sum = getSum(data.dealer.hand);
+            
+            await setDoc(gameRef, data);
+            await checkTurn(data);
+        }
+
+        async function hit() {
+            const data = { ...currentGameData };
+            const player = data.players[data.currentPlayerIndex];
+            if (player.uid !== currentUser.uid || data.gamePhase !== 'playing') return;
+            player.hand.push(data.deck.pop());
+            player.sum = getSum(player.hand);
+            if (player.sum > 21) player.status = 'busted';
+            else if (player.hand.length === 5) player.status = 'quintilla';
+            await setDoc(gameRef, data);
+            if (player.status === 'busted' || player.status === 'quintilla') await advanceTurn();
+        }
+
+        async function stand() {
+            const data = { ...currentGameData };
+            const player = data.players[data.currentPlayerIndex];
+            if (player.uid !== currentUser.uid || data.gamePhase !== 'playing') return;
+            player.status = 'stood';
+            await setDoc(gameRef, data);
+            await advanceTurn();
+        }
+
+        async function advanceTurn() {
+            const data = { ...currentGameData };
+            let nextIndex = data.currentPlayerIndex + 1;
+            while(nextIndex < data.players.length && data.players[nextIndex].status !== 'playing') { nextIndex++; }
+            if (nextIndex >= data.players.length) {
+                data.gamePhase = 'dealer-turn';
+                await setDoc(gameRef, data);
+                await dealerTurn();
+            } else {
+                data.currentPlayerIndex = nextIndex;
+                await setDoc(gameRef, data);
+                await checkTurn(data);
+            }
+        }
+
+        async function checkTurn(data) {
+             const player = data.players[data.currentPlayerIndex];
+             if(player && (player.status === 'blackjack' || player.status === 'quintilla')) {
+                 await advanceTurn();
+             }
+        }
+
         async function dealerTurn() {
             const data = { ...currentGameData };
             while (data.dealer.sum < 17) {
@@ -412,58 +472,16 @@
                 } else { finalMessage += `${player.name} empata. `; }
             });
             data.gamePhase = 'finished';
-            data.status = 'finished'; // <-- Cambio clave
+            data.status = 'finished';
             data.message = finalMessage;
             await setDoc(gameRef, data);
-        }
-
-        // --- Asignación duplicada para asegurar que la lógica interna sea la misma ---
-        hit = async function() {
-            const data = { ...currentGameData };
-            const player = data.players[data.currentPlayerIndex];
-            if (player.uid !== currentUser.uid || data.gamePhase !== 'playing') return;
-            player.hand.push(data.deck.pop());
-            player.sum = getSum(player.hand);
-            if (player.sum > 21) player.status = 'busted';
-            else if (player.hand.length === 5) player.status = 'quintilla';
-            await setDoc(gameRef, data);
-            if (player.status === 'busted' || player.status === 'quintilla') await advanceTurn();
-        }
-        stand = async function() {
-            const data = { ...currentGameData };
-            const player = data.players[data.currentPlayerIndex];
-            if (player.uid !== currentUser.uid || data.gamePhase !== 'playing') return;
-            player.status = 'stood';
-            await setDoc(gameRef, data);
-            await advanceTurn();
-        }
-        checkTurn = async function(data) {
-             const player = data.players[data.currentPlayerIndex];
-             if(player && (player.status === 'blackjack' || player.status === 'quintilla')) {
-                 await advanceTurn();
-             }
-        }
-        advanceTurn = async function() {
-            const data = { ...currentGameData };
-            let nextIndex = data.currentPlayerIndex + 1;
-            while(nextIndex < data.players.length && data.players[nextIndex].status !== 'playing') { nextIndex++; }
-            if (nextIndex >= data.players.length) {
-                data.gamePhase = 'dealer-turn';
-                await setDoc(gameRef, data);
-                await dealerTurn();
-            } else {
-                data.currentPlayerIndex = nextIndex;
-                await setDoc(gameRef, data);
-                await checkTurn(data);
-            }
         }
 
         startGameBtn.addEventListener("click", startGame);
         hitBtn.addEventListener("click", hit);
         standBtn.addEventListener("click", stand);
+        playAgainBtn.addEventListener("click", playAgain);
     </script>
 </body>
 </html>
-
-
 
