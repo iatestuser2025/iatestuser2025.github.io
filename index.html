@@ -1,276 +1,459 @@
 
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal de Empleados SICAR</title>
-    <!-- Tailwind CSS para un diseño moderno -->
+    <title>Blackjack 21 Multijugador con Salas</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Poppins', sans-serif;
+            background-color: #1a202c;
+            color: #e2e8f0;
         }
-        /* Animaciones suaves */
-        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
-        .fade-out { animation: fadeOut 0.5s ease-in forwards; }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
+        .card {
+            width: 80px;
+            height: 112px;
+            border-radius: 8px;
+            background-color: white;
+            color: black;
+            display: inline-flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative;
+            margin: 4px;
         }
-        @keyframes fadeOut {
-            from { opacity: 1; transform: translateY(0); }
-            to { opacity: 0; transform: translateY(-10px); }
+        .card-back {
+            background: linear-gradient(135deg, #6b21a8, #9d174d);
+        }
+        .card .suit { font-size: 32px; }
+        .card.heart, .card.diamond { color: #dc2626; }
+        .card.spade, .card.club { color: #1f2937; }
+        .btn { transition: all 0.2s ease-in-out; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: translateY(0); box-shadow: none; }
+        .player-area {
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .player-area.active-player {
+            border-color: #f59e0b; /* Amarillo para el jugador activo */
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+        }
+        #modal-overlay {
+            background-color: rgba(0, 0, 0, 0.7);
         }
         .hidden { display: none; }
-        /* Estilos para el modal de confirmación */
-        #confirm-modal-backdrop {
-            transition: opacity 0.3s ease;
-        }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 flex items-center justify-center min-h-screen">
+<body class="flex items-center justify-center min-h-screen p-4">
 
-    <div class="w-full max-w-md mx-auto">
-        <!-- 1. Pantalla de Bienvenida -->
-        <div id="welcome-screen" class="bg-white rounded-2xl shadow-xl p-8 text-center fade-in">
-            <img src="https://i.postimg.cc/t4s9sxw6/logo.png" alt="Logo de la Empresa" class="mx-auto mb-6 rounded-full">
-            <h1 class="text-3xl font-bold text-slate-900">Bienvenido Empleado SICAR</h1>
-            <p class="text-slate-500 mt-2 mb-8">Usa esta herramienta para registrar nuevos miembros al equipo.</p>
-            <button id="register-button" class="w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-transform transform hover:scale-105">
-                Regístrate
-            </button>
-        </div>
-
-        <!-- 2. Pantalla de Formulario -->
-        <div id="form-screen" class="w-full bg-white rounded-2xl shadow-xl p-8 hidden">
-            <div class="text-center mb-8">
-                <h1 class="text-3xl font-bold text-slate-900">Portal de Empleados</h1>
-                <p class="text-slate-500 mt-2">Registra un nuevo empleado para felicitarlo en su día.</p>
+    <!-- Modal para unirse/crear sala -->
+    <div id="modal-overlay" class="fixed inset-0 flex items-center justify-center z-50">
+        <div class="bg-gray-800 p-8 rounded-lg shadow-xl text-center w-full max-w-sm">
+            <h2 class="text-2xl font-bold mb-4">Blackjack Multijugador</h2>
+            <p id="modal-error" class="text-red-400 mb-3 min-h-[20px]"></p>
+            <div id="entry-options">
+                 <input type="text" id="nickname-input" class="w-full bg-gray-700 text-white p-3 rounded-md mb-4" placeholder="Ingresa tu apodo...">
+                 <button id="create-room-btn" class="btn bg-green-500 hover:bg-green-600 w-full text-white font-bold py-3 px-6 rounded-lg text-lg mb-3">Crear Sala Nueva</button>
+                 <button id="show-join-btn" class="btn bg-blue-500 hover:bg-blue-600 w-full text-white font-bold py-3 px-6 rounded-lg text-lg">Unirse a Sala</button>
             </div>
-
-            <form id="employee-form" class="space-y-6">
-                <div>
-                    <label for="name" class="block text-sm font-medium text-slate-700 mb-1">Nombre Completo</label>
-                    <input type="text" id="name" name="name" required class="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
-                </div>
-                <div>
-                    <label for="email" class="block text-sm font-medium text-slate-700 mb-1">Correo Electrónico</label>
-                    <input type="email" id="email" name="email" required class="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
-                </div>
-                <div>
-                    <label for="birthdate" class="block text-sm font-medium text-slate-700 mb-1">Fecha de Nacimiento (Obligatorio)</label>
-                    <input type="date" id="birthdate" name="birthdate" required class="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
-                </div>
-                <div>
-                    <label for="hiredate" class="block text-sm font-medium text-slate-700 mb-1">Fecha de Ingreso (Opcional)</label>
-                    <input type="date" id="hiredate" name="hiredate" class="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
-                </div>
-                <button type="submit" id="submit-button" class="w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-transform transform hover:scale-105 disabled:bg-indigo-400 disabled:cursor-not-allowed flex items-center justify-center">
-                     <span id="button-text">Registrar Empleado</span>
-                     <svg id="button-spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <!-- 3. Modal de Confirmación para Actualizar -->
-    <div id="confirm-modal" class="hidden">
-        <div id="confirm-modal-backdrop" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm text-center">
-                <h3 class="text-lg font-semibold text-slate-900 mb-2">Correo ya registrado</h3>
-                <p class="text-slate-600 mb-6">Este correo ya está registrado. ¿Deseas actualizar los datos?</p>
-                <div class="flex justify-center space-x-4">
-                    <button id="cancel-update" class="px-6 py-2 rounded-lg bg-slate-200 text-slate-800 hover:bg-slate-300 transition">Cancelar</button>
-                    <button id="confirm-update" class="px-6 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition">Sí, actualizar</button>
-                </div>
+            <div id="join-options" class="hidden">
+                 <input type="text" id="room-id-input" class="w-full bg-gray-700 text-white p-3 rounded-md mb-4" placeholder="Ingresa ID de la sala...">
+                 <button id="join-room-btn" class="btn bg-blue-500 hover:bg-blue-600 w-full text-white font-bold py-3 px-6 rounded-lg text-lg mb-3">Unirse</button>
+                 <button id="back-to-entry-btn" class="text-gray-400 hover:text-white">Volver</button>
             </div>
         </div>
     </div>
 
-    <!-- Contenedor para notificaciones -->
-    <div id="notification" class="fixed top-5 right-5 p-4 rounded-lg shadow-md text-white max-w-sm z-50" style="display: none;"></div>
+    <div id="game-container" class="container mx-auto text-center max-w-7xl hidden">
+        <h1 class="text-4xl md:text-5xl font-bold mb-2 text-white">Blackjack</h1>
+        <p class="text-lg mb-2">ID de la Sala: <strong id="room-id-el" class="text-yellow-300 font-mono"></strong></p>
+        <p id="message-el" class="text-xl text-yellow-300 font-semibold mb-6 min-h-[28px]"></p>
+        
+        <!-- Área del Croupier -->
+        <div class="mb-6 bg-gray-800/50 p-4 rounded-lg">
+            <h2 class="text-2xl font-semibold mb-2">Croupier: <span id="dealer-sum-el"></span></h2>
+            <div id="dealer-cards-el" class="flex flex-wrap justify-center items-center min-h-[120px]"></div>
+        </div>
+
+        <!-- Área de Jugadores -->
+        <div id="players-area" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6"></div>
+
+        <!-- Botones de Acción -->
+        <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
+            <button id="start-game-btn" class="btn bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg">INICIAR JUEGO</button>
+            <button id="hit-btn" class="btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg">PEDIR CARTA</button>
+            <button id="stand-btn" class="btn bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg">PLANTARSE</button>
+        </div>
+        <p class="text-sm mt-4 text-gray-400">Tu ID de jugador: <span id="user-id-el" class="font-mono"></span></p>
+    </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, where, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc, getDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // TODO: REEMPLAZA ESTO CON LA CONFIGURACIÓN DE TU PROYECTO FIREBASE
         const firebaseConfig = {
-  apiKey: "AIzaSyANMzNXONokloi7vg2TOC6ldAMgL9dtN4Y",
-  authDomain: "empleados-25292.firebaseapp.com",
-  projectId: "empleados-25292",
-  storageBucket: "empleados-25292.firebasestorage.app",
-  messagingSenderId: "473889523831",
-  appId: "1:473889523831:web:6214d0269d36ce22209e72"
+            apiKey: "AIzaSyA6uydlodXo1vnyqoocwzHytwt5W0riIDQ",
+            authDomain: "blackjack-d6b7b.firebaseapp.com",
+            projectId: "blackjack-d6b7b",
+            storageBucket: "blackjack-d6b7b.appspot.com",
+            messagingSenderId: "705363226577",
+            appId: "1:705363226577:web:214cf8baa2c9fb48e73af0"
         };
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const gamesCollectionRef = collection(db, `blackjack-games`);
 
-        function main() {
-            let app, db, auth;
-            try {
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-                signInAnonymously(auth).catch((error) => {
-                    console.error("Error al iniciar sesión anónimamente:", error);
-                    showNotification("Error de autenticación. Revisa la consola.", "error");
-                });
-            } catch (error) {
-                console.error("Error al inicializar Firebase:", error);
-                showNotification("Error de configuración de Firebase. Revisa tus datos.", "error");
+        let currentUser = null;
+        let currentGameData = null;
+        let gameRef = null;
+        let unsubscribe = null; // Para detener el listener de snapshot
+
+        const messageEl = document.getElementById("message-el");
+        const dealerSumEl = document.getElementById("dealer-sum-el");
+        const dealerCardsEl = document.getElementById("dealer-cards-el");
+        const playersArea = document.getElementById("players-area");
+        const startGameBtn = document.getElementById("start-game-btn");
+        const hitBtn = document.getElementById("hit-btn");
+        const standBtn = document.getElementById("stand-btn");
+        const modalOverlay = document.getElementById("modal-overlay");
+        const nicknameInput = document.getElementById("nickname-input");
+        const gameContainer = document.getElementById("game-container");
+        const userIdEl = document.getElementById("user-id-el");
+        const roomIdEl = document.getElementById("room-id-el");
+
+        // --- LÓGICA DEL MODAL ---
+        const entryOptions = document.getElementById("entry-options");
+        const joinOptions = document.getElementById("join-options");
+        const createRoomBtn = document.getElementById("create-room-btn");
+        const showJoinBtn = document.getElementById("show-join-btn");
+        const joinRoomBtn = document.getElementById("join-room-btn");
+        const roomIdInput = document.getElementById("room-id-input");
+        const backToEntryBtn = document.getElementById("back-to-entry-btn");
+        const modalErrorEl = document.getElementById("modal-error");
+        
+        showJoinBtn.addEventListener('click', () => {
+            entryOptions.classList.add('hidden');
+            joinOptions.classList.remove('hidden');
+        });
+        backToEntryBtn.addEventListener('click', () => {
+            joinOptions.classList.add('hidden');
+            entryOptions.classList.remove('hidden');
+        });
+
+        // --- AUTENTICACIÓN ---
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                currentUser = user;
+                userIdEl.textContent = currentUser.uid;
             }
+        });
+        await signInAnonymously(auth);
 
-            // --- Referencias a elementos del DOM ---
-            const welcomeScreen = document.getElementById('welcome-screen');
-            const formScreen = document.getElementById('form-screen');
-            const registerButton = document.getElementById('register-button');
-            const employeeForm = document.getElementById('employee-form');
-            const submitButton = document.getElementById('submit-button');
-            const buttonText = document.getElementById('button-text');
-            const buttonSpinner = document.getElementById('button-spinner');
-            const notification = document.getElementById('notification');
-            const confirmModal = document.getElementById('confirm-modal');
-            const confirmUpdateButton = document.getElementById('confirm-update');
-            const cancelUpdateButton = document.getElementById('cancel-update');
+        function validateNickname() {
+            const nickname = nicknameInput.value.trim();
+            if (nickname.length < 3) {
+                modalErrorEl.textContent = "El apodo debe tener al menos 3 caracteres.";
+                return null;
+            }
+            modalErrorEl.textContent = "";
+            return nickname;
+        }
+
+        // --- LÓGICA DE SALAS ---
+        createRoomBtn.addEventListener('click', async () => {
+            const nickname = validateNickname();
+            if (!nickname) return;
             
-            let notificationTimeout;
+            const roomId = Math.floor(100000 + Math.random() * 900000).toString();
+            gameRef = doc(db, 'blackjack-games', roomId);
 
-            // --- Configuración de validación de fechas ---
-            const today = new Date();
-            const maxHireDate = today.toISOString().split('T')[0];
-            const tenYearsAgo = new Date();
-            tenYearsAgo.setFullYear(today.getFullYear() - 10);
-            const maxBirthDate = tenYearsAgo.toISOString().split('T')[0];
-            const minHireDate = tenYearsAgo.toISOString().split('T')[0];
-            document.getElementById('birthdate').setAttribute('max', maxBirthDate);
-            document.getElementById('hiredate').setAttribute('max', maxHireDate);
-            document.getElementById('hiredate').setAttribute('min', minHireDate);
-
-            // --- Manejo de la interfaz ---
-            registerButton.addEventListener('click', () => {
-                welcomeScreen.classList.add('fade-out');
-                setTimeout(() => {
-                    welcomeScreen.classList.add('hidden');
-                    formScreen.classList.remove('hidden');
-                    formScreen.classList.add('fade-in');
-                }, 500);
-            });
-
-            function showNotification(message, type = 'success') {
-                clearTimeout(notificationTimeout);
-                notification.textContent = message;
-                notification.className = `fixed top-5 right-5 p-4 rounded-lg shadow-lg text-white max-w-sm z-50 fade-in ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
-                notification.style.display = 'block';
-                notificationTimeout = setTimeout(() => {
-                    notification.classList.replace('fade-in', 'fade-out');
-                    setTimeout(() => notification.style.display = 'none', 500);
-                }, 4000);
-            }
-
-            function showLoading(isLoading) {
-                submitButton.disabled = isLoading;
-                buttonText.classList.toggle('hidden', isLoading);
-                buttonSpinner.classList.toggle('hidden', !isLoading);
-            }
-
-            // --- Lógica del formulario ---
-            employeeForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const formData = new FormData(employeeForm);
-                const name = formData.get('name').trim();
-                const email = formData.get('email').toLowerCase();
-
-                // --- VALIDACIÓN PARA EL NOMBRE ---
-                const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s']+$/;
-                if (name.length < 2 || !nameRegex.test(name)) {
-                    showNotification('Ingresa un nombre válido (solo letras y espacios).', 'error');
-                    return;
-                }
-
-                // --- VALIDACIÓN PARA EL CORREO ---
-                if (!email.endsWith('@sicar.mx')) {
-                    showNotification('El correo debe pertenecer al dominio @sicar.mx', 'error');
-                    return;
-                }
-
-                showLoading(true);
-
-                try {
-                    const q = query(collection(db, "employees"), where("email", "==", email));
-                    const querySnapshot = await getDocs(q);
-
-                    if (querySnapshot.empty) {
-                        // --- CREAR NUEVO EMPLEADO ---
-                        const newEmployeeData = {
-                            name: name, // Usar la variable 'name' ya validada
-                            email: email,
-                            birthdate: formData.get('birthdate'),
-                            hiredate: formData.get('hiredate') || "",
-                            createdAt: new Date()
-                        };
-                        await addDoc(collection(db, "employees"), newEmployeeData);
-                        showNotification("¡Empleado registrado con éxito!", "success");
-                        employeeForm.reset();
-                    } else {
-                        // --- MOSTRAR MODAL PARA ACTUALIZAR ---
-                        const existingDocId = querySnapshot.docs[0].id;
-                        confirmUpdateButton.dataset.docId = existingDocId;
-                        confirmModal.classList.remove('hidden');
-                    }
-                } catch (error) {
-                    console.error("Error al verificar el correo: ", error);
-                    showNotification("Error al procesar la solicitud.", "error");
-                } finally {
-                    if (confirmModal.classList.contains('hidden')) {
-                         showLoading(false);
-                    }
-                }
-            });
+            const newPlayer = { uid: currentUser.uid, name: nickname, hand: [], sum: 0, status: 'waiting' };
             
-            // --- Lógica del modal de confirmación ---
-            cancelUpdateButton.addEventListener('click', () => {
-                confirmModal.classList.add('hidden');
-                showLoading(false);
-            });
+            const newGameData = {
+                roomId: roomId,
+                players: [newPlayer],
+                dealer: { hand: [], sum: 0 },
+                deck: [],
+                status: 'waiting', // waiting, playing, finished
+                creatorUid: currentUser.uid,
+                gamePhase: 'waiting',
+                currentPlayerIndex: 0,
+                message: ""
+            };
 
-            confirmUpdateButton.addEventListener('click', async () => {
-                const docId = confirmUpdateButton.dataset.docId;
-                if (!docId) return;
+            await setDoc(gameRef, newGameData);
+            subscribeToGame(gameRef);
+        });
 
-                const formData = new FormData(employeeForm);
-                const updatedData = {
-                    name: formData.get('name').trim(), // También se limpia el nombre al actualizar
-                    email: formData.get('email').toLowerCase(),
-                    birthdate: formData.get('birthdate'),
-                    hiredate: formData.get('hiredate') || "",
-                };
+        joinRoomBtn.addEventListener('click', async () => {
+            const nickname = validateNickname();
+            if (!nickname) return;
 
-                try {
-                    const employeeRef = doc(db, "employees", docId);
-                    await updateDoc(employeeRef, updatedData);
-                    showNotification("¡Datos del empleado actualizados con éxito!", "success");
-                    employeeForm.reset();
-                } catch (error) {
-                    console.error("Error al actualizar el documento:", error);
-                    showNotification("Error al actualizar los datos.", "error");
-                } finally {
-                    confirmModal.classList.add('hidden');
-                    showLoading(false);
+            const roomId = roomIdInput.value.trim();
+            if (!roomId) {
+                modalErrorEl.textContent = "Debes ingresar un ID de sala.";
+                return;
+            }
+
+            gameRef = doc(db, 'blackjack-games', roomId);
+            const gameDoc = await getDoc(gameRef);
+
+            if (!gameDoc.exists()) {
+                modalErrorEl.textContent = "Sala no encontrada.";
+                return;
+            }
+
+            const gameData = gameDoc.data();
+            if (gameData.status !== 'waiting') {
+                modalErrorEl.textContent = "La partida ya ha comenzado.";
+                return;
+            }
+            if (gameData.players.length >= 5) {
+                modalErrorEl.textContent = "La sala está llena.";
+                return;
+            }
+            if (gameData.players.some(p => p.uid === currentUser.uid)) {
+                // El jugador ya está en la sala, lo dejamos entrar
+            } else {
+                 const newPlayer = { uid: currentUser.uid, name: nickname, hand: [], sum: 0, status: 'waiting' };
+                 gameData.players.push(newPlayer);
+                 await setDoc(gameRef, gameData, { merge: true });
+            }
+            
+            subscribeToGame(gameRef);
+        });
+
+        function subscribeToGame(ref) {
+            if (unsubscribe) unsubscribe(); // Detiene el listener anterior si existe
+            unsubscribe = onSnapshot(ref, (docSnap) => {
+                if (docSnap.exists()) {
+                    currentGameData = docSnap.data();
+                    renderGame(currentGameData);
                 }
             });
+            modalOverlay.classList.add("hidden");
+            gameContainer.classList.remove("hidden");
+        }
+
+        // --- FUNCIONES BÁSICAS DE CARTAS (sin cambios) ---
+        function buildDeck() {
+            const suits = ["heart", "diamond", "spade", "club"];
+            const values = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+            const suitSymbols = { "heart": "♥", "diamond": "♦", "spade": "♠", "club": "♣" };
+            let deck = [];
+            for (let suit of suits) { for (let value of values) { deck.push({ value, suit, symbol: suitSymbols[suit] }); } }
+            return deck;
+        }
+
+        function shuffleDeck(deck) {
+            for (let i = deck.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[deck[i], deck[j]] = [deck[j], deck[i]]; }
+            return deck;
         }
         
-        document.addEventListener('DOMContentLoaded', main);
+        function getCardValue(card) {
+            if (card.value === "A") return 11;
+            if (["K", "Q", "J"].includes(card.value)) return 10;
+            return parseInt(card.value);
+        }
+
+        function getSum(hand) {
+            let sum = hand.reduce((total, card) => total + getCardValue(card), 0);
+            let aceCount = hand.filter(card => card.value === 'A').length;
+            while (sum > 21 && aceCount > 0) { sum -= 10; aceCount--; }
+            return sum;
+        }
+
+        // --- RENDERIZADO DEL JUEGO ---
+        function createCardElement(card, isHidden = false) {
+            const cardDiv = document.createElement("div");
+            cardDiv.classList.add("card", card.suit);
+            if (isHidden) {
+                cardDiv.classList.add("card-back");
+            } else {
+                cardDiv.innerHTML = `<div class="text-left">${card.value}${card.symbol}</div><div class="text-center suit">${card.symbol}</div><div class="text-right transform rotate-180">${card.value}${card.symbol}</div>`;
+            }
+            return cardDiv;
+        }
+
+        function renderGame(data) {
+            if (!data) return;
+            roomIdEl.textContent = data.roomId;
+
+            // Render Croupier
+            dealerCardsEl.innerHTML = "";
+            let dealerSum = 0;
+            if (data.dealer && data.dealer.hand.length > 0) {
+                 const isDealerTurn = data.gamePhase === 'dealer-turn' || data.gamePhase === 'finished';
+                 dealerCardsEl.appendChild(createCardElement(data.dealer.hand[0]));
+                 if (data.dealer.hand.length > 1) {
+                    dealerCardsEl.appendChild(createCardElement(data.dealer.hand[1], !isDealerTurn));
+                 }
+                 dealerSum = isDealerTurn ? data.dealer.sum : getCardValue(data.dealer.hand[0]);
+            }
+            dealerSumEl.textContent = dealerSum || "";
+
+            // Render Jugadores
+            playersArea.innerHTML = "";
+            data.players.forEach((player, index) => {
+                const playerDiv = document.createElement('div');
+                playerDiv.classList.add('player-area', 'bg-gray-800/50', 'p-4', 'rounded-lg');
+                if (data.currentPlayerIndex === index && data.gamePhase === 'playing') {
+                    playerDiv.classList.add('active-player');
+                }
+                
+                let statusMessage = '';
+                switch(player.status) {
+                    case 'busted': statusMessage = `<span class="text-red-500 font-bold">¡PERDISTE!</span>`; break;
+                    case 'blackjack': statusMessage = `<span class="text-green-400 font-bold">¡BLACKJACK!</span>`; break;
+                    case 'quintilla': statusMessage = `<span class="text-purple-400 font-bold">¡QUINTILLA!</span>`; break;
+                    case 'stood': statusMessage = `<span class="text-gray-400">Plantado</span>`; break;
+                }
+
+                const isMyHand = player.uid === currentUser.uid;
+                const isStillPlaying = player.status === 'playing';
+                let displayedSum = player.sum;
+
+                if (!isMyHand && isStillPlaying && player.hand.length > 0) {
+                     displayedSum = getCardValue(player.hand[0]) + " + ?";
+                }
+                
+                playerDiv.innerHTML = `<h3 class="text-xl font-bold truncate">${player.name}</h3><p class="font-semibold text-lg mb-2">Puntos: ${displayedSum} ${statusMessage}</p><div class="cards-container flex flex-wrap justify-center min-h-[120px]"></div>`;
+                const cardsContainer = playerDiv.querySelector('.cards-container');
+                
+                player.hand.forEach((card, cardIndex) => {
+                    const isHidden = cardIndex === 1 && !isMyHand && isStillPlaying;
+                    cardsContainer.appendChild(createCardElement(card, isHidden));
+                });
+
+                playersArea.appendChild(playerDiv);
+            });
+            
+            // Lógica de mensajes y botones
+            const currentPlayer = data.players[data.currentPlayerIndex];
+            const amICurrentPlayer = currentPlayer?.uid === currentUser.uid;
+            
+            const isCreator = data.creatorUid === currentUser.uid;
+            startGameBtn.disabled = !isCreator || data.status !== 'waiting';
+            hitBtn.disabled = !amICurrentPlayer || data.gamePhase !== 'playing';
+            standBtn.disabled = !amICurrentPlayer || data.gamePhase !== 'playing';
+
+            if (data.status === 'finished') {
+                messageEl.textContent = data.message || "La partida ha terminado.";
+                startGameBtn.textContent = "CREAR NUEVA SALA";
+                startGameBtn.disabled = false;
+                startGameBtn.onclick = () => window.location.reload();
+            } else if (data.status === 'waiting') {
+                messageEl.textContent = "Esperando que el creador inicie el juego...";
+            } else if (data.gamePhase === 'playing' && amICurrentPlayer) {
+                messageEl.textContent = "¡Es tu turno!";
+            } else if (data.gamePhase === 'playing') {
+                 messageEl.textContent = `Turno de ${currentPlayer.name}...`;
+            }
+        }
+
+        // --- ACCIONES DEL JUEGO ---
+        async function startGame() {
+            const data = { ...currentGameData };
+            data.status = 'playing';
+            data.gamePhase = 'playing';
+            data.deck = shuffleDeck(buildDeck());
+
+            data.players.forEach(player => {
+                player.hand = [data.deck.pop(), data.deck.pop()];
+                player.sum = getSum(player.hand);
+                player.status = 'playing';
+                if (player.sum === 21) player.status = 'blackjack';
+            });
+            
+            data.dealer.hand = [data.deck.pop(), data.deck.pop()];
+            data.dealer.sum = getSum(data.dealer.hand);
+            
+            await setDoc(gameRef, data);
+            await checkTurn(data); 
+        }
+
+        async function hit() { /* ... Lógica sin cambios ... */ }
+        async function stand() { /* ... Lógica sin cambios ... */ }
+        async function advanceTurn() { /* ... Lógica sin cambios ... */ }
+        async function checkTurn(data) { /* ... Lógica sin cambios ... */ }
+        async function dealerTurn() {
+            const data = { ...currentGameData };
+            while (data.dealer.sum < 17) {
+                data.dealer.hand.push(data.deck.pop());
+                data.dealer.sum = getSum(data.dealer.hand);
+            }
+            let finalMessage = "Resultados: ";
+            data.players.forEach(player => {
+                if(player.status === 'busted') { finalMessage += `${player.name} perdió. `;
+                } else if (player.status === 'blackjack') { finalMessage += `${player.name} tiene Blackjack! `;
+                } else if (player.status === 'quintilla') { finalMessage += `${player.name} tiene Quintilla! `;
+                } else if (data.dealer.sum > 21 || player.sum > data.dealer.sum) { finalMessage += `${player.name} gana! `;
+                } else if (player.sum < data.dealer.sum) { finalMessage += `${player.name} pierde. `;
+                } else { finalMessage += `${player.name} empata. `; }
+            });
+            data.gamePhase = 'finished';
+            data.status = 'finished'; // <-- Cambio clave
+            data.message = finalMessage;
+            await setDoc(gameRef, data);
+        }
+
+        // --- Asignación duplicada para asegurar que la lógica interna sea la misma ---
+        hit = async function() {
+            const data = { ...currentGameData };
+            const player = data.players[data.currentPlayerIndex];
+            if (player.uid !== currentUser.uid || data.gamePhase !== 'playing') return;
+            player.hand.push(data.deck.pop());
+            player.sum = getSum(player.hand);
+            if (player.sum > 21) player.status = 'busted';
+            else if (player.hand.length === 5) player.status = 'quintilla';
+            await setDoc(gameRef, data);
+            if (player.status === 'busted' || player.status === 'quintilla') await advanceTurn();
+        }
+        stand = async function() {
+            const data = { ...currentGameData };
+            const player = data.players[data.currentPlayerIndex];
+            if (player.uid !== currentUser.uid || data.gamePhase !== 'playing') return;
+            player.status = 'stood';
+            await setDoc(gameRef, data);
+            await advanceTurn();
+        }
+        checkTurn = async function(data) {
+             const player = data.players[data.currentPlayerIndex];
+             if(player && (player.status === 'blackjack' || player.status === 'quintilla')) {
+                 await advanceTurn();
+             }
+        }
+        advanceTurn = async function() {
+            const data = { ...currentGameData };
+            let nextIndex = data.currentPlayerIndex + 1;
+            while(nextIndex < data.players.length && data.players[nextIndex].status !== 'playing') { nextIndex++; }
+            if (nextIndex >= data.players.length) {
+                data.gamePhase = 'dealer-turn';
+                await setDoc(gameRef, data);
+                await dealerTurn();
+            } else {
+                data.currentPlayerIndex = nextIndex;
+                await setDoc(gameRef, data);
+                await checkTurn(data);
+            }
+        }
+
+        startGameBtn.addEventListener("click", startGame);
+        hitBtn.addEventListener("click", hit);
+        standBtn.addEventListener("click", stand);
     </script>
 </body>
 </html>
-
 
