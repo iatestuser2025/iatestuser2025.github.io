@@ -96,14 +96,18 @@
     <!-- Modal para unirse/crear sala -->
     <div id="modal-overlay" class="fixed inset-0 flex items-center justify-center z-50">
         <div class="bg-gray-800 p-8 rounded-lg shadow-xl text-center w-full max-w-sm">
-            <h2 class="text-2xl font-bold mb-4">Blackjack Multijugador</h2>
+            <h2 class="text-2xl font-bold mb-4">Salón de Juegos</h2>
             <p id="modal-error" class="text-red-400 mb-3 min-h-[20px]"></p>
             <div id="entry-options">
                  <input type="text" id="nickname-input" class="w-full bg-gray-700 text-white p-3 rounded-md mb-4" placeholder="Ingresa tu apodo...">
+                 <h3 class="text-lg font-semibold mb-2 text-gray-300">Blackjack</h3>
                  <button id="create-room-btn" class="btn bg-green-500 hover:bg-green-600 w-full text-white font-bold py-3 px-6 rounded-lg text-lg mb-3">Crear Sala Nueva</button>
-                 <button id="show-join-btn" class="btn bg-blue-500 hover:bg-blue-600 w-full text-white font-bold py-3 px-6 rounded-lg text-lg">Unirse a Sala</button>
+                 <button id="show-join-btn" class="btn bg-blue-500 hover:bg-blue-600 w-full text-white font-bold py-3 px-6 rounded-lg text-lg mb-4">Unirse a Sala</button>
+                 <hr class="border-gray-600 my-4">
+                 <button onclick="window.location.href='./texas.html'" class="btn bg-gray-600 hover:bg-gray-700 w-full text-white font-bold py-3 px-6 rounded-lg text-lg">Texas Hold'em</button>
             </div>
             <div id="join-options" class="hidden">
+                 <h3 class="text-lg font-semibold mb-2 text-gray-300">Unirse a sala de Blackjack</h3>
                  <input type="text" id="room-id-input" class="w-full bg-gray-700 text-white p-3 rounded-md mb-4" placeholder="Ingresa ID de la sala...">
                  <button id="join-room-btn" class="btn bg-blue-500 hover:bg-blue-600 w-full text-white font-bold py-3 px-6 rounded-lg text-lg mb-3">Unirse</button>
                  <button id="back-to-entry-btn" class="text-gray-400 hover:text-white">Volver</button>
