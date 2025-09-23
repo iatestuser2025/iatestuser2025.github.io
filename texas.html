@@ -89,15 +89,14 @@
     <!-- Lobby Modal -->
     <div id="modal-overlay" class="fixed inset-0 flex items-center justify-center z-50">
         <div class="bg-gray-800 p-8 rounded-lg shadow-xl text-center w-full max-w-sm">
-            <h2 class="text-2xl font-bold mb-4">Salón de Póker</h2>
+            <h2 class="text-2xl font-bold mb-4">Texas Hold'em</h2>
             <p id="modal-error" class="text-red-400 mb-3 min-h-[20px]"></p>
             <div id="entry-options">
                  <input type="text" id="nickname-input" class="w-full bg-gray-700 text-white p-3 rounded-md mb-4" placeholder="Ingresa tu apodo...">
-                 <h3 class="text-lg font-semibold mb-2 text-gray-300">Texas Hold'em</h3>
                  <button id="create-room-btn" class="btn bg-green-500 hover:bg-green-600 w-full text-white font-bold py-3 px-6 rounded-lg text-lg mb-3">Crear Sala Nueva</button>
                  <button id="show-join-btn" class="btn bg-blue-500 hover:bg-blue-600 w-full text-white font-bold py-3 px-6 rounded-lg text-lg mb-4">Unirse a Sala</button>
                  <hr class="border-gray-600 my-4">
-                 <button onclick="window.location.href='./blackjack.html'" class="btn bg-gray-600 hover:bg-gray-700 w-full text-white font-bold py-3 px-6 rounded-lg text-lg">Jugar Blackjack</button>
+                 <button onclick="window.location.href='./index.html'" class="btn bg-gray-600 hover:bg-gray-700 w-full text-white font-bold py-3 px-6 rounded-lg text-lg">Volver al Salón de Juegos</button>
             </div>
             <div id="join-options" class="hidden">
                  <h3 class="text-lg font-semibold mb-2 text-gray-300">Unirse a sala de Poker</h3>
@@ -260,7 +259,6 @@
                 startGameBtn.disabled = !isCreator;
             } else if (data.status === 'playing') {
                 actionBtn.classList.remove('hidden');
-                // FIX: No mostrar botón de retirarse en la última ronda (river)
                 if (data.gamePhase !== 'river') {
                     foldBtn.classList.remove('hidden');
                 }
@@ -271,7 +269,6 @@
                 playAgainBtn.disabled = !isCreator;
             }
             
-            // Lógica del Chat
             const newMessages = data.chatMessages || [];
             if (newMessages.length > lastMessageCount && !isChatVisible) {
                 const lastMessage = newMessages[newMessages.length - 1];
@@ -332,15 +329,19 @@
             }
 
             let nextIndex = (data.currentPlayerIndex + 1) % data.players.length;
-            while(data.players[nextIndex].status === 'folded' || data.players[nextIndex].status === 'acted') {
-                 if(nextIndex === data.currentPlayerIndex) break; // Evitar bucle infinito
-                 nextIndex = (nextIndex + 1) % data.players.length;
+            let checkedAll = false;
+            while(data.players[nextIndex].status !== 'playing') {
+                if (nextIndex === data.currentPlayerIndex) {
+                    checkedAll = true;
+                    break;
+                }
+                nextIndex = (nextIndex + 1) % data.players.length;
             }
 
             const remainingToAct = data.players.filter(p => p.status === 'playing');
-            if (remainingToAct.length === 0) {
+            if (remainingToAct.length === 0 || checkedAll) {
                  data.players.forEach(p => { if(p.status === 'acted') p.status = 'playing' });
-                 const firstPlayerIndex = data.players.findIndex(p => p.status === 'playing');
+                 const firstPlayerIndex = data.players.findIndex(p => p.status !== 'folded');
                  data.currentPlayerIndex = firstPlayerIndex !== -1 ? firstPlayerIndex : 0;
                  await advanceGamePhase();
             } else {
@@ -440,7 +441,7 @@
                 if(uniqueValues.length >= 5){
                     if(uniqueValues[0] - uniqueValues[4] === 4) isStraight = true;
                 }
-                const isAceLowStraight = JSON.stringify(uniqueValues) === JSON.stringify([12, 3, 2, 1, 0]);
+                const isAceLowStraight = JSON.stringify(uniqueValues.slice(0,5)) === JSON.stringify([12, 3, 2, 1, 0]);
 
                 let rank = 0, name = 'Carta Alta';
                 
@@ -488,7 +489,6 @@
         
         function validateNickname() { const nickname = nicknameInput.value.trim(); if (nickname.length < 3) { modalErrorEl.textContent = "El apodo debe tener al menos 3 caracteres."; return null; } modalErrorEl.textContent = ""; return nickname; }
 
-        // Event Listeners
         startGameBtn.addEventListener('click', startGame);
         actionBtn.addEventListener('click', () => playerAction(false));
         foldBtn.addEventListener('click', () => playerAction(true));
