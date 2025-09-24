@@ -8,7 +8,7 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
         body { font-family: 'Poppins', sans-serif; background-color: #0d3a2d; color: #e2e8f0; }
-        .domino-tile { width: 40px; height: 80px; background-color: white; border: 1px solid black; border-radius: 6px; display: flex; flex-direction: column; margin: 2px; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+        .domino-tile { width: 40px; height: 80px; background-color: white; border: 2px solid black; border-radius: 6px; display: flex; flex-direction: column; margin: 2px; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
         .domino-tile.horizontal { width: 80px; height: 40px; flex-direction: row; }
         .half { flex-grow: 1; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); padding: 3px; }
         .dot { width: 6px; height: 6px; background-color: black; border-radius: 50%; justify-self: center; align-self: center; }
@@ -20,9 +20,9 @@
         .player-area { border: 2px solid transparent; transition: all 0.3s ease; }
         .player-area.active-player { border-color: #f59e0b; box-shadow: 0 0 15px rgba(245, 158, 11, 0.5); }
         .player-hand .domino-tile:hover { transform: translateY(-8px); cursor: pointer; }
-        .player-hand .domino-tile.playable { border-color: #f59e0b; border-width: 3px;}
-        .player-hand .domino-tile.selected { border-color: #34d399; border-width: 3px; transform: translateY(-8px); }
+        .player-hand .domino-tile.playable { border-color: #f59e0b; }
         .hidden { display: none; }
+        .modal-overlay { background-color: rgba(0, 0, 0, 0.7); }
         #chat-toggle-btn { position: fixed; top: 20px; left: 20px; z-index: 100; }
         #chat-notification { position: absolute; top: 0; right: 0; width: 12px; height: 12px; background-color: #ef4444; border-radius: 50%; border: 2px solid #0d3a2d; }
         #chat-container { position: fixed; top: 80px; left: 20px; width: 350px; max-width: 90vw; height: 500px; max-height: 70vh; z-index: 99; }
@@ -51,7 +51,7 @@
     </div>
 
     <!-- Lobby Modal -->
-    <div id="modal-overlay" class="fixed inset-0 flex items-center justify-center z-50">
+    <div id="modal-overlay" class="fixed inset-0 flex items-center justify-center z-50 modal-overlay">
         <div class="bg-gray-800 p-8 rounded-lg shadow-xl text-center w-full max-w-sm">
             <h2 class="text-2xl font-bold mb-4">Dominó Clásico</h2>
             <p id="modal-error" class="text-red-400 mb-3 min-h-[20px]"></p>
@@ -67,6 +67,19 @@
                  <button id="join-room-btn" class="btn bg-blue-500 hover:bg-blue-600 w-full text-white font-bold py-3 px-6 rounded-lg text-lg mb-3">Unirse</button>
                  <button id="back-to-entry-btn" class="text-gray-400 hover:text-white">Volver</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Placement Choice Modal -->
+    <div id="placement-modal" class="fixed inset-0 items-center justify-center z-50 modal-overlay hidden">
+        <div class="bg-gray-800 p-8 rounded-lg shadow-xl text-center w-full max-w-sm">
+            <h2 class="text-2xl font-bold mb-4">¿Dónde quieres jugar?</h2>
+            <div id="placement-tile-preview" class="flex justify-center mb-4"></div>
+            <div class="flex justify-around">
+                <button id="play-left-btn" class="btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg">Izquierda</button>
+                <button id="play-right-btn" class="btn bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg">Derecha</button>
+            </div>
+            <button id="cancel-play-btn" class="text-gray-400 hover:text-white mt-4">Cancelar</button>
         </div>
     </div>
 
@@ -115,235 +128,42 @@
         const db = getFirestore(app);
 
         let currentUser, currentGameData, gameRef, unsubscribe;
-        let selectedTile = null;
         let isChatVisible = false;
         let lastMessageCount = 0;
         const playerColors = ['#60a5fa', '#34d399', '#f87171', '#fbbf24'];
 
-        const ui = {
-            modal: document.getElementById("modal-overlay"),
-            nickname: document.getElementById("nickname-input"),
-            game: document.getElementById("game-container"),
-            roomId: document.getElementById("room-id-el"),
-            message: document.getElementById("message-el"),
-            chain: document.getElementById("domino-chain"),
-            players: document.getElementById("players-area"),
-            myHand: document.getElementById("my-hand"),
-            startBtn: document.getElementById("start-game-btn"),
-            passBtn: document.getElementById("pass-turn-btn"),
-            playAgainBtn: document.getElementById("play-again-btn"),
-            createBtn: document.getElementById("create-room-btn"),
-            joinBtn: document.getElementById("join-room-btn"),
-            roomIdInput: document.getElementById("room-id-input"),
-            modalError: document.getElementById("modal-error"),
-            chatContainer: document.getElementById("chat-container"),
-            chatMessages: document.getElementById("chat-messages"),
-            chatInput: document.getElementById("chat-input"),
-            sendChatBtn: document.getElementById("send-chat-btn"),
-            emojiPicker: document.getElementById("emoji-picker"),
-            chatToggleBtn: document.getElementById("chat-toggle-btn"),
-            chatNotification: document.getElementById("chat-notification"),
-        };
+        const ui = { modal: document.getElementById("modal-overlay"), nickname: document.getElementById("nickname-input"), game: document.getElementById("game-container"), roomId: document.getElementById("room-id-el"), message: document.getElementById("message-el"), chain: document.getElementById("domino-chain"), players: document.getElementById("players-area"), myHand: document.getElementById("my-hand"), startBtn: document.getElementById("start-game-btn"), passBtn: document.getElementById("pass-turn-btn"), playAgainBtn: document.getElementById("play-again-btn"), createBtn: document.getElementById("create-room-btn"), joinBtn: document.getElementById("join-room-btn"), roomIdInput: document.getElementById("room-id-input"), modalError: document.getElementById("modal-error"), chatContainer: document.getElementById("chat-container"), chatMessages: document.getElementById("chat-messages"), chatInput: document.getElementById("chat-input"), sendChatBtn: document.getElementById("send-chat-btn"), emojiPicker: document.getElementById("emoji-picker"), chatToggleBtn: document.getElementById("chat-toggle-btn"), chatNotification: document.getElementById("chat-notification"), placementModal: document.getElementById("placement-modal"), placementPreview: document.getElementById("placement-tile-preview"), playLeftBtn: document.getElementById("play-left-btn"), playRightBtn: document.getElementById("play-right-btn"), cancelPlayBtn: document.getElementById("cancel-play-btn") };
 
         onAuthStateChanged(auth, user => { if (user) currentUser = user; });
         await signInAnonymously(auth);
 
-        function subscribeToGame(ref) {
-            if (unsubscribe) unsubscribe();
-            unsubscribe = onSnapshot(ref, (docSnap) => {
-                if (docSnap.exists()) {
-                    currentGameData = docSnap.data();
-                    renderGame(currentGameData);
-                }
-            });
-            ui.modal.classList.add("hidden");
-            ui.game.classList.remove("hidden");
-            ui.chatToggleBtn.classList.remove("hidden");
-        }
+        function subscribeToGame(ref) { if (unsubscribe) unsubscribe(); unsubscribe = onSnapshot(ref, (docSnap) => { if (docSnap.exists()) { currentGameData = docSnap.data(); renderGame(currentGameData); } }); ui.modal.classList.add("hidden"); ui.game.classList.remove("hidden"); ui.chatToggleBtn.classList.remove("hidden"); }
+        function renderGame(data) { ui.roomId.textContent = data.roomId; ui.message.textContent = data.message; ui.chain.innerHTML = ''; data.board.forEach(tile => ui.chain.appendChild(createTileElement(tile))); const me = data.players.find(p => p.uid === currentUser.uid); const isMyTurn = data.players[data.currentPlayerIndex]?.uid === currentUser.uid; ui.myHand.innerHTML = ''; if (me) { me.hand.forEach(tile => ui.myHand.appendChild(createTileElement(tile, 'hand', isMyTurn))); } ui.players.innerHTML = ''; data.players.forEach((player, index) => { if (player.uid === currentUser.uid) return; const playerDiv = document.createElement('div'); playerDiv.className = 'player-area bg-black/30 p-2 rounded-lg'; if(data.currentPlayerIndex === index) playerDiv.classList.add('active-player'); playerDiv.innerHTML = `<h3 class="font-bold truncate" style="color:${player.color}">${player.name}</h3><p>${player.hand.length} fichas</p>`; ui.players.appendChild(playerDiv); }); [ui.startBtn, ui.passBtn, ui.playAgainBtn].forEach(b => b.classList.add('hidden')); if (data.status === 'waiting') { ui.startBtn.classList.remove('hidden'); ui.startBtn.disabled = data.creatorUid !== currentUser.uid || data.players.length < 2; } else if (data.status === 'playing' && isMyTurn) { const hasPlayableTile = me.hand.some(t => t.a === data.ends[0] || t.b === data.ends[0] || t.a === data.ends[1] || t.b === data.ends[1]); ui.passBtn.classList.remove('hidden'); ui.passBtn.disabled = hasPlayableTile; } else if (data.status === 'finished') { ui.playAgainBtn.classList.remove('hidden'); ui.playAgainBtn.disabled = data.creatorUid !== currentUser.uid; } const newMessages = data.chatMessages || []; if (newMessages.length > lastMessageCount && !isChatVisible) { const lastMessage = newMessages[newMessages.length - 1]; if (lastMessage.senderUid !== currentUser.uid) { ui.chatNotification.classList.remove("hidden"); } } lastMessageCount = newMessages.length; ui.chatMessages.innerHTML = ''; newMessages.forEach(msg => { const sender = data.players.find(p => p.uid === msg.senderUid); const senderColor = sender ? sender.color : '#cbd5e0'; const msgDiv = document.createElement('div'); msgDiv.classList.add('mb-2','p-2','rounded-md','bg-gray-700','break-words'); msgDiv.innerHTML = `<strong class="font-bold" style="color: ${senderColor};">${msg.senderName}:</strong> ${msg.text}`; ui.chatMessages.appendChild(msgDiv); }); ui.chatMessages.scrollTop = ui.chatMessages.scrollHeight; }
+        async function startGame() { const data = { ...currentGameData }; const dominoSet = buildDominoSet(); shuffle(dominoSet); data.players.forEach(p => p.hand = dominoSet.splice(0, 7)); let startingPlayerIndex = -1, highestDouble = -1; data.players.forEach((p, i) => { p.hand.forEach(tile => { if (tile.a === tile.b && tile.a > highestDouble) { highestDouble = tile.a; startingPlayerIndex = i; } }); }); if (startingPlayerIndex === -1) { let highestTileValue = -1; data.players.forEach((p, i) => { p.hand.forEach(tile => { if(tile.a + tile.b > highestTileValue) { highestTileValue = tile.a + tile.b; startingPlayerIndex = i; } }); }); } const starter = data.players[startingPlayerIndex]; const startTile = highestDouble !== -1 ? starter.hand.splice(starter.hand.findIndex(t => t.a === highestDouble && t.b === highestDouble), 1)[0] : starter.hand.splice(starter.hand.findIndex(t => t.a + t.b === highestTileValue), 1)[0]; data.board = [startTile]; data.ends = [startTile.a, startTile.b]; data.status = 'playing'; data.consecutivePasses = 0; data.currentPlayerIndex = (startingPlayerIndex + 1) % data.players.length; data.message = `Comienza ${starter.name}. Turno de ${data.players[data.currentPlayerIndex].name}.`; data.chatMessages = []; await updateDoc(gameRef, data); }
+        async function playTile(tile, placement) { const data = { ...currentGameData }; const player = data.players[data.currentPlayerIndex]; const tileIndex = player.hand.findIndex(t => (t.a === tile.a && t.b === tile.b) || (t.a === tile.b && t.b === tile.a)); player.hand.splice(tileIndex, 1); if(placement === 'start') { data.board.unshift(tile); data.ends[0] = tile.a; } else { data.board.push(tile); data.ends[1] = tile.b; } data.consecutivePasses = 0; if (player.hand.length === 0) { data.status = 'finished'; data.message = `¡${player.name} gana la partida!`; } await updateDoc(gameRef, data); if(data.status !== 'finished') await advanceTurn(); }
+        async function passTurn() { const data = { ...currentGameData }; data.consecutivePasses = (data.consecutivePasses || 0) + 1; await updateDoc(gameRef, data); await advanceTurn(); }
+        async function advanceTurn() { const data = { ...currentGameData }; if (data.consecutivePasses >= data.players.length) { data.status = 'finished'; let winner = null, minPoints = 1000; data.players.forEach(p => { const points = p.hand.reduce((sum, t) => sum + t.a + t.b, 0); if (points < minPoints) { minPoints = points; winner = p; } }); data.message = `¡Juego cerrado! ${winner.name} gana por puntos.`; return await updateDoc(gameRef, data); } data.currentPlayerIndex = (data.currentPlayerIndex + 1) % data.players.length; data.message = `Turno de ${data.players[data.currentPlayerIndex].name}.`; await updateDoc(gameRef, data); }
+        function buildDominoSet() { const tiles = []; for (let i = 0; i <= 6; i++) { for (let j = i; j <= 6; j++) { tiles.push({ a: i, b: j }); } } return tiles; }
+        function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } }
+        function validateNickname() { const n = ui.nickname.value.trim(); if(n.length < 3) {ui.modalError.textContent = "Apodo muy corto."; return null;} ui.modalError.textContent = ""; return n;}
+        function createTileElement(tile, source, isMyTurn) { const tileDiv = document.createElement('div'); tileDiv.className = 'domino-tile'; const isDouble = tile.a === tile.b; if(source === 'board' && isDouble) { tileDiv.classList.add('horizontal'); } else if (source === 'board' && !isDouble) { /* No rotation needed now, simple flexbox handles it */ } const createHalf = (num) => { const half = document.createElement('div'); half.className = 'half'; const dots = [[],[2,2],[[1,1],[3,3]],[[1,1],[2,2],[3,3]],[[1,1],[1,3],[3,1],[3,3]],[[1,1],[1,3],[2,2],[3,1],[3,3]],[[1,1],[1,3],[2,1],[2,3],[3,1],[3,3]]]; if(dots[num]) dots[num].forEach(p=>{const d=document.createElement('div');d.className='dot';d.style.gridArea=`${p[0]}/${p[1]}`;half.appendChild(d);}); return half; }; tileDiv.appendChild(createHalf(tile.a)); const divider = document.createElement('div'); divider.className = 'divider'; tileDiv.appendChild(divider); tileDiv.appendChild(createHalf(tile.b)); if(source === 'hand' && isMyTurn) { const leftEnd = currentGameData.ends[0]; const rightEnd = currentGameData.ends[1]; if (tile.a === leftEnd || tile.b === leftEnd || tile.a === rightEnd || tile.b === rightEnd) { tileDiv.classList.add('playable'); tileDiv.onclick = () => handleTileClick(tile); } } return tileDiv; }
+        function handleTileClick(tile) { const leftEnd = currentGameData.ends[0]; const rightEnd = currentGameData.ends[1]; const canPlayLeft = tile.a === leftEnd || tile.b === leftEnd; const canPlayRight = tile.a === rightEnd || tile.b === rightEnd; if(canPlayLeft && canPlayRight && leftEnd !== rightEnd) { promptPlacement(tile); } else if (canPlayLeft) { const finalTile = tile.b === leftEnd ? {a: tile.b, b: tile.a} : tile; playTile(finalTile, 'start'); } else if (canPlayRight) { const finalTile = tile.a === rightEnd ? {a: tile.b, b: tile.a} : tile; playTile(finalTile, 'end'); } }
+        function promptPlacement(tile) { ui.placementPreview.innerHTML = ''; ui.placementPreview.appendChild(createTileElement(tile)); ui.placementModal.classList.remove('hidden'); ui.placementModal.classList.add('flex'); const leftEnd = currentGameData.ends[0]; ui.playLeftBtn.onclick = () => { const finalTile = tile.b === leftEnd ? {a: tile.b, b: tile.a} : tile; playTile(finalTile, 'start'); ui.placementModal.classList.add('hidden'); }; ui.playRightBtn.onclick = () => { const finalTile = tile.a === currentGameData.ends[1] ? {a: tile.b, b: tile.a} : tile; playTile(finalTile, 'end'); ui.placementModal.classList.add('hidden'); }; }
+        async function sendMessage() { const text = ui.chatInput.value.trim(); if (text === "") return; const me = currentGameData.players.find(p => p.uid === currentUser.uid); if (!me) return; const newMessage = { senderName: me.name, senderUid: currentUser.uid, text: text, timestamp: new Date() }; await updateDoc(gameRef, { chatMessages: arrayUnion(newMessage) }); ui.chatInput.value = ""; }
+        function toggleChat() { isChatVisible = !isChatVisible; if (isChatVisible) { ui.chatContainer.classList.remove("hidden"); ui.chatContainer.classList.add("flex"); ui.chatNotification.classList.add("hidden"); } else { ui.chatContainer.classList.add("hidden"); ui.chatContainer.classList.remove("flex"); } }
 
-        function renderGame(data) {
-            ui.roomId.textContent = data.roomId;
-            ui.message.textContent = data.message;
-            
-            ui.chain.innerHTML = '';
-            data.board.forEach(tile => ui.chain.appendChild(createTileElement(tile, 'board')));
-
-            const me = data.players.find(p => p.uid === currentUser.uid);
-            ui.myHand.innerHTML = '';
-            if (me) {
-                me.hand.forEach(tile => ui.myHand.appendChild(createTileElement(tile, 'hand')));
-            }
-
-            ui.players.innerHTML = '';
-            data.players.forEach((player, index) => {
-                if (player.uid === currentUser.uid) return;
-                const playerDiv = document.createElement('div');
-                playerDiv.className = 'player-area bg-black/30 p-2 rounded-lg';
-                if(data.currentPlayerIndex === index) playerDiv.classList.add('active-player');
-                playerDiv.innerHTML = `<h3 class="font-bold truncate" style="color:${player.color}">${player.name}</h3><p>${player.hand.length} fichas</p>`;
-                ui.players.appendChild(playerDiv);
-            });
-            
-            const isMyTurn = data.players[data.currentPlayerIndex]?.uid === currentUser.uid;
-            [ui.startBtn, ui.passBtn, ui.playAgainBtn].forEach(b => b.classList.add('hidden'));
-
-            if (data.status === 'waiting') {
-                ui.startBtn.classList.remove('hidden');
-                ui.startBtn.disabled = data.creatorUid !== currentUser.uid || data.players.length < 2;
-            } else if (data.status === 'playing' && isMyTurn) {
-                ui.passBtn.classList.remove('hidden');
-            } else if (data.status === 'finished') {
-                ui.playAgainBtn.classList.remove('hidden');
-                ui.playAgainBtn.disabled = data.creatorUid !== currentUser.uid;
-            }
-
-            const newMessages = data.chatMessages || [];
-            if (newMessages.length > lastMessageCount && !isChatVisible) {
-                const lastMessage = newMessages[newMessages.length - 1];
-                if (lastMessage.senderUid !== currentUser.uid) {
-                    ui.chatNotification.classList.remove("hidden");
-                }
-            }
-            lastMessageCount = newMessages.length;
-            ui.chatMessages.innerHTML = '';
-            newMessages.forEach(msg => {
-                const sender = data.players.find(p => p.uid === msg.senderUid);
-                const senderColor = sender ? sender.color : '#cbd5e0';
-                const msgDiv = document.createElement('div');
-                msgDiv.classList.add('mb-2','p-2','rounded-md','bg-gray-700','break-words');
-                msgDiv.innerHTML = `<strong class="font-bold" style="color: ${senderColor};">${msg.senderName}:</strong> ${msg.text}`;
-                ui.chatMessages.appendChild(msgDiv);
-            });
-            ui.chatMessages.scrollTop = ui.chatMessages.scrollHeight;
-        }
-        
-        async function startGame() {
-            const data = { ...currentGameData };
-            const dominoSet = buildDominoSet();
-            shuffle(dominoSet);
-
-            data.players.forEach(p => p.hand = dominoSet.splice(0, 7));
-            
-            let startingPlayerIndex = -1, highestDouble = -1;
-            data.players.forEach((p, i) => {
-                p.hand.forEach(tile => {
-                    if (tile.a === tile.b && tile.a > highestDouble) {
-                        highestDouble = tile.a;
-                        startingPlayerIndex = i;
-                    }
-                });
-            });
-            
-            if (startingPlayerIndex === -1) {
-                let highestTileValue = -1;
-                 data.players.forEach((p, i) => {
-                    p.hand.forEach(tile => {
-                       if(tile.a + tile.b > highestTileValue) {
-                           highestTileValue = tile.a + tile.b;
-                           startingPlayerIndex = i;
-                       }
-                    });
-                });
-            }
-            
-            const starter = data.players[startingPlayerIndex];
-            const startTile = highestDouble !== -1 
-                ? starter.hand.splice(starter.hand.findIndex(t => t.a === highestDouble && t.b === highestDouble), 1)[0]
-                : starter.hand.splice(starter.hand.findIndex(t => t.a + t.b === highestTileValue), 1)[0];
-            
-            data.board = [startTile];
-            data.ends = [startTile.a, startTile.b];
-            data.status = 'playing';
-            data.currentPlayerIndex = (startingPlayerIndex + 1) % data.players.length;
-            data.message = `Comienza ${starter.name}. Turno de ${data.players[data.currentPlayerIndex].name}.`;
-            data.chatMessages = [];
-            await updateDoc(gameRef, data);
-        }
-
-        // --- Utility Functions ---
-        function shuffle(arr) { 
-            for (let i = arr.length - 1; i > 0; i--) { 
-                const j = Math.floor(Math.random() * (i + 1)); 
-                [arr[i], arr[j]] = [arr[j], arr[i]]; 
-            } 
-        }
-
-        function validateNickname() { 
-            const n = ui.nickname.value.trim(); 
-            if(n.length < 3) {
-                ui.modalError.textContent = "Apodo muy corto."; 
-                return null;
-            } 
-            ui.modalError.textContent = ""; 
-            return n;
-        }
-        
-        function buildDominoSet() { 
-            const tiles = []; 
-            for (let i = 0; i <= 6; i++) { 
-                for (let j = i; j <= 6; j++) { 
-                    tiles.push({ a: i, b: j }); 
-                } 
-            } 
-            return tiles; 
-        }
-
-        function createTileElement(tile, source) { 
-            const tileDiv = document.createElement('div'); 
-            tileDiv.className = 'domino-tile'; 
-            if (tile.a === tile.b) tileDiv.classList.add('horizontal'); 
-            const createHalf = (num) => { 
-                const half = document.createElement('div'); 
-                half.className = 'half'; 
-                const dots = [ [], [[2,2]], [[1,1],[3,3]], [[1,1],[2,2],[3,3]], [[1,1],[1,3],[3,1],[3,3]], [[1,1],[1,3],[2,2],[3,1],[3,3]], [[1,1],[1,3],[2,1],[2,3],[3,1],[3,3]] ]; 
-                if(dots[num]) dots[num].forEach(p => {
-                    const d=document.createElement('div');
-                    d.className='dot';
-                    d.style.gridArea=`${p[0]}/${p[1]}`;
-                    half.appendChild(d);
-                }); 
-                return half; 
-            }; 
-            tileDiv.appendChild(createHalf(tile.a)); 
-            const divider = document.createElement('div'); 
-            divider.className = 'divider'; 
-            tileDiv.appendChild(divider); 
-            tileDiv.appendChild(createHalf(tile.b)); 
-            return tileDiv; 
-        }
-        
-        async function sendMessage() { 
-            const text = ui.chatInput.value.trim(); 
-            if (text === "") return; 
-            const me = currentGameData.players.find(p => p.uid === currentUser.uid); 
-            if (!me) return; 
-            const newMessage = { senderName: me.name, senderUid: currentUser.uid, text: text, timestamp: new Date() }; 
-            await updateDoc(gameRef, { chatMessages: arrayUnion(newMessage) }); 
-            ui.chatInput.value = ""; 
-        }
-
-        function toggleChat() { 
-            isChatVisible = !isChatVisible; 
-            if (isChatVisible) { 
-                ui.chatContainer.classList.remove("hidden"); 
-                ui.chatContainer.classList.add("flex"); 
-                ui.chatNotification.classList.add("hidden"); 
-            } else { 
-                ui.chatContainer.classList.add("hidden"); 
-                ui.chatContainer.classList.remove("flex"); 
-            } 
-        }
-
-        // Event Listeners
         document.getElementById('show-join-btn').addEventListener('click', () => { document.getElementById('entry-options').classList.add('hidden'); document.getElementById('join-options').classList.remove('hidden'); });
         document.getElementById('back-to-entry-btn').addEventListener('click', () => { document.getElementById('join-options').classList.add('hidden'); document.getElementById('entry-options').classList.remove('hidden'); });
         ui.createBtn.addEventListener('click', async () => { const n = validateNickname(); if(!n)return; const id = Math.floor(1e5+Math.random()*9e5).toString(); gameRef = doc(db,'domino-games',id); const p = {uid:currentUser.uid,name:n,hand:[],color:playerColors[0]}; const g = {roomId:id,players:[p],status:'waiting',creatorUid:currentUser.uid,board:[],ends:[],currentPlayerIndex:0,message:`Sala ${id} creada.`, chatMessages:[]}; await setDoc(gameRef,g); subscribeToGame(gameRef); });
         ui.joinBtn.addEventListener('click', async () => { const n = validateNickname(); if(!n)return; const id=ui.roomIdInput.value.trim(); if(!id){ui.modalError.textContent="Ingresa ID.";return} gameRef=doc(db,'domino-games',id); const docSnap=await getDoc(gameRef); if(!docSnap.exists()){ui.modalError.textContent="Sala no encontrada.";return} const d=docSnap.data(); if(d.status!=='waiting'){ui.modalError.textContent="Juego en curso.";return} if(d.players.length>=4){ui.modalError.textContent="Sala llena.";return} if(!d.players.some(p=>p.uid===currentUser.uid)){const p={uid:currentUser.uid,name:n,hand:[],color:playerColors[d.players.length]};await updateDoc(gameRef,{players:arrayUnion(p)})} subscribeToGame(gameRef); });
         ui.startBtn.addEventListener('click', startGame);
+        ui.passBtn.addEventListener('click', passTurn);
+        ui.playAgainBtn.addEventListener('click', startGame);
         ui.chatToggleBtn.addEventListener("click", toggleChat);
         ui.sendChatBtn.addEventListener("click", sendMessage);
         ui.chatInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
         ui.emojiPicker.addEventListener("click", (e) => { if (e.target.classList.contains("emoji-btn")) { ui.chatInput.value += e.target.textContent; ui.chatInput.focus(); } });
+        ui.cancelPlayBtn.addEventListener("click", () => ui.placementModal.classList.add('hidden'));
     </script>
 </body>
 </html>
