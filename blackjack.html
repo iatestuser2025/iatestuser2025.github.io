@@ -272,7 +272,9 @@
             }
             dealerSumEl.textContent = dealerSum || "";
             
-             playersArea.innerHTML = "";
+            playersArea.innerHTML = "";
+            const revealAllPlayerCards = data.gamePhase !== 'playing'; // Se revelan las cartas cuando termina la fase de juego de los jugadores
+
             data.players.forEach((player, index) => {
                 const playerDiv = document.createElement('div');
                 playerDiv.classList.add('player-area', 'bg-gray-800/50', 'p-4', 'rounded-lg');
@@ -287,16 +289,23 @@
                 }
 
                 const isMyHand = player.uid === currentUser.uid;
-                const isStillPlaying = player.status === 'playing';
                 let displayedSum = player.sum;
+
+                // MODIFICADO: Ocultar suma del oponente si no ha perdido y la ronda no ha terminado
+                if (!isMyHand && player.status !== 'busted' && !revealAllPlayerCards) {
+                    displayedSum = (player.hand.length > 0 ? getCardValue(player.hand[0]) : 0) + " + ?";
+                }
                 
                 playerDiv.innerHTML = `<h3 class="text-xl font-bold truncate" style="color: ${player.color};">${player.name}</h3><p class="font-semibold text-lg mb-2">Puntos: ${displayedSum} ${statusMessage}</p><div class="cards-container flex flex-wrap justify-center min-h-[120px]"></div>`;
                 const cardsContainer = playerDiv.querySelector('.cards-container');
-                player.hand.forEach(card => {
-                    cardsContainer.appendChild(createCardElement(card));
+                
+                // MODIFICADO: Ocultar cartas del oponente (excepto la primera) si no ha perdido y la ronda no ha terminado
+                player.hand.forEach((card, cardIndex) => {
+                    const isHidden = cardIndex > 0 && !isMyHand && player.status !== 'busted' && !revealAllPlayerCards;
+                    cardsContainer.appendChild(createCardElement(card, isHidden));
                 });
 
-                // NUEVO: Mostrar la carta de desempate
+                // Mostrar la carta de desempate
                 if (player.tieBreakerCard) {
                     const tieCardEl = createCardElement(player.tieBreakerCard);
                     tieCardEl.classList.add('tie-breaker-card');
@@ -365,7 +374,6 @@
         function buildDeck() { const suits = ["heart", "diamond", "spade", "club"]; const values = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]; const suitSymbols = { "heart": "♥", "diamond": "♦", "spade": "♠", "club": "♣" }; let deck = []; for (let suit of suits) { for (let value of values) { deck.push({ value, suit, symbol: suitSymbols[suit] }); } } return deck; }
         function shuffleDeck(deck) { for (let i = deck.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[deck[i], deck[j]] = [deck[j], deck[i]]; } return deck; }
         
-        // MODIFICADO: getCardValue ahora maneja el valor para desempates
         function getCardValue(card, isTieBreaker = false) {
             const value = card.value;
             if (isTieBreaker) {
@@ -385,7 +393,6 @@
 
         async function startGame() { const data = { ...currentGameData }; data.status = 'playing'; data.gamePhase = 'playing'; data.deck = shuffleDeck(buildDeck()); data.players.forEach(player => { player.hand = [data.deck.pop(), data.deck.pop()]; player.sum = getSum(player.hand); player.status = 'playing'; if (player.sum === 21) player.status = 'blackjack'; }); data.dealer.hand = [data.deck.pop(), data.deck.pop()]; data.dealer.sum = getSum(data.dealer.hand); await setDoc(gameRef, data); await checkTurn(data); }
         
-        // MODIFICADO: playAgain ahora limpia los datos del desempate
         async function playAgain() { 
             if (currentGameData.creatorUid !== currentUser.uid) return; 
             const data = { ...currentGameData }; 
@@ -415,7 +422,6 @@
         async function advanceTurn() { const data = { ...currentGameData }; let nextIndex = data.currentPlayerIndex + 1; while(nextIndex < data.players.length && data.players[nextIndex].status !== 'playing') { nextIndex++; } if (nextIndex >= data.players.length) { data.gamePhase = 'dealer-turn'; await setDoc(gameRef, data); await dealerTurn(); } else { data.currentPlayerIndex = nextIndex; await setDoc(gameRef, data); await checkTurn(data); } }
         async function checkTurn(data) { const player = data.players[data.currentPlayerIndex]; if(player && (player.status === 'blackjack' || player.status === 'quintilla')) { await advanceTurn(); } }
 
-        // MODIFICADO: Lógica completamente nueva para determinar el ganador y manejar empates
         async function dealerTurn() {
             const data = { ...currentGameData };
             while (data.dealer.sum < 17) {
@@ -452,7 +458,6 @@
                 data.tiedPlayers = winners.map(p => p.uid);
                 data.message = `¡Empate con ${bestScore}! Repartiendo carta de desempate...`;
                 await setDoc(gameRef, data);
-                // La resolución del empate se activa desde el listener onSnapshot
             } else if (winners.length === 1) {
                 data.message = `¡${winners[0].name} gana con ${bestScore}!`;
                 data.status = 'finished';
@@ -468,7 +473,6 @@
             }
         }
 
-        // NUEVO: Función para resolver el desempate
         async function resolveTieBreaker() {
             const data = { ...currentGameData };
             if (data.gamePhase !== 'tie-breaker' || !data.deck) return;
@@ -514,3 +518,4 @@
     </script>
 </body>
 </html>
+
