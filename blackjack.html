@@ -27,6 +27,10 @@
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             position: relative;
             margin: 4px;
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: scale(1.05);
         }
         .card-back {
             background: linear-gradient(135deg, #6b21a8, #9d174d);
@@ -44,6 +48,15 @@
         .player-area.active-player {
             border-color: #f59e0b; /* Amarillo para el jugador activo */
             box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+        }
+        .tie-breaker-card {
+            border: 3px solid #f59e0b;
+            animation: pulse-border 1.5s infinite;
+        }
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
         }
         #modal-overlay {
             background-color: rgba(0, 0, 0, 0.7);
@@ -159,6 +172,7 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, setDoc, getDoc, collection, serverTimestamp, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // CONFIGURACIÓN DE FIREBASE (El usuario debe reemplazar esto con su propia configuración)
         const firebaseConfig = {
             apiKey: "AIzaSyA6uydlodXo1vnyqoocwzHytwt5W0riIDQ",
             authDomain: "blackjack-d6b7b.firebaseapp.com",
@@ -221,8 +235,13 @@
             if (unsubscribe) unsubscribe();
             unsubscribe = onSnapshot(ref, (docSnap) => {
                 if (docSnap.exists()) {
+                    const oldPhase = currentGameData?.gamePhase;
                     currentGameData = docSnap.data();
                     renderGame(currentGameData);
+                    // Si la fase acaba de cambiar a desempate, resolverlo automáticamente.
+                    if (oldPhase !== 'tie-breaker' && currentGameData.gamePhase === 'tie-breaker') {
+                        resolveTieBreaker();
+                    }
                 } else {
                     console.error("El documento del juego no existe o no se puede leer.");
                 }
@@ -242,7 +261,7 @@
             dealerCardsEl.innerHTML = "";
             let dealerSum = 0;
             if (data.dealer && data.dealer.hand.length > 0) {
-                 const isDealerTurn = data.gamePhase === 'dealer-turn' || data.gamePhase === 'finished';
+                 const isDealerTurn = data.gamePhase === 'dealer-turn' || data.status === 'finished';
                  if (isDealerTurn) {
                     data.dealer.hand.forEach(card => dealerCardsEl.appendChild(createCardElement(card)));
                  } else {
@@ -270,23 +289,32 @@
                 const isMyHand = player.uid === currentUser.uid;
                 const isStillPlaying = player.status === 'playing';
                 let displayedSum = player.sum;
-                if (!isMyHand && isStillPlaying && player.hand.length > 0) displayedSum = getCardValue(player.hand[0]) + " + ?";
                 
                 playerDiv.innerHTML = `<h3 class="text-xl font-bold truncate" style="color: ${player.color};">${player.name}</h3><p class="font-semibold text-lg mb-2">Puntos: ${displayedSum} ${statusMessage}</p><div class="cards-container flex flex-wrap justify-center min-h-[120px]"></div>`;
                 const cardsContainer = playerDiv.querySelector('.cards-container');
-                player.hand.forEach((card, cardIndex) => {
-                    const isHidden = cardIndex === 1 && !isMyHand && isStillPlaying;
-                    cardsContainer.appendChild(createCardElement(card, isHidden));
+                player.hand.forEach(card => {
+                    cardsContainer.appendChild(createCardElement(card));
                 });
+
+                // NUEVO: Mostrar la carta de desempate
+                if (player.tieBreakerCard) {
+                    const tieCardEl = createCardElement(player.tieBreakerCard);
+                    tieCardEl.classList.add('tie-breaker-card');
+                    const title = document.createElement('p');
+                    title.textContent = 'Desempate:';
+                    title.className = 'w-full text-center text-yellow-300 font-bold mt-2';
+                    cardsContainer.appendChild(title);
+                    cardsContainer.appendChild(tieCardEl);
+                }
+
                 playersArea.appendChild(playerDiv);
             });
 
+            // Lógica de mensajes y chat (sin cambios)
             const newMessages = data.chatMessages || [];
             if (newMessages.length > lastMessageCount && !isChatVisible) {
                 const lastMessage = newMessages[newMessages.length - 1];
-                if (lastMessage.senderUid !== currentUser.uid) {
-                    chatNotification.classList.remove("hidden");
-                }
+                if (lastMessage.senderUid !== currentUser.uid) chatNotification.classList.remove("hidden");
             }
             lastMessageCount = newMessages.length;
 
@@ -299,7 +327,7 @@
                 msgDiv.innerHTML = `<strong class="font-bold" style="color: ${senderColor};">${msg.senderName}:</strong> ${msg.text}`;
                 chatMessages.appendChild(msgDiv);
             });
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            if (chatMessages.scrollHeight > chatMessages.clientHeight) chatMessages.scrollTop = chatMessages.scrollHeight;
 
             const currentPlayer = data.players[data.currentPlayerIndex];
             const amICurrentPlayer = currentPlayer?.uid === currentUser.uid;
@@ -329,24 +357,147 @@
                 standBtn.disabled = !amICurrentPlayer;
                 if (amICurrentPlayer) messageEl.textContent = "¡Es tu turno!";
                 else messageEl.textContent = `Turno de ${currentPlayer.name}...`;
+            } else if (data.gamePhase === 'tie-breaker') {
+                messageEl.textContent = data.message;
             }
         }
         
         function buildDeck() { const suits = ["heart", "diamond", "spade", "club"]; const values = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]; const suitSymbols = { "heart": "♥", "diamond": "♦", "spade": "♠", "club": "♣" }; let deck = []; for (let suit of suits) { for (let value of values) { deck.push({ value, suit, symbol: suitSymbols[suit] }); } } return deck; }
         function shuffleDeck(deck) { for (let i = deck.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[deck[i], deck[j]] = [deck[j], deck[i]]; } return deck; }
-        function getCardValue(card) { if (card.value === "A") return 11; if (["K", "Q", "J"].includes(card.value)) return 10; return parseInt(card.value); }
+        
+        // MODIFICADO: getCardValue ahora maneja el valor para desempates
+        function getCardValue(card, isTieBreaker = false) {
+            const value = card.value;
+            if (isTieBreaker) {
+                if (value === "A") return 14;
+                if (value === "K") return 13;
+                if (value === "Q") return 12;
+                if (value === "J") return 11;
+                return parseInt(value);
+            } else {
+                if (value === "A") return 11;
+                if (["K", "Q", "J"].includes(value)) return 10;
+                return parseInt(value);
+            }
+        }
         function getSum(hand) { let sum = hand.reduce((total, card) => total + getCardValue(card), 0); let aceCount = hand.filter(card => card.value === 'A').length; while (sum > 21 && aceCount > 0) { sum -= 10; aceCount--; } return sum; }
         function createCardElement(card, isHidden = false) { const cardDiv = document.createElement("div"); cardDiv.classList.add("card", card.suit); if (isHidden) { cardDiv.classList.add("card-back"); } else { cardDiv.innerHTML = `<div class="text-left">${card.value}${card.symbol}</div><div class="text-center suit">${card.symbol}</div><div class="text-right transform rotate-180">${card.value}${card.symbol}</div>`; } return cardDiv; }
 
         async function startGame() { const data = { ...currentGameData }; data.status = 'playing'; data.gamePhase = 'playing'; data.deck = shuffleDeck(buildDeck()); data.players.forEach(player => { player.hand = [data.deck.pop(), data.deck.pop()]; player.sum = getSum(player.hand); player.status = 'playing'; if (player.sum === 21) player.status = 'blackjack'; }); data.dealer.hand = [data.deck.pop(), data.deck.pop()]; data.dealer.sum = getSum(data.dealer.hand); await setDoc(gameRef, data); await checkTurn(data); }
-        async function playAgain() { if (currentGameData.creatorUid !== currentUser.uid) return; const data = { ...currentGameData }; data.status = 'playing'; data.gamePhase = 'playing'; data.deck = shuffleDeck(buildDeck()); data.message = ""; data.currentPlayerIndex = 0; data.chatMessages = []; data.players.forEach(player => { player.hand = [data.deck.pop(), data.deck.pop()]; player.sum = getSum(player.hand); player.status = 'playing'; if (player.sum === 21) player.status = 'blackjack'; }); data.dealer.hand = [data.deck.pop(), data.deck.pop()]; data.dealer.sum = getSum(data.dealer.hand); await setDoc(gameRef, data); await checkTurn(data); }
+        
+        // MODIFICADO: playAgain ahora limpia los datos del desempate
+        async function playAgain() { 
+            if (currentGameData.creatorUid !== currentUser.uid) return; 
+            const data = { ...currentGameData }; 
+            data.status = 'playing'; 
+            data.gamePhase = 'playing'; 
+            data.deck = shuffleDeck(buildDeck()); 
+            data.message = ""; 
+            data.currentPlayerIndex = 0; 
+            data.tiedPlayers = []; // Limpiar jugadores empatados
+            data.players.forEach(player => { 
+                player.hand = [data.deck.pop(), data.deck.pop()]; 
+                player.sum = getSum(player.hand); 
+                player.status = 'playing'; 
+                delete player.tieBreakerCard; // Limpiar carta de desempate
+                delete player.tieBreakerValue; // Limpiar valor de desempate
+                if (player.sum === 21) player.status = 'blackjack'; 
+            }); 
+            data.dealer.hand = [data.deck.pop(), data.deck.pop()]; 
+            data.dealer.sum = getSum(data.dealer.hand); 
+            await setDoc(gameRef, data); 
+            await checkTurn(data); 
+        }
+
         async function hit() { const data = { ...currentGameData }; const player = data.players[data.currentPlayerIndex]; if (player.uid !== currentUser.uid || data.gamePhase !== 'playing') return; player.hand.push(data.deck.pop()); player.sum = getSum(player.hand); if (player.sum > 21) { player.status = 'busted'; } else if (player.hand.length === 5) { player.status = 'quintilla'; await setDoc(gameRef, data); await endGameWithQuintilla(player); return; } await setDoc(gameRef, data); if (player.status === 'busted') await advanceTurn(); }
         async function endGameWithQuintilla(winner) { const data = { ...currentGameData }; data.status = 'finished'; data.gamePhase = 'finished'; data.message = `¡${winner.name} gana con Quintilla!`; await setDoc(gameRef, data); }
         async function stand() { const data = { ...currentGameData }; const player = data.players[data.currentPlayerIndex]; if (player.uid !== currentUser.uid || data.gamePhase !== 'playing') return; player.status = 'stood'; await setDoc(gameRef, data); await advanceTurn(); }
         async function advanceTurn() { const data = { ...currentGameData }; let nextIndex = data.currentPlayerIndex + 1; while(nextIndex < data.players.length && data.players[nextIndex].status !== 'playing') { nextIndex++; } if (nextIndex >= data.players.length) { data.gamePhase = 'dealer-turn'; await setDoc(gameRef, data); await dealerTurn(); } else { data.currentPlayerIndex = nextIndex; await setDoc(gameRef, data); await checkTurn(data); } }
         async function checkTurn(data) { const player = data.players[data.currentPlayerIndex]; if(player && (player.status === 'blackjack' || player.status === 'quintilla')) { await advanceTurn(); } }
-        async function dealerTurn() { const data = { ...currentGameData }; while (data.dealer.sum < 17) { data.dealer.hand.push(data.deck.pop()); data.dealer.sum = getSum(data.dealer.hand); } let finalMessage = "Resultados: "; data.players.forEach(player => { if(player.status === 'busted') { finalMessage += `${player.name} perdió. `; } else if (player.status === 'blackjack') { finalMessage += `${player.name} tiene Blackjack! `; } else if (player.status === 'quintilla') { finalMessage += `${player.name} tiene Quintilla! `; } else if (data.dealer.sum > 21 || player.sum > data.dealer.sum) { finalMessage += `${player.name} gana! `; } else if (player.sum < data.dealer.sum) { finalMessage += `${player.name} pierde. `; } else { finalMessage += `${player.name} empata. `; } }); data.gamePhase = 'finished'; data.status = 'finished'; data.message = finalMessage; await setDoc(gameRef, data); }
-        
+
+        // MODIFICADO: Lógica completamente nueva para determinar el ganador y manejar empates
+        async function dealerTurn() {
+            const data = { ...currentGameData };
+            while (data.dealer.sum < 17) {
+                data.dealer.hand.push(data.deck.pop());
+                data.dealer.sum = getSum(data.dealer.hand);
+            }
+
+            const quintillaWinner = data.players.find(p => p.status === 'quintilla');
+            if (quintillaWinner) {
+                data.message = `¡${quintillaWinner.name} gana con Quintilla!`;
+                data.status = 'finished';
+                await setDoc(gameRef, data);
+                return;
+            }
+
+            const potentialWinners = data.players.filter(p => p.status !== 'busted');
+            if (potentialWinners.length === 0) {
+                data.message = "Todos los jugadores perdieron. La casa gana.";
+                data.status = 'finished';
+                await setDoc(gameRef, data);
+                return;
+            }
+
+            let bestScore = 0;
+            potentialWinners.forEach(p => {
+                if (p.sum > bestScore) bestScore = p.sum;
+            });
+            
+            const dealerBusted = data.dealer.sum > 21;
+            const winners = potentialWinners.filter(p => p.sum === bestScore && (dealerBusted || p.sum > data.dealer.sum));
+
+            if (winners.length > 1) {
+                data.gamePhase = 'tie-breaker';
+                data.tiedPlayers = winners.map(p => p.uid);
+                data.message = `¡Empate con ${bestScore}! Repartiendo carta de desempate...`;
+                await setDoc(gameRef, data);
+                // La resolución del empate se activa desde el listener onSnapshot
+            } else if (winners.length === 1) {
+                data.message = `¡${winners[0].name} gana con ${bestScore}!`;
+                data.status = 'finished';
+                await setDoc(gameRef, data);
+            } else {
+                 let message = "La casa gana. ";
+                 potentialWinners.forEach(p => {
+                     if (p.sum === data.dealer.sum) message += `${p.name} empata. `;
+                 });
+                data.message = message;
+                data.status = 'finished';
+                await setDoc(gameRef, data);
+            }
+        }
+
+        // NUEVO: Función para resolver el desempate
+        async function resolveTieBreaker() {
+            const data = { ...currentGameData };
+            if (data.gamePhase !== 'tie-breaker' || !data.deck) return;
+
+            data.players.forEach(player => {
+                if (data.tiedPlayers.includes(player.uid)) {
+                    const card = data.deck.pop();
+                    player.tieBreakerCard = card;
+                    player.tieBreakerValue = getCardValue(card, true);
+                }
+            });
+
+            let highestValue = 0;
+            const tiedPlayersObjects = data.players.filter(p => data.tiedPlayers.includes(p.uid));
+            tiedPlayersObjects.forEach(p => { if (p.tieBreakerValue > highestValue) highestValue = p.tieBreakerValue; });
+
+            const finalWinners = tiedPlayersObjects.filter(p => p.tieBreakerValue === highestValue);
+            
+            if (finalWinners.length === 1) {
+                data.message = `¡${finalWinners[0].name} gana el desempate con la carta más alta!`;
+            } else {
+                const winnerNames = finalWinners.map(p => p.name).join(' y ');
+                data.message = `¡Increíble! ${winnerNames} empatan de nuevo. ¡Es un empate final!`;
+            }
+            
+            data.status = 'finished';
+            await setDoc(gameRef, data);
+        }
+
         async function sendMessage() { const text = chatInput.value.trim(); if (text === "") return; const me = currentGameData.players.find(p => p.uid === currentUser.uid); if (!me) return; const newMessage = { senderName: me.name, senderUid: currentUser.uid, text: text, timestamp: new Date() }; await updateDoc(gameRef, { chatMessages: arrayUnion(newMessage) }); chatInput.value = ""; }
         function toggleChat() { isChatVisible = !isChatVisible; if (isChatVisible) { chatContainer.classList.remove("hidden"); mainGameCol.classList.remove("lg:col-span-3"); mainGameCol.classList.add("lg:col-span-2"); chatNotification.classList.add("hidden"); } else { chatContainer.classList.add("hidden"); mainGameCol.classList.remove("lg:col-span-2"); mainGameCol.classList.add("lg:col-span-3"); } }
 
@@ -363,4 +514,3 @@
     </script>
 </body>
 </html>
-
