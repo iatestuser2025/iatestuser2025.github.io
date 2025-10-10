@@ -433,44 +433,53 @@
             if (quintillaWinner) {
                 data.message = `¡${quintillaWinner.name} gana con Quintilla!`;
                 data.status = 'finished';
+                data.gamePhase = 'finished';
                 await setDoc(gameRef, data);
                 return;
             }
 
-            const potentialWinners = data.players.filter(p => p.status !== 'busted');
-            if (potentialWinners.length === 0) {
-                data.message = "Todos los jugadores perdieron. La casa gana.";
-                data.status = 'finished';
-                await setDoc(gameRef, data);
-                return;
-            }
-
-            let bestScore = 0;
-            potentialWinners.forEach(p => {
-                if (p.sum > bestScore) bestScore = p.sum;
-            });
-            
             const dealerBusted = data.dealer.sum > 21;
-            const winners = potentialWinners.filter(p => p.sum === bestScore && (dealerBusted || p.sum > data.dealer.sum));
+            
+            // Jugadores que no perdieron y que ganaron o empataron contra el croupier.
+            const contenders = data.players.filter(p => 
+                p.status !== 'busted' && (dealerBusted || p.sum >= data.dealer.sum)
+            );
 
-            if (winners.length > 1) {
-                data.gamePhase = 'tie-breaker';
-                data.tiedPlayers = winners.map(p => p.uid);
-                data.message = `¡Empate con ${bestScore}! Repartiendo carta de desempate...`;
-                await setDoc(gameRef, data);
-            } else if (winners.length === 1) {
-                data.message = `¡${winners[0].name} gana con ${bestScore}!`;
-                data.status = 'finished';
-                await setDoc(gameRef, data);
-            } else {
-                 let message = "La casa gana. ";
-                 potentialWinners.forEach(p => {
-                     if (p.sum === data.dealer.sum) message += `${p.name} empata. `;
-                 });
-                data.message = message;
-                data.status = 'finished';
-                await setDoc(gameRef, data);
+            // Revisar si hay un empate entre los mejores contendientes
+            if (contenders.length > 1) {
+                let bestScore = 0;
+                contenders.forEach(p => { if (p.sum > bestScore) bestScore = p.sum; });
+
+                const topContenders = contenders.filter(p => p.sum === bestScore);
+
+                if (topContenders.length > 1) {
+                    // Múltiples jugadores empataron con la mejor puntuación. ¡A desempate!
+                    data.gamePhase = 'tie-breaker';
+                    data.tiedPlayers = topContenders.map(p => p.uid);
+                    data.message = `¡Empate con ${bestScore}! Repartiendo carta de desempate...`;
+                    await setDoc(gameRef, data);
+                    return; // Salir y dejar que onSnapshot maneje el desempate
+                }
             }
+            
+            // Si no hay desempate, determinar el resultado final
+            if (contenders.length > 0) {
+                const winner = contenders.sort((a, b) => b.sum - a.sum)[0]; // Obtener el mejor de los contendientes
+                if (winner.sum > data.dealer.sum || dealerBusted) {
+                    data.message = `¡${winner.name} gana con ${winner.sum}!`;
+                } else { // El único contendiente empató con el croupier
+                    const pushPlayers = data.players.filter(p => p.status !== 'busted' && p.sum === data.dealer.sum);
+                    const pushNames = pushPlayers.map(p => p.name).join(', ');
+                    data.message = `La casa empata con: ${pushNames}. El resto pierde.`;
+                }
+            } else {
+                // Nadie ganó ni empató.
+                data.message = "La casa gana.";
+            }
+
+            data.status = 'finished';
+            data.gamePhase = 'finished';
+            await setDoc(gameRef, data);
         }
 
         async function resolveTieBreaker() {
@@ -499,6 +508,7 @@
             }
             
             data.status = 'finished';
+            data.gamePhase = 'finished';
             await setDoc(gameRef, data);
         }
 
