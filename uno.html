@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UNO - No Mercy (Multijugador)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #1a202c;
+            color: #e2e8f0;
+            overflow: hidden;
+        }
+        
+        /* Estilos de Cartas (Ahora para <img>) */
+        .card {
+            width: 80px;
+            height: 112px;
+            border-radius: 8px;
+            display: inline-block;
+            position: relative;
+            margin: 2px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .card img {
+            width: 100%;
+            height: 100%;
+            border-radius: 6px;
+            object-fit: cover;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+        }
+        .card:hover { transform: translateY(-10px) scale(1.05); z-index: 50; }
+        
+        /* Estilo para el color elegido en comodines */
+        .card .color-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 6px;
+            box-shadow: 0 0 15px 5px var(--chosen-color, transparent);
+            border: 3px solid var(--chosen-color, transparent);
+        }
+
+        /* Áreas de Juego */
+        #my-hand-area {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            min-height: 120px;
+            padding: 10px;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+        #opponents-area {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap; /* Para que quepan más oponentes */
+            padding: 10px;
+            min-height: 100px;
+        }
+        .opponent {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 10px;
+            padding: 8px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        .opponent.active-player {
+            background-color: rgba(234, 179, 8, 0.3);
+            box-shadow: 0 0 15px rgba(234, 179, 8, 0.5);
+        }
+        .opponent .card {
+            width: 50px;
+            height: 70px;
+            font-size: 16px;
+        }
+        
+        .btn { transition: all 0.2s ease-in-out; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: translateY(0); box-shadow: none; }
+        
+        #modal-overlay { background-color: rgba(0, 0, 0, 0.7); }
+        .hidden { display: none; }
+        
+        /* Chat (Sin cambios) */
+        #chat-container {
+            height: calc(100vh - 100px);
+            max-height: 600px;
+            transition: all 0.3s ease-in-out;
+            position: fixed;
+            right: 0;
+            top: 80px;
+            width: 350px;
+            z-index: 100;
+            transform: translateX(100%);
+        }
+        #chat-container.visible {
+            transform: translateX(0);
+        }
+        #chat-messages::-webkit-scrollbar { width: 8px; }
+        #chat-messages::-webkit-scrollbar-track { background: #1f2937; }
+        #chat-messages::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 4px;}
+        #chat-toggle-btn { position: fixed; top: 20px; right: 20px; z-index: 101; }
+        #chat-notification { position: absolute; top: 0; right: 0; width: 12px; height: 12px; background-color: #ef4444; border-radius: 50%; border: 2px solid #1a202c; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <!-- Botón de Chat -->
+    <button id="chat-toggle-btn" class="btn bg-gray-700 hover:bg-gray-600 p-3 rounded-full shadow-lg hidden">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+        <span id="chat-notification" class="hidden"></span>
+    </button>
+
+    <!-- Modal para unirse/crear sala -->
+    <div id="modal-overlay" class="fixed inset-0 flex items-center justify-center z-50">
+        <div class="bg-gray-800 p-8 rounded-lg shadow-xl text-center w-full max-w-sm">
+            <h2 class="text-3xl font-bold mb-4 text-yellow-300">UNO: NO MERCY</h2>
+            <p id="modal-error" class="text-red-400 mb-3 min-h-[20px]"></p>
+            <div id="entry-options">
+                 <input type="text" id="nickname-input" class="w-full bg-gray-700 text-white p-3 rounded-md mb-4" placeholder="Ingresa tu apodo...">
+                 <button id="create-room-btn" class="btn bg-green-500 hover:bg-green-600 w-full text-white font-bold py-3 px-6 rounded-lg text-lg mb-3">Crear Sala</button>
+                 <button id="show-join-btn" class="btn bg-blue-500 hover:bg-blue-600 w-full text-white font-bold py-3 px-6 rounded-lg text-lg">Unirse a Sala</button>
+            </div>
+            <div id="join-options" class="hidden">
+                 <input type="text" id="room-id-input" class="w-full bg-gray-700 text-white p-3 rounded-md mb-4" placeholder="Ingresa ID de la sala (6 dígitos)..." maxlength="6">
+                 <button id="join-room-btn" class="btn bg-blue-500 hover:bg-blue-600 w-full text-white font-bold py-3 px-6 rounded-lg text-lg mb-3">Unirse</button>
+                 <button id="back-to-entry-btn" class="text-gray-400 hover:text-white">Volver</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenedor del Juego -->
+    <div id="game-container" class="w-full h-screen flex flex-col items-center justify-between p-4 hidden">
+        
+        <!-- Área de Oponentes (Arriba) -->
+        <div id="opponents-area" class="w-full">
+            <!-- Los oponentes se renderizarán aquí -->
+        </div>
+
+        <!-- Área de Mensajes e Info (Centro) -->
+        <div class="flex flex-col items-center justify-center text-center">
+            <p id="message-el" class="text-2xl text-yellow-300 font-semibold mb-2 min-h-[32px]"></p>
+            <p class="text-sm text-gray-400">ID de Sala: <strong id="room-id-el" class="text-yellow-300 font-mono"></strong></p>
+            <p class="text-sm text-gray-400">Tu ID: <span id="user-id-el" class="font-mono"></span></p>
+        </div>
+
+        <!-- Área de la Mesa (Centro) -->
+        <div id="table-area" class="flex justify-center items-center space-x-8 my-4">
+            <!-- Mazo de Robar -->
+            <div id="deck-pile" class="cursor-pointer card">
+                <!-- Actualizado para usar la imagen de dorso -->
+                <img src="cards/back cover.PNG" alt="Mazo" class="w-full h-full rounded-md object-cover">
+            </div>
+            <!-- Pila de Descarte -->
+            <div id="discard-pile" class="relative">
+                <!-- Carta superior se renderizará aquí -->
+            </div>
+            <div id="draw-stack-indicator" class="text-2xl font-bold text-red-500 p-4 bg-gray-900/50 rounded-lg hidden">
+                ¡ROBA <span id="draw-stack-count">0</span>!
+            </div>
+        </div>
+        
+        <!-- Botones de Acción -->
+        <div id="action-buttons" class="flex justify-center space-x-4 mb-4">
+            <button id="start-game-btn" class="btn bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">INICIAR JUEGO</button>
+            <button id="say-uno-btn" class="btn bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">¡UNO!</button>
+            <button id="draw-roulette-btn" class="btn bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">ROBAR POR RULETA</button>
+        </div>
+
+        <!-- Mi Mano (Abajo) -->
+        <div id="my-hand-area" class="w-full bg-gray-900/50 p-2 rounded-lg">
+            <!-- Mis cartas se renderizarán aquí -->
+        </div>
+    </div>
+    
+    <!-- Modal de Selección de Color -->
+    <div id="color-picker-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden">
+        <div class="bg-gray-800 p-8 rounded-lg shadow-xl text-center">
+            <h3 class="text-2xl font-bold mb-6 text-white">Elige un color</h3>
+            <div class="flex space-x-4">
+                <button class="color-choice-btn w-20 h-20 rounded-full border-4 border-transparent hover:border-white transition" style="background-color: #ef4444;" data-color="red"></button>
+                <button class="color-choice-btn w-20 h-20 rounded-full border-4 border-transparent hover:border-white transition" style="background-color: #22c55e;" data-color="green"></button>
+                <button class="color-choice-btn w-20 h-20 rounded-full border-4 border-transparent hover:border-white transition" style="background-color: #3b82f6;" data-color="blue"></button>
+                <button class="color-choice-btn w-20 h-20 rounded-full border-4 border-transparent hover:border-white transition" style="background-color: #eab308;" data-color="yellow"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenedor del Chat (Copiado de Blackjack) -->
+    <div id="chat-container" class="bg-gray-800/80 backdrop-blur-sm rounded-lg p-4 flex flex-col">
+        <h3 class="text-2xl font-bold mb-4 text-center">Chat de la Sala</h3>
+        <div id="chat-messages" class="flex-grow overflow-y-auto mb-4 pr-2"></div>
+        <div id="emoji-picker" class="mb-2">
+            <button class="emoji-btn text-2xl p-1">😂</button>
+            <button class="emoji-btn text-2xl p-1">👍</button>
+            <button class="emoji-btn text-2xl p-1">🔥</button>
+            <button class="emoji-btn text-2xl p-1">😢</button>
+            <button class="emoji-btn text-2xl p-1">😎</button>
+        </div>
+        <div class="flex">
+            <input type="text" id="chat-input" class="w-full bg-gray-700 text-white p-3 rounded-l-md" placeholder="Escribe un mensaje...">
+            <button id="send-chat-btn" class="btn bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-r-md">Enviar</button>
+        </div>
+    </div>
+
+    <!-- Referencias de Firebase (Cambiadas para Firestore) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc, getDoc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // !!! REEMPLAZA ESTO CON TU PROPIA CONFIGURACIÓN DE FIREBASE !!!
+        const firebaseConfig = {
+            apiKey: "AIzaSyA6uydlodXo1vnyqoocwzHytwt5W0riIDQ",
+            authDomain: "blackjack-d6b7b.firebaseapp.com",
+            projectId: "blackjack-d6b7b",
+            storageBucket: "blackjack-d6b7b.appspot.com",
+            messagingSenderId: "705363226577",
+            appId: "1:705363226577:web:214cf8baa2c9fb48e73af0"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+        let currentGameData = null;
+        let gameRef = null;
+        let unsubscribe = null;
+        let isChatVisible = false;
+        let lastMessageCount = 0;
+        let pendingWildCard = null; // Almacena la carta comodín jugada mientras se elige color
+        const playerColors = ['#60a5fa', '#34d399', '#f87171', '#fbbf24', '#a78bfa', '#f472b6', '#76e6d1'];
+        
+        // RUTA A TUS IMÁGENES PNG
+        const CARD_IMAGE_PATH = "cards/"; // Asume una carpeta 'cards'
+
+        // --- Elementos UI ---
+        const modalOverlay = document.getElementById("modal-overlay");
+        const nicknameInput = document.getElementById("nickname-input");
+        const modalErrorEl = document.getElementById("modal-error");
+        const entryOptions = document.getElementById("entry-options");
+        const joinOptions = document.getElementById("join-options");
+        const createRoomBtn = document.getElementById("create-room-btn");
+        const showJoinBtn = document.getElementById("show-join-btn");
+        const joinRoomBtn = document.getElementById("join-room-btn");
+        const roomIdInput = document.getElementById("room-id-input");
+        const backToEntryBtn = document.getElementById("back-to-entry-btn");
+        
+        const gameContainer = document.getElementById("game-container");
+        const messageEl = document.getElementById("message-el");
+        const roomIdEl = document.getElementById("room-id-el");
+        const userIdEl = document.getElementById("user-id-el");
+        const opponentsArea = document.getElementById("opponents-area");
+        const tableArea = document.getElementById("table-area");
+        const deckPile = document.getElementById("deck-pile");
+        const discardPile = document.getElementById("discard-pile");
+        const drawStackIndicator = document.getElementById("draw-stack-indicator");
+        const drawStackCount = document.getElementById("draw-stack-count");
+        const myHandArea = document.getElementById("my-hand-area");
+        
+        const actionButtons = document.getElementById("action-buttons");
+        const startGameBtn = document.getElementById("start-game-btn");
+        const sayUnoBtn = document.getElementById("say-uno-btn");
+        const drawRouletteBtn = document.getElementById("draw-roulette-btn");
+        
+        const colorPickerModal = document.getElementById("color-picker-modal");
+
+        // --- Elementos de Chat (Copiado) ---
+        const chatContainer = document.getElementById("chat-container");
+        const chatMessages = document.getElementById("chat-messages");
+        const chatInput = document.getElementById("chat-input");
+        const sendChatBtn = document.getElementById("send-chat-btn");
+        const emojiPicker = document.getElementById("emoji-picker");
+        const chatToggleBtn = document.getElementById("chat-toggle-btn");
+        const chatNotification = document.getElementById("chat-notification");
+
+        // --- Autenticación ---
+        onAuthStateChanged(auth, user => { if (user) currentUser = user; });
+        await signInAnonymously(auth);
+
+        // --- Lógica del Lobby (Adaptada de Blackjack) ---
+
+        function validateNickname() {
+            const nickname = nicknameInput.value.trim();
+            if (nickname.length < 3) {
+                modalErrorEl.textContent = "El apodo debe tener al menos 3 caracteres.";
+                return null;
+            }
+            modalErrorEl.textContent = "";
+            return nickname;
+        }
+
+        showJoinBtn.addEventListener('click', () => { entryOptions.classList.add('hidden'); joinOptions.classList.remove('hidden'); modalErrorEl.textContent = ''; });
+        backToEntryBtn.addEventListener('click', () => { joinOptions.classList.add('hidden'); entryOptions.classList.remove('hidden'); modalErrorEl.textContent = ''; });
+
+        createRoomBtn.addEventListener('click', async () => {
+            const nickname = validateNickname(); if (!nickname) return;
+            const roomId = Math.floor(100000 + Math.random() * 900000).toString();
+            gameRef = doc(db, 'uno-no-mercy-games', roomId);
+            const newPlayer = {
+                uid: currentUser.uid,
+                name: nickname,
+                hand: [],
+                cardCount: 0,
+                color: playerColors[0],
+                isSafe: false // Para el botón "UNO"
+            };
+            const newGameData = {
+                roomId,
+                players: [newPlayer],
+                status: 'waiting', // 'waiting', 'playing', 'finished'
+                creatorUid: currentUser.uid,
+                message: "Esperando jugadores...",
+                chatMessages: [],
+                deck: [],
+                discardPile: [],
+                currentPlayerIndex: 0,
+                drawStack: 0, // Acumulador de cartas a robar
+                stackType: null, // "draw2/4", "draw6/10", "draw4Reverse"
+                playDirection: 1, // 1 = clockwise, -1 = counter-clockwise
+                lastColorCalled: null, // Para comodines
+                mustPlayColor: null, // NUEVO: Para la carta "Repite"
+                gamePhase: 'lobby' // 'lobby', 'playing', 'roulette-draw', 'repeat-play', 'finished'
+            };
+            await setDoc(gameRef, newGameData);
+            subscribeToGame(gameRef);
+        });
+
+        joinRoomBtn.addEventListener('click', async () => {
+            const nickname = validateNickname(); if (!nickname) return;
+            const roomId = roomIdInput.value.trim();
+            if (!roomId || roomId.length !== 6) { modalErrorEl.textContent = "Debes ingresar un ID de sala de 6 dígitos."; return; }
+            
+            gameRef = doc(db, 'uno-no-mercy-games', roomId);
+            const gameDoc = await getDoc(gameRef);
+            
+            if (!gameDoc.exists()) { modalErrorEl.textContent = "Sala no encontrada."; return; }
+            const gameData = gameDoc.data();
+            if (gameData.status !== 'waiting') { modalErrorEl.textContent = "La partida ya ha comenzado."; return; }
+            if (gameData.players.length >= 7) { modalErrorEl.textContent = "La sala está llena (máx 7 jugadores)."; return; }
+            
+            if (!gameData.players.some(p => p.uid === currentUser.uid)) {
+                const newPlayer = {
+                    uid: currentUser.uid,
+                    name: nickname,
+                    hand: [],
+                    cardCount: 0,
+                    color: playerColors[gameData.players.length % playerColors.length],
+                    isSafe: false
+                };
+                await updateDoc(gameRef, { players: arrayUnion(newPlayer) });
+            }
+            subscribeToGame(gameRef);
+        });
+
+        // --- Lógica del Chat (Copiada) ---
+        async function sendMessage() {
+            const text = chatInput.value.trim();
+            if (text === "" || !currentGameData) return;
+            const me = currentGameData.players.find(p => p.uid === currentUser.uid);
+            if (!me) return;
+            const newMessage = { senderName: me.name, senderUid: currentUser.uid, text: text, timestamp: new Date() };
+            await updateDoc(gameRef, { chatMessages: arrayUnion(newMessage) });
+            chatInput.value = "";
+        }
+
+        function toggleChat() {
+            isChatVisible = !isChatVisible;
+            if (isChatVisible) {
+                chatContainer.classList.add("visible");
+                chatNotification.classList.add("hidden");
+            } else {
+                chatContainer.classList.remove("visible");
+            }
+        }
+        chatToggleBtn.addEventListener("click", toggleChat);
+        sendChatBtn.addEventListener("click", sendMessage);
+        chatInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
+        emojiPicker.addEventListener("click", (e) => { if (e.target.classList.contains("emoji-btn")) { chatInput.value += e.target.textContent; chatInput.focus(); } });
+
+
+        // --- Suscripción y Renderizado del Juego ---
+        function subscribeToGame(ref) {
+            if (unsubscribe) unsubscribe();
+            unsubscribe = onSnapshot(ref, (docSnap) => {
+                if (docSnap.exists()) {
+                    currentGameData = docSnap.data();
+                    renderGame(currentGameData);
+                } else {
+                    console.error("El documento del juego no existe.");
+                    // Evitar alert()
+                    messageEl.textContent = "Error: La sala ya no existe. Recargando...";
+                    setTimeout(() => window.location.reload(), 3000);
+                }
+            });
+            modalOverlay.classList.add("hidden");
+            gameContainer.classList.remove("hidden");
+            chatToggleBtn.classList.remove("hidden");
+        }
+
+        function renderGame(data) {
+            if (!data) return;
+
+            // Info y Mensajes
+            messageEl.textContent = data.message || "";
+            roomIdEl.textContent = data.roomId || "";
+            userIdEl.textContent = currentUser.uid;
+
+            // Oponentes
+            opponentsArea.innerHTML = "";
+            const me = data.players.find(p => p.uid === currentUser.uid);
+            data.players.forEach((player, index) => {
+                if (player.uid === currentUser.uid) return;
+                
+                const opponentDiv = document.createElement('div');
+                opponentDiv.className = 'opponent';
+                if (index === data.currentPlayerIndex) {
+                    opponentDiv.classList.add('active-player');
+                }
+                // Muestra el dorso y el conteo de cartas
+                opponentDiv.innerHTML = `
+                    <p class="font-bold text-sm" style="color: ${player.color};">${player.name}</p>
+                    <div class="card">
+                        <img src="${CARD_IMAGE_PATH}back cover.PNG" alt="Dorso">
+                    </div>
+                    <span class="text-lg font-bold">${player.cardCount}</span>
+                    ${player.isSafe ? '<span class="text-yellow-400 text-xs">UNO!</span>' : ''}
+                `;
+                opponentsArea.appendChild(opponentDiv);
+            });
+
+            // Pila de descarte
+            discardPile.innerHTML = "";
+            if (data.discardPile.length > 0) {
+                const topCard = data.discardPile[data.discardPile.length - 1];
+                const cardEl = createCardElement(topCard, false);
+                // Mostrar el color elegido si es un comodín
+                if (topCard.color === 'black' && data.lastColorCalled) {
+                    cardEl.innerHTML += `<div class="color-overlay" style="--chosen-color: ${data.lastColorCalled};"></div>`;
+                }
+                discardPile.appendChild(cardEl);
+            } else {
+                 discardPile.innerHTML = `<div class="w-20 h-28 border-2 border-dashed border-gray-600 rounded-lg"></div>`;
+            }
+            
+            // Indicador de "Robar"
+            if (data.drawStack > 0) {
+                drawStackCount.textContent = data.drawStack;
+                drawStackIndicator.classList.remove('hidden');
+            } else {
+                drawStackIndicator.classList.add('hidden');
+            }
+
+            // Mi Mano
+            myHandArea.innerHTML = "";
+            if (me) {
+                me.hand.forEach(card => {
+                    const cardEl = createCardElement(card, true);
+                    cardEl.addEventListener('click', () => onCardClick(card));
+                    myHandArea.appendChild(cardEl);
+                });
+            }
+            
+            // Botones de Acción
+            const amICurrentPlayer = data.players[data.currentPlayerIndex]?.uid === currentUser.uid;
+            [startGameBtn, sayUnoBtn, drawRouletteBtn].forEach(btn => btn.classList.add('hidden'));
+
+            if (data.status === 'waiting') {
+                startGameBtn.classList.remove('hidden');
+                startGameBtn.disabled = data.creatorUid !== currentUser.uid || data.players.length < 2;
+                if (data.players.length < 2) {
+                    messageEl.textContent = "Esperando al menos 2 jugadores...";
+                } else {
+                    messageEl.textContent = "Esperando que el creador inicie...";
+                }
+            } else if (data.status === 'playing') {
+                if (me?.cardCount === 1 && !me.isSafe) {
+                    sayUnoBtn.classList.remove('hidden');
+                }
+                
+                if (data.gamePhase === 'roulette-draw' && amICurrentPlayer) {
+                    drawRouletteBtn.classList.remove('hidden');
+                    messageEl.textContent = `¡Te toca robar por la Ruleta de Color (${data.lastColorCalled})!`;
+                } else if (data.gamePhase === 'repeat-play' && amICurrentPlayer) {
+                    messageEl.textContent = `¡Juega una carta de color ${data.mustPlayColor} o roba!`;
+                } else if (amICurrentPlayer) {
+                    messageEl.textContent = "¡Es tu turno!";
+                } else {
+                    // Mensaje de espera
+                    const currentPlayerName = data.players[data.currentPlayerIndex]?.name || '...';
+                    if (data.gamePhase === 'roulette-draw') {
+                        messageEl.textContent = `${currentPlayerName} está robando por la Ruleta de Color...`;
+                    } else if (data.gamePhase === 'repeat-play') {
+                        messageEl.textContent = `${currentPlayerName} debe jugar otra carta...`;
+                    } else {
+                        messageEl.textContent = `Turno de ${currentPlayerName}...`;
+                    }
+                }
+            } else if (data.status === 'finished') {
+                // Juego terminado, mensaje ya está en data.message
+                actionButtons.innerHTML = `<button onclick="window.location.reload()" class="btn bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg">VOLVER AL LOBBY</button>`;
+            }
+
+            // Renderizado del Chat (Copiado)
+            const newMessages = data.chatMessages || [];
+            if (newMessages.length > lastMessageCount && !isChatVisible) {
+                const lastMessage = newMessages[newMessages.length - 1];
+                if (lastMessage.senderUid !== currentUser.uid) chatNotification.classList.remove("hidden");
+            }
+            lastMessageCount = newMessages.length;
+            chatMessages.innerHTML = '';
+            newMessages.forEach(msg => {
+                const sender = data.players.find(p => p.uid === msg.senderUid);
+                const senderColor = sender ? sender.color : '#cbd5e0';
+                const msgDiv = document.createElement('div');
+                msgDiv.classList.add('mb-2', 'p-2', 'rounded-md', 'bg-gray-700', 'break-words');
+                msgDiv.innerHTML = `<strong class="font-bold" style="color: ${senderColor};">${msg.senderName}:</strong> ${msg.text}`;
+                chatMessages.appendChild(msgDiv);
+            });
+            if (chatMessages.scrollHeight > chatMessages.clientHeight) chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // --- Helpers de UI de Cartas (Actualizado para PNG) ---
+        function createCardElement(card, isMyCard) {
+            const cardDiv = document.createElement('div');
+            cardDiv.className = 'card';
+            cardDiv.dataset.id = card.id;
+            
+            const altText = `${card.type} ${card.color} ${card.value}`;
+            cardDiv.innerHTML = `<img src="${CARD_IMAGE_PATH}${card.image}" alt="${altText}">`;
+
+            if (isMyCard) {
+                cardDiv.classList.add('my-card');
+            }
+            
+            return cardDiv;
+        }
+
+        // --- Lógica de Creación de Mazo (Actualizada) ---
+        
+        function createSingleDeck() {
+            let deck = [];
+            const colors = ['red', 'green', 'blue', 'yellow'];
+            // Mapeo de colores a nombres de archivo en español
+            const colorMap = { red: 'rojo', green: 'verde', blue: 'azul', yellow: 'amarillo' };
+            let id = 0; // El ID se re-asignará después de duplicar
+
+            for (const color of colors) {
+                const colorName = colorMap[color];
+                
+                // 1 x 0
+                deck.push({ id: id++, type: 'number', color, value: '0', image: `0 ${colorName}.png` });
+                // 2 x 1-9
+                for (let i = 1; i <= 9; i++) {
+                    const cardData = { type: 'number', color, value: i.toString(), image: `${i} ${colorName}.png` };
+                    deck.push({ ...cardData, id: id++ });
+                    deck.push({ ...cardData, id: id++ });
+                }
+                
+                // 2 x Bloqueo (Skip)
+                const skipData = { type: 'skip', color, value: 'S', image: `bloqueo ${colorName}.png` };
+                deck.push({ ...skipData, id: id++ });
+                deck.push({ ...skipData, id: id++ });
+
+                // 2 x Reversa
+                const reverseData = { type: 'reverse', color, value: 'R', image: `reversa ${colorName}.png` };
+                deck.push({ ...reverseData, id: id++ });
+                deck.push({ ...reverseData, id: id++ });
+
+                // 2 x Repite (NUEVO)
+                const repeatData = { type: 'repeat', color, value: 'REP', image: `repite ${colorName}.png` };
+                deck.push({ ...repeatData, id: id++ });
+                deck.push({ ...repeatData, id: id++ });
+
+                // 2 x Draw 2 - Usando los nombres exactos de tu lista
+                if (color === 'red') {
+                    deck.push({ id: id++, type: 'draw2', color: 'red', value: '+2', image: 'mas 2 rojo.png' });
+                    deck.push({ id: id++, type: 'draw2', color: 'red', value: '+2', image: 'mas 2 rojo.png' });
+                } else if (color === 'green') {
+                    deck.push({ id: id++, type: 'draw2', color: 'green', value: '+2', image: 'mas 2 verde.png' });
+                    deck.push({ id: id++, type: 'draw2', color: 'green', value: '+2', image: 'mas 2 verde.png' });
+                } else if (color === 'yellow') {
+                    deck.push({ id: id++, type: 'draw2', color: 'yellow', value: '+2', image: 'mas2 amarillo.png' });
+                    deck.push({ id: id++, type: 'draw2', color: 'yellow', value: '+2', image: 'mas2 amarillo.png' });
+                } else if (color === 'blue') {
+                    deck.push({ id: id++, type: 'draw2', color: 'blue', value: '+2', image: 'mas2 azul.png' });
+                    deck.push({ id: id++, type: 'draw2', color: 'blue', value: '+2', image: 'mas2 azul.png' });
+                }
+
+                // 2 x Draw 4 (NUEVO - de color)
+                const draw4Data = { type: 'draw4', color, value: '+4', image: `mas4 ${colorName}.png` };
+                deck.push({ ...draw4Data, id: id++ });
+                deck.push({ ...draw4Data, id: id++ });
+            }
+
+            // --- Cartas "No Mercy" (Negras/Wild) ---
+            
+            // 3 x Wild Draw 6 (Según tu lista)
+            const draw6Base = { type: 'wild-draw6', color: 'black', value: '+6' };
+            deck.push({ ...draw6Base, id: id++, image: 'mas 6.png' });
+            deck.push({ ...draw6Base, id: id++, image: 'mas 6 dos .png' });
+            deck.push({ ...draw6Base, id: id++, image: 'mas 6 3.png' });
+            
+            // 3 x Wild Draw 10 (Según tu lista)
+            const draw10Base = { type: 'wild-draw10', color: 'black', value: '+10' };
+            deck.push({ ...draw10Base, id: id++, image: 'mas10.png' });
+            deck.push({ ...draw10Base, id: id++, image: 'mas10 dos.png' });
+            deck.push({ ...draw10Base, id: id++, image: 'mas10  tres.png' }); // Usando el doble espacio de tu lista
+            
+            // 4 x Wild Reverse Draw 4 (Según tu lista)
+            const rev4Base = { type: 'wild-reverse-draw4', color: 'black', value: 'R+4' };
+            deck.push({ ...rev4Base, id: id++, image: 'reversa mas4 uno.png' });
+            deck.push({ ...rev4Base, id: id++, image: 'reversa mas4 dos.png' });
+            deck.push({ ...rev4Base, id: id++, image: 'reversa mas4  tres.png' }); // Usando el doble espacio de tu lista
+            deck.push({ ...rev4Base, id: id++, image: 'reversa mas4 - cuatro.png' }); // Usando el guión de tu lista
+
+            // 4 x Wild Color Roulette (Según tu lista)
+            const rouletteBase = { type: 'wild-color-roulette', color: 'black', value: 'C' };
+            deck.push({ ...rouletteBase, id: id++, image: 'sad face.png' });
+            deck.push({ ...rouletteBase, id: id++, image: 'sad face dos.png' });
+            deck.push({ ...rouletteBase, id: id++, image: 'sad face 3.png' });
+            deck.push({ ...rouletteBase, id: id++, image: 'sad face cuatro.png' });
+            
+            return deck;
+        }
+
+        function buildDeck() {
+            // Crear dos barajas y unirlas
+            const deck1 = createSingleDeck();
+            const deck2 = createSingleDeck();
+            let fullDeck = [...deck1, ...deck2];
+            
+            // Re-asignar IDs únicos a toda la baraja
+            fullDeck.forEach((card, index) => {
+                card.id = index;
+            });
+            
+            return shuffleDeck(fullDeck);
+        }
+
+        function shuffleDeck(deck) {
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+            return deck;
+        }
+        
+        // --- Acciones del Juego (Funciones de Firebase) ---
+
+        // Iniciar Juego
+        startGameBtn.addEventListener('click', async () => {
+            if (currentGameData.creatorUid !== currentUser.uid) return;
+            
+            let data = { ...currentGameData };
+            data.status = 'playing';
+            data.gamePhase = 'playing';
+            data.deck = buildDeck();
+            
+            // Repartir 7 cartas
+            data.players.forEach(player => {
+                player.hand = data.deck.splice(0, 7);
+                player.cardCount = 7;
+                player.isSafe = false;
+            });
+            
+            // Sacar primera carta (asegurarse que sea un número)
+            let firstCardIndex = data.deck.findIndex(card => card.type === 'number' && card.value !== '0');
+            if (firstCardIndex === -1) { 
+                 firstCardIndex = data.deck.findIndex(card => card.color !== 'black');
+                 if (firstCardIndex === -1) firstCardIndex = 0; // Si falla todo
+            }
+            let firstCard = data.deck.splice(firstCardIndex, 1)[0];
+            
+            data.discardPile = [firstCard];
+            data.lastColorCalled = firstCard.color;
+            data.currentPlayerIndex = 0;
+            data.message = `Turno de ${data.players[0].name}.`;
+            
+            await setDoc(gameRef, data);
+        });
+
+        // Click en una carta de mi mano
+        async function onCardClick(card) {
+            if (!isMyTurn()) {
+                console.log("No es tu turno.");
+                return;
+            }
+            
+            if (!isCardPlayable(card)) {
+                console.log("Carta no jugable:", card);
+                messageEl.textContent = "No puedes jugar esa carta.";
+                return;
+            }
+            
+            // Si es un comodín (negro), pedir color primero
+            if (card.color === 'black') {
+                pendingWildCard = card;
+                colorPickerModal.classList.remove('hidden');
+            } else {
+                // Jugar carta normal (de color)
+                await playCard(card, card.color);
+            }
+        }
+        
+        // Click en el mazo para robar
+        deckPile.addEventListener('click', async () => {
+            if (!isMyTurn()) return;
+            
+            let data = { ...currentGameData };
+            let player = data.players[data.currentPlayerIndex];
+            let newCards = [];
+
+            // 1. Manejar fase "Repite"
+            if (data.gamePhase === 'repeat-play') {
+                newCards = data.deck.splice(0, 1);
+                data.message = `${player.name} robó 1 carta por no tener el color ${data.mustPlayColor}.`;
+                data.gamePhase = 'playing';
+                data.mustPlayColor = null;
+                // El jugador robó, ahora pasa el turno
+                advanceTurn(data);
+
+            } else if (data.drawStack > 0) {
+            // 2. Comprobar si hay un stack de robo
+                newCards = data.deck.splice(0, data.drawStack);
+                data.message = `${player.name} roba ${data.drawStack} cartas.`;
+                data.drawStack = 0;
+                data.stackType = null;
+                // El jugador robó, ahora pasa el turno
+                advanceTurn(data);
+
+            } else {
+            // 3. Robo normal
+                newCards = data.deck.splice(0, 1);
+                data.message = `${player.name} roba 1 carta. Sigue su turno.`; // Mensaje actualizado
+                // El jugador robó, NO PASA EL TURNO.
+                // advanceTurn(data); // <--- ESTA LÍNEA SE HA ELIMINADO
+            }
+            
+            // 4. Manejar mazo vacío
+            if (data.deck.length < (data.drawStack || 1)) {
+                const lastCard = data.discardPile.pop();
+                const newDeck = shuffleDeck(data.discardPile);
+                data.deck = [...data.deck, ...newDeck];
+                data.discardPile = [lastCard];
+                console.log("Mazo re-barajado.");
+                // Intentar robar de nuevo si es necesario
+                if (data.drawStack > 0 && newCards.length < data.drawStack) {
+                    const needed = data.drawStack - newCards.length;
+                    newCards.push(...data.deck.splice(0, needed));
+                } else if (newCards.length === 0 && data.drawStack === 0) {
+                    // Si el robo normal falló por mazo vacío
+                    newCards.push(...data.deck.splice(0, 1));
+                }
+            }
+            
+            // 5. Actualizar mano del jugador
+            player.hand.push(...newCards);
+            player.cardCount = player.hand.length;
+            player.isSafe = false; // Ya no está a salvo
+            
+            // 6. Verificar si perdió
+            if (player.cardCount > 25) {
+                data.status = 'finished';
+                data.message = `¡${player.name} PIERDE! Tiene ${player.cardCount} cartas.`;
+            }
+            
+            await updateDoc(gameRef, data);
+        });
+
+        // Botón "¡UNO!"
+        sayUnoBtn.addEventListener('click', async () => {
+             if (currentGameData.status !== 'playing') return;
+             let data = { ...currentGameData };
+             let me = data.players.find(p => p.uid === currentUser.uid);
+             if (me && me.cardCount === 1) {
+                 me.isSafe = true;
+                 await updateDoc(gameRef, { players: data.players });
+             }
+        });
+
+        // Botón "Robar por Ruleta"
+        drawRouletteBtn.addEventListener('click', async () => {
+            if (!isMyTurn() || currentGameData.gamePhase !== 'roulette-draw') return;
+            
+            let data = { ...currentGameData };
+            let player = data.players[data.currentPlayerIndex];
+            const colorToFind = data.lastColorCalled;
+            let newCards = [];
+            let foundCard = false;
+            
+            do {
+                if (data.deck.length === 0) {
+                    const lastCard = data.discardPile.pop();
+                    data.deck = shuffleDeck(data.discardPile);
+                    data.discardPile = [lastCard];
+                    if (data.deck.length === 0) {
+                        console.log("No hay más cartas para robar.");
+                        break;
+                    }
+                }
+                
+                let drawnCard = data.deck.pop();
+                newCards.push(drawnCard);
+                
+                if (drawnCard.color === colorToFind) {
+                    foundCard = true;
+                }
+
+            } while (!foundCard && newCards.length < 50); // Límite de seguridad
+            
+            player.hand.push(...newCards);
+            player.cardCount = player.hand.length;
+            player.isSafe = false;
+            data.gamePhase = 'playing'; // Volver a la fase normal
+            
+            data.message = `${player.name} robó ${newCards.length} cartas hasta encontrar ${colorToFind}.`;
+            
+            if (player.cardCount > 25) {
+                data.status = 'finished';
+                data.message = `¡${player.name} PIERDE! Tiene ${player.cardCount} cartas por la ruleta.`;
+            }
+            // No se avanza el turno, el jugador ahora debe jugar.
+            
+            await updateDoc(gameRef, data);
+        });
+        
+        // Selección de Color (Modal)
+        colorPickerModal.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('color-choice-btn')) {
+                const color = e.target.dataset.color;
+                const cardToPlay = pendingWildCard;
+                
+                pendingWildCard = null;
+                colorPickerModal.classList.add('hidden');
+                
+                await playCard(cardToPlay, color);
+            }
+        });
+        
+        // --- Funciones Principales de Lógica del Juego ---
+
+        function isMyTurn() {
+            if (!currentGameData || !currentUser) return false;
+            return currentGameData.players[currentGameData.currentPlayerIndex]?.uid === currentUser.uid;
+        }
+
+        function isCardPlayable(card) {
+            const data = currentGameData;
+            const topCard = data.discardPile[data.discardPile.length - 1];
+            
+            // Caso 0: Fase "Repite"
+            if (data.gamePhase === 'repeat-play') {
+                return card.color === data.mustPlayColor;
+            }
+
+            // Caso 1: Hay un stack de robo
+            if (data.drawStack > 0) {
+                switch (data.stackType) {
+                    case 'draw2/4':
+                        // Ahora +4 es de color, así que también debe coincidir el color O ser un +2
+                        return card.type === 'draw2' || card.type === 'draw4';
+                    case 'draw6/10':
+                        return card.type === 'wild-draw6' || card.type === 'wild-draw10';
+                    case 'draw4Reverse':
+                        return card.type === 'wild-reverse-draw4';
+                    default:
+                        return false;
+                }
+            }
+            
+            // Caso 2: No hay stack. Juego normal.
+            if (card.color === 'black') return true; // Comodines negros siempre jugables
+            if (data.lastColorCalled) {
+                // Si la última carta fue un comodín, se juega contra el color elegido
+                return card.color === data.lastColorCalled;
+            } else {
+                // Juego normal contra la carta superior
+                return card.color === topCard.color || card.value === topCard.value;
+            }
+        }
+
+        async function playCard(card, chosenColor) {
+            let data = { ...currentGameData };
+            let player = data.players[data.currentPlayerIndex];
+            
+            // 1. Mover carta de la mano al descarte
+            const cardIndex = player.hand.findIndex(c => c.id === card.id);
+            if (cardIndex === -1) {
+                console.error("Error: Carta no encontrada en la mano.");
+                return;
+            }
+            player.hand.splice(cardIndex, 1);
+            player.cardCount = player.hand.length;
+            data.discardPile.push(card);
+            
+            // 2. Resetear estados
+            data.lastColorCalled = null;
+            // Si estábamos en fase 'repeat', la superamos
+            if (data.gamePhase === 'repeat-play') {
+                data.gamePhase = 'playing';
+                data.mustPlayColor = null;
+            }
+            
+            let turnAdvances = true; // Por defecto el turno avanza
+
+            // 3. Aplicar efecto de la carta
+            switch (card.type) {
+                case 'reverse':
+                    data.playDirection *= -1;
+                    data.message = "¡Reversa!";
+                    break;
+                case 'skip':
+                    // Se salta al siguiente jugador (se avanza 2 veces)
+                    data.currentPlayerIndex = getNextPlayerIndex(data);
+                    data.message = "¡Bloqueo!";
+                    break;
+                case 'repeat': // NUEVA CARTA
+                    data.gamePhase = 'repeat-play';
+                    data.mustPlayColor = card.color;
+                    data.message = `¡Repite! ${player.name} debe jugar otra carta ${card.color}.`;
+                    turnAdvances = false; // El jugador NO pasa el turno
+                    break;
+                // --- Stacks (Reglas del Usuario) ---
+                case 'draw2':
+                    data.stackType = 'draw2/4';
+                    data.drawStack += 2;
+                    break;
+                case 'draw4': // NUEVA CARTA (de color)
+                    data.stackType = 'draw2/4';
+                    data.drawStack += 4;
+                    break;
+                case 'wild-draw4': // Esta ya no existe, la eliminamos
+                    // ...
+                    break;
+                case 'wild-draw6':
+                    data.stackType = 'draw6/10';
+                    data.drawStack += 6;
+                    data.lastColorCalled = chosenColor;
+                    break;
+                case 'wild-draw10':
+                    data.stackType = 'draw6/10';
+                    data.drawStack += 10;
+                    data.lastColorCalled = chosenColor;
+                    break;
+                case 'wild-reverse-draw4':
+                    data.stackType = 'draw4Reverse';
+                    data.drawStack += 4;
+                    data.playDirection *= -1;
+                    data.lastColorCalled = chosenColor;
+                    break;
+                // --- Cartas Especiales ---
+                case 'wild-color-roulette': // "Carita"
+                    data.gamePhase = 'roulette-draw'; // Fase especial
+                    data.lastColorCalled = chosenColor;
+                    data.message = `¡Ruleta de Color! El siguiente debe robar hasta encontrar ${chosenColor}.`;
+                    break;
+                // 'wild' simple ya no existe
+            }
+            
+            // 4. Verificar si ganó
+            if (player.cardCount === 0) {
+                data.status = 'finished';
+                data.message = `¡${player.name} GANA EL JUEGO!`;
+                await updateDoc(gameRef, data);
+                return;
+            }
+
+            // 5. Resetear "Safe" de UNO
+            if (player.cardCount > 1) {
+                player.isSafe = false;
+            }
+            
+            // 6. Avanzar turno (si aplica)
+            if (turnAdvances) {
+                advanceTurn(data);
+            }
+            
+            // 7. Actualizar Firebase
+            await updateDoc(gameRef, data);
+        }
+
+        // --- Helpers de Lógica de Turno ---
+        
+        function getNextPlayerIndex(data) {
+            let index = data.currentPlayerIndex;
+            const playerCount = data.players.length;
+            index = (index + data.playDirection + playerCount) % playerCount;
+            return index;
+        }
+
+        function advanceTurn(data) {
+            data.currentPlayerIndex = getNextPlayerIndex(data);
+            data.message = `Turno de ${data.players[data.currentPlayerIndex].name}.`;
+        }
+
+    </script>
+</body>
+</html>
