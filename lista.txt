@@ -1,0 +1,80 @@
+0 amarillo.png
+0 azul.png
+0 rojo.png
+0 verde.png
+1 amarillo.png
+1 azul.png
+1 rojo.png
+1 verde.png
+2 amarillo.png
+2 azul.png
+2 rojo.png
+2 verde.png
+3 amarillo.png
+3 azul.png
+3 rojo.png
+3 verde.png
+4 amarillo.png
+4 azul.png
+4 rojo.png
+4 verde.png
+5 amarillo.png
+5 azul.png
+5 rojo.png
+5 verde.png
+6 amarillo.png
+6 azul.png
+6 rojo.png
+6 verde.png
+7 amarillo.png
+7 azul .png
+7 rojo.png
+7 verde.png
+8 amarillo.png
+8 azul.png
+8 rojo.png
+8 verde.png
+9 amarillo.png
+9 azul.png
+9 rojo.png
+9 verde.png
+back cover.PNG
+baja color rojo.png
+bajar color amarillo.png
+bajar color azul.png
+bajar color verde.png
+bloqueo amarillo.png
+bloqueo azul.png
+bloqueo rojo.png
+bloqueo verde.png
+lista.txt
+mas 2 rojo.png
+mas 2 verde.png
+mas 6 3.png
+mas 6 dos .png
+mas 6.png
+mas10  tres.png
+mas10 dos.png
+mas10.png
+mas2 amarillo.png
+mas2 azul.png
+mas4 amarillo.png
+mas4 azul.png
+mas4 rojo.png
+mas4 verde.png
+repite amarillo.png
+repite azul.png
+repite rojo.png
+repite verde.png
+reversa amarillo.png
+reversa azul.png
+reversa mas4  tres.png
+reversa mas4 - cuatro.png
+reversa mas4 dos.png
+reversa mas4 uno.png
+reversa rojo.png
+reversa verde.png
+sad face 3.png
+sad face cuatro.png
+sad face dos.png
+sad face.png
