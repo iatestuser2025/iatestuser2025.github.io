@@ -178,6 +178,8 @@
             <button id="start-game-btn" class="btn bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">INICIAR JUEGO</button>
             <button id="say-uno-btn" class="btn bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">¡UNO!</button>
             <button id="draw-roulette-btn" class="btn bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">ROBAR POR RULETA</button>
+            <!-- NUEVO BOTÓN PARA REGLA DE "REPITE" -->
+            <button id="draw-repeat-btn" class="btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">ROBAR POR REPITE</button>
         </div>
 
         <!-- Mi Mano (Abajo) -->
@@ -195,6 +197,16 @@
                 <button class="color-choice-btn w-20 h-20 rounded-full border-4 border-transparent hover:border-white transition" style="background-color: #22c55e;" data-color="green"></button>
                 <button class="color-choice-btn w-20 h-20 rounded-full border-4 border-transparent hover:border-white transition" style="background-color: #3b82f6;" data-color="blue"></button>
                 <button class="color-choice-btn w-20 h-20 rounded-full border-4 border-transparent hover:border-white transition" style="background-color: #eab308;" data-color="yellow"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NUEVO: Modal de Intercambio de Mano (Carta 7) -->
+    <div id="swap-hand-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden">
+        <div class="bg-gray-800 p-8 rounded-lg shadow-xl text-center w-full max-w-md">
+            <h3 class="text-2xl font-bold mb-6 text-white">¡Carta 7! Elige con quién intercambiar mano:</h3>
+            <div id="swap-player-list" class="flex flex-col space-y-3">
+                <!-- La lista de jugadores para intercambiar se generará aquí -->
             </div>
         </div>
     </div>
@@ -276,8 +288,13 @@
         const startGameBtn = document.getElementById("start-game-btn");
         const sayUnoBtn = document.getElementById("say-uno-btn");
         const drawRouletteBtn = document.getElementById("draw-roulette-btn");
+        const drawRepeatBtn = document.getElementById("draw-repeat-btn"); // NUEVO
         
         const colorPickerModal = document.getElementById("color-picker-modal");
+        
+        // NUEVOS Elementos para Modal de Carta 7
+        const swapHandModal = document.getElementById("swap-hand-modal");
+        const swapPlayerList = document.getElementById("swap-player-list");
 
         // --- Elementos de Chat (Copiado) ---
         const chatContainer = document.getElementById("chat-container");
@@ -477,7 +494,7 @@
             
             // Botones de Acción
             const amICurrentPlayer = data.players[data.currentPlayerIndex]?.uid === currentUser.uid;
-            [startGameBtn, sayUnoBtn, drawRouletteBtn].forEach(btn => btn.classList.add('hidden'));
+            [startGameBtn, sayUnoBtn, drawRouletteBtn, drawRepeatBtn].forEach(btn => btn.classList.add('hidden')); // Añadido drawRepeatBtn
 
             if (data.status === 'waiting') {
                 startGameBtn.classList.remove('hidden');
@@ -496,7 +513,23 @@
                     drawRouletteBtn.classList.remove('hidden');
                     messageEl.textContent = `¡Te toca robar por la Ruleta de Color (${data.lastColorCalled})!`;
                 } else if (data.gamePhase === 'repeat-play' && amICurrentPlayer) {
-                    messageEl.textContent = `¡Juega una carta de color ${data.mustPlayColor} o roba!`;
+                    // MODIFICADO: Ahora muestra un botón en lugar de permitir click en el mazo
+                    messageEl.textContent = `¡Juega una carta ${data.mustPlayColor} o roba hasta encontrar una!`;
+                    drawRepeatBtn.classList.remove('hidden'); // Muestra el nuevo botón
+                } else if (data.gamePhase === 'swap-hand-choice' && amICurrentPlayer) {
+                    // NUEVO: Fase para la Carta 7
+                    messageEl.textContent = "Elige un jugador para intercambiar tu mano.";
+                    swapPlayerList.innerHTML = ''; // Limpiar lista
+                    data.players.forEach(player => {
+                        if (player.uid === currentUser.uid) return; // No mostrarme a mí mismo
+                        const playerBtn = document.createElement('button');
+                        playerBtn.textContent = `${player.name} (${player.cardCount} cartas)`;
+                        playerBtn.className = 'btn w-full p-3 rounded-lg font-semibold text-white transition';
+                        playerBtn.style.backgroundColor = player.color;
+                        playerBtn.addEventListener('click', () => performHandSwap(player.uid));
+                        swapPlayerList.appendChild(playerBtn);
+                    });
+                    swapHandModal.classList.remove('hidden');
                 } else if (amICurrentPlayer) {
                     messageEl.textContent = "¡Es tu turno!";
                 } else {
@@ -505,14 +538,31 @@
                     if (data.gamePhase === 'roulette-draw') {
                         messageEl.textContent = `${currentPlayerName} está robando por la Ruleta de Color...`;
                     } else if (data.gamePhase === 'repeat-play') {
-                        messageEl.textContent = `${currentPlayerName} debe jugar otra carta...`;
+                        messageEl.textContent = `${currentPlayerName} debe jugar otra carta o robar...`;
+                    } else if (data.gamePhase === 'swap-hand-choice') {
+                        // NUEVO: Mensaje de espera para Carta 7
+                        messageEl.textContent = `${currentPlayerName} está eligiendo con quién cambiar mano...`;
                     } else {
                         messageEl.textContent = `Turno de ${currentPlayerName}...`;
                     }
                 }
             } else if (data.status === 'finished') {
-                // Juego terminado, mensaje ya está en data.message
-                actionButtons.innerHTML = `<button onclick="window.location.reload()" class="btn bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg">VOLVER AL LOBBY</button>`;
+                // ESTA LÓGICA FALTABA
+                messageEl.textContent = data.message; // Mostrar mensaje de victoria/derrota
+                // Podríamos añadir un botón de "Jugar de Nuevo"
+                if (data.creatorUid === currentUser.uid) {
+                    startGameBtn.classList.remove('hidden');
+                    startGameBtn.textContent = "JUGAR DE NUEVO";
+                    startGameBtn.disabled = false;
+                    // La lógica de 'startGame' repartirá nuevas cartas y reiniciará el juego
+                } else {
+                    messageEl.textContent += " Esperando que el creador reinicie la sala.";
+                }
+            }
+
+            // Ocultar modal de intercambio si la fase cambia
+            if (data.gamePhase !== 'swap-hand-choice') {
+                swapHandModal.classList.add('hidden');
             }
 
             // Renderizado del Chat (Copiado)
@@ -687,7 +737,7 @@
             let firstCard = data.deck.splice(firstCardIndex, 1)[0];
             
             data.discardPile = [firstCard];
-            data.lastColorCalled = firstCard.color;
+            data.lastColorCalled = null; // <<< LÍNEA CORREGIDA (antes era firstCard.color)
             data.currentPlayerIndex = 0;
             data.message = `Turno de ${data.players[0].name}.`;
             
@@ -727,13 +777,10 @@
 
             // 1. Manejar fase "Repite"
             if (data.gamePhase === 'repeat-play') {
-                newCards = data.deck.splice(0, 1);
-                data.message = `${player.name} robó 1 carta por no tener el color ${data.mustPlayColor}.`;
-                data.gamePhase = 'playing';
-                data.mustPlayColor = null;
-                // El jugador robó, ahora pasa el turno
-                advanceTurn(data);
-
+                // MODIFICADO: El click en el mazo ya no hace nada.
+                // El jugador DEBE usar el botón "ROBAR POR REPITE".
+                messageEl.textContent = 'Debes usar el botón "ROBAR POR REPITE"';
+                return;
             } else if (data.drawStack > 0) {
             // 2. Comprobar si hay un stack de robo
                 newCards = data.deck.splice(0, data.drawStack);
@@ -838,6 +885,56 @@
             
             await updateDoc(gameRef, data);
         });
+
+        // NUEVO: Botón "Robar por Repite"
+        drawRepeatBtn.addEventListener('click', async () => {
+            if (!isMyTurn() || currentGameData.gamePhase !== 'repeat-play') return;
+            
+            let data = { ...currentGameData };
+            let player = data.players[data.currentPlayerIndex];
+            const colorToFind = data.mustPlayColor;
+            let newCards = [];
+            let foundCard = false;
+            
+            do {
+                if (data.deck.length === 0) {
+                    const lastCard = data.discardPile.pop();
+                    data.deck = shuffleDeck(data.discardPile);
+                    data.discardPile = [lastCard];
+                    if (data.deck.length === 0) {
+                        console.log("No hay más cartas para robar.");
+                        break;
+                    }
+                }
+                
+                let drawnCard = data.deck.pop();
+                newCards.push(drawnCard);
+                
+                if (drawnCard.color === colorToFind) {
+                    foundCard = true;
+                }
+
+            } while (!foundCard && newCards.length < 50); // Límite de seguridad
+            
+            player.hand.push(...newCards);
+            player.cardCount = player.hand.length;
+            player.isSafe = false;
+            
+            data.gamePhase = 'playing'; // Volver a la fase normal
+            data.mustPlayColor = null;
+            
+            data.message = `${player.name} robó ${newCards.length} cartas hasta encontrar ${colorToFind}.`;
+            
+            if (player.cardCount > 25) {
+                data.status = 'finished';
+                data.message = `¡${player.name} PIERDE! Tiene ${player.cardCount} cartas.`;
+            }
+            
+            // A diferencia de la Ruleta, esta acción SÍ termina el turno.
+            advanceTurn(data);
+            
+            await updateDoc(gameRef, data);
+        });
         
         // Selección de Color (Modal)
         colorPickerModal.addEventListener('click', async (e) => {
@@ -865,7 +962,8 @@
             
             // Caso 0: Fase "Repite"
             if (data.gamePhase === 'repeat-play') {
-                return card.color === data.mustPlayColor;
+                // MODIFICADO: Ahora se puede apilar "Repite" de otro color
+                return card.color === data.mustPlayColor || card.type === 'repeat';
             }
 
             // Caso 1: Hay un stack de robo
@@ -920,6 +1018,34 @@
 
             // 3. Aplicar efecto de la carta
             switch (card.type) {
+                // NUEVO: Lógica para Cartas 0 y 7
+                case 'number':
+                    if (card.value === '0') {
+                        // ¡Rotar todas las manos!
+                        const hands = data.players.map(p => p.hand);
+                        const counts = data.players.map(p => p.cardCount);
+                        
+                        // Rotar a la derecha (el último va al primero)
+                        const lastHand = hands.pop();
+                        hands.unshift(lastHand);
+                        const lastCount = counts.pop();
+                        counts.unshift(lastCount);
+                        
+                        data.players.forEach((p, index) => {
+                            p.hand = hands[index];
+                            p.cardCount = counts[index];
+                            p.isSafe = false; // Resetear UNO
+                        });
+                        
+                        data.message = "¡CARTA 0! ¡Todas las manos rotan a la derecha!";
+                    }
+                    if (card.value === '7') {
+                        // ¡Intercambiar mano!
+                        data.gamePhase = 'swap-hand-choice'; // Entrar en modo de elección
+                        data.message = `¡CARTA 7! ${player.name} debe elegir con quién cambiar mano.`;
+                        turnAdvances = false; // El turno no avanza, espera la elección
+                    }
+                    break;
                 case 'reverse':
                     data.playDirection *= -1;
                     data.message = "¡Reversa!";
@@ -1006,6 +1132,41 @@
         function advanceTurn(data) {
             data.currentPlayerIndex = getNextPlayerIndex(data);
             data.message = `Turno de ${data.players[data.currentPlayerIndex].name}.`;
+        }
+
+        // NUEVO: Función para ejecutar el intercambio de manos de la Carta 7
+        async function performHandSwap(targetPlayerUid) {
+            let data = { ...currentGameData };
+            const currentPlayer = data.players[data.currentPlayerIndex];
+            const targetPlayer = data.players.find(p => p.uid === targetPlayerUid);
+
+            if (!currentPlayer || !targetPlayer) {
+                console.error("Error al intercambiar manos: Jugador no encontrado.");
+                return;
+            }
+            
+            // Ocultar modal
+            swapHandModal.classList.add('hidden');
+
+            // Intercambiar manos y conteos
+            const tempHand = currentPlayer.hand;
+            const tempCount = currentPlayer.cardCount;
+            
+            currentPlayer.hand = targetPlayer.hand;
+            currentPlayer.cardCount = targetPlayer.cardCount;
+            currentPlayer.isSafe = false; // Resetear UNO
+            
+            targetPlayer.hand = tempHand;
+            targetPlayer.cardCount = tempCount;
+            targetPlayer.isSafe = false; // Resetear UNO
+
+            // Resetear fase y avanzar turno
+            data.gamePhase = 'playing';
+            data.message = `¡${currentPlayer.name} intercambió manos con ${targetPlayer.name}!`;
+            
+            advanceTurn(data); // El turno ahora sí avanza
+            
+            await updateDoc(gameRef, data);
         }
 
     </script>
