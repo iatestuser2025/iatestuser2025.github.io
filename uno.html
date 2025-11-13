@@ -72,6 +72,7 @@
             padding: 8px;
             border-radius: 8px;
             transition: all 0.3s ease;
+            position: relative; /* <--- AÑADIDO: Para estado "Perdió" */
         }
         .opponent.active-player {
             background-color: rgba(234, 179, 8, 0.3);
@@ -81,6 +82,27 @@
             width: 50px;
             height: 70px;
             font-size: 16px;
+        }
+        
+        /* --- NUEVO: Estilo para jugador perdido --- */
+        .opponent.lost-player {
+            opacity: 0.5;
+            filter: grayscale(80%);
+        }
+        .opponent .lost-status {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-10deg);
+            background-color: #ef4444;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            z-index: 10;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
         }
         
         .btn { transition: all 0.2s ease-in-out; }
@@ -177,9 +199,17 @@
         <div id="action-buttons" class="flex justify-center space-x-4 mb-4">
             <button id="start-game-btn" class="btn bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">INICIAR JUEGO</button>
             <button id="say-uno-btn" class="btn bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">¡UNO!</button>
+            <!-- El botón de Ruleta se elimina de la UI, la lógica ahora está en el mazo -->
             <button id="draw-roulette-btn" class="btn bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">ROBAR POR RULETA</button>
             <!-- NUEVO BOTÓN PARA REGLA DE "REPITE" -->
             <button id="draw-repeat-btn" class="btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">ROBAR POR REPITE</button>
+        </div>
+
+        <!-- *** NUEVO: Contador de Cartas Propias *** -->
+        <div id="my-card-count-container" class="text-center mb-2">
+            <span class="text-xl font-bold text-white">Tus Cartas: 
+                <span id="my-card-count-el" class="text-yellow-300">0</span>
+            </span>
         </div>
 
         <!-- Mi Mano (Abajo) -->
@@ -284,10 +314,14 @@
         const drawStackCount = document.getElementById("draw-stack-count");
         const myHandArea = document.getElementById("my-hand-area");
         
+        // *** NUEVO: Elemento contador de cartas propias ***
+        const myCardCountEl = document.getElementById("my-card-count-el");
+
         const actionButtons = document.getElementById("action-buttons");
         const startGameBtn = document.getElementById("start-game-btn");
         const sayUnoBtn = document.getElementById("say-uno-btn");
-        const drawRouletteBtn = document.getElementById("draw-roulette-btn");
+        // *** MODIFICACIÓN: Se elimina la referencia al botón de ruleta, ya no se usa ***
+        // const drawRouletteBtn = document.getElementById("draw-roulette-btn"); 
         const drawRepeatBtn = document.getElementById("draw-repeat-btn"); // NUEVO
         
         const colorPickerModal = document.getElementById("color-picker-modal");
@@ -334,7 +368,8 @@
                 hand: [],
                 cardCount: 0,
                 color: playerColors[0],
-                isSafe: false // Para el botón "UNO"
+                isSafe: false, // Para el botón "UNO"
+                status: 'playing' // <-- NUEVO: 'playing', 'lost'
             };
             const newGameData = {
                 roomId,
@@ -377,7 +412,8 @@
                     hand: [],
                     cardCount: 0,
                     color: playerColors[gameData.players.length % playerColors.length],
-                    isSafe: false
+                    isSafe: false,
+                    status: 'playing' // <-- NUEVO: 'playing', 'lost'
                 };
                 await updateDoc(gameRef, { players: arrayUnion(newPlayer) });
             }
@@ -445,11 +481,20 @@
                 
                 const opponentDiv = document.createElement('div');
                 opponentDiv.className = 'opponent';
-                if (index === data.currentPlayerIndex) {
+                
+                // --- LÓGICA DE RENDERIZADO MODIFICADA ---
+                let playerStatusHTML = '';
+                if (player.status === 'lost') {
+                    opponentDiv.classList.add('lost-player');
+                    playerStatusHTML = '<span class="lost-status">PERDIÓ</span>';
+                }
+                else if (index === data.currentPlayerIndex) {
                     opponentDiv.classList.add('active-player');
                 }
+                
                 // Muestra el dorso y el conteo de cartas
                 opponentDiv.innerHTML = `
+                    ${playerStatusHTML} 
                     <p class="font-bold text-sm" style="color: ${player.color};">${player.name}</p>
                     <div class="card">
                         <img src="${CARD_IMAGE_PATH}back cover.PNG" alt="Dorso">
@@ -482,7 +527,7 @@
                 drawStackIndicator.classList.add('hidden');
             }
 
-            // Mi Mano
+            // Mi Mano y Contador
             myHandArea.innerHTML = "";
             if (me) {
                 me.hand.forEach(card => {
@@ -490,38 +535,53 @@
                     cardEl.addEventListener('click', () => onCardClick(card));
                     myHandArea.appendChild(cardEl);
                 });
+                // *** NUEVO: Actualizar contador propio ***
+                myCardCountEl.textContent = me.cardCount;
+                
+                // Ocultar mi mano y contador si perdí
+                if (me.status === 'lost') {
+                    myHandArea.innerHTML = '<p class="text-red-500 text-2xl font-bold">HAS PERDIDO</p>';
+                    myCardCountEl.textContent = me.cardCount; // Seguir mostrando el conteo final
+                }
+
+            } else {
+                myCardCountEl.textContent = '0';
             }
             
             // Botones de Acción
             const amICurrentPlayer = data.players[data.currentPlayerIndex]?.uid === currentUser.uid;
-            [startGameBtn, sayUnoBtn, drawRouletteBtn, drawRepeatBtn].forEach(btn => btn.classList.add('hidden')); // Añadido drawRepeatBtn
+            const amIActive = me?.status === 'playing'; // Comprobar si no he perdido
+            
+            // *** MODIFICACIÓN: Se quita 'drawRouletteBtn' de la lista de botones a ocultar/mostrar ***
+            [startGameBtn, sayUnoBtn, drawRepeatBtn].forEach(btn => btn.classList.add('hidden'));
 
             if (data.status === 'waiting') {
                 startGameBtn.classList.remove('hidden');
+                startGameBtn.textContent = "INICIAR JUEGO"; // Asegurar texto original
                 startGameBtn.disabled = data.creatorUid !== currentUser.uid || data.players.length < 2;
                 if (data.players.length < 2) {
                     messageEl.textContent = "Esperando al menos 2 jugadores...";
                 } else {
                     messageEl.textContent = "Esperando que el creador inicie...";
                 }
-            } else if (data.status === 'playing') {
+            } else if (data.status === 'playing' && amIActive) { // Solo mostrar si estoy activo
                 if (me?.cardCount === 1 && !me.isSafe) {
                     sayUnoBtn.classList.remove('hidden');
                 }
                 
+                // *** MODIFICACIÓN: Lógica de "Sad Face" (Ruleta) actualizada ***
                 if (data.gamePhase === 'roulette-draw' && amICurrentPlayer) {
-                    drawRouletteBtn.classList.remove('hidden');
-                    messageEl.textContent = `¡Te toca robar por la Ruleta de Color (${data.lastColorCalled})!`;
+                    // Ya no se muestra el botón, solo el mensaje para que el jugador haga click en el mazo
+                    messageEl.textContent = `¡Castigo Sad Face! Roba CARTA POR CARTA (del mazo) hasta encontrar ${data.lastColorCalled}.`;
                 } else if (data.gamePhase === 'repeat-play' && amICurrentPlayer) {
-                    // MODIFICADO: Ahora muestra un botón en lugar de permitir click en el mazo
                     messageEl.textContent = `¡Juega una carta ${data.mustPlayColor} o roba hasta encontrar una!`;
-                    drawRepeatBtn.classList.remove('hidden'); // Muestra el nuevo botón
+                    drawRepeatBtn.classList.remove('hidden');
                 } else if (data.gamePhase === 'swap-hand-choice' && amICurrentPlayer) {
-                    // NUEVO: Fase para la Carta 7
                     messageEl.textContent = "Elige un jugador para intercambiar tu mano.";
-                    swapPlayerList.innerHTML = ''; // Limpiar lista
+                    swapPlayerList.innerHTML = '';
                     data.players.forEach(player => {
-                        if (player.uid === currentUser.uid) return; // No mostrarme a mí mismo
+                        // *** MODIFICADO: Solo mostrar jugadores activos ***
+                        if (player.uid === currentUser.uid || player.status === 'lost') return; 
                         const playerBtn = document.createElement('button');
                         playerBtn.textContent = `${player.name} (${player.cardCount} cartas)`;
                         playerBtn.className = 'btn w-full p-3 rounded-lg font-semibold text-white transition';
@@ -536,25 +596,23 @@
                     // Mensaje de espera
                     const currentPlayerName = data.players[data.currentPlayerIndex]?.name || '...';
                     if (data.gamePhase === 'roulette-draw') {
-                        messageEl.textContent = `${currentPlayerName} está robando por la Ruleta de Color...`;
+                        // *** MODIFICACIÓN: Mensaje actualizado ***
+                        messageEl.textContent = `${currentPlayerName} está robando CARTA POR CARTA por el castigo Sad Face...`;
                     } else if (data.gamePhase === 'repeat-play') {
                         messageEl.textContent = `${currentPlayerName} debe jugar otra carta o robar...`;
                     } else if (data.gamePhase === 'swap-hand-choice') {
-                        // NUEVO: Mensaje de espera para Carta 7
                         messageEl.textContent = `${currentPlayerName} está eligiendo con quién cambiar mano...`;
                     } else {
                         messageEl.textContent = `Turno de ${currentPlayerName}...`;
                     }
                 }
             } else if (data.status === 'finished') {
-                // ESTA LÓGICA FALTABA
-                messageEl.textContent = data.message; // Mostrar mensaje de victoria/derrota
-                // Podríamos añadir un botón de "Jugar de Nuevo"
+                // Lógica de fin de juego
+                messageEl.textContent = data.message;
                 if (data.creatorUid === currentUser.uid) {
                     startGameBtn.classList.remove('hidden');
                     startGameBtn.textContent = "JUGAR DE NUEVO";
                     startGameBtn.disabled = false;
-                    // La lógica de 'startGame' repartirá nuevas cartas y reiniciará el juego
                 } else {
                     messageEl.textContent += " Esperando que el creador reinicie la sala.";
                 }
@@ -659,31 +717,45 @@
 
             // --- Cartas "No Mercy" (Negras/Wild) ---
             
-            // 3 x Wild Draw 6 (Según tu lista)
+            // *** MODIFICADO: 6 x Wild Draw 6 (Antes 3) ***
             const draw6Base = { type: 'wild-draw6', color: 'black', value: '+6' };
             deck.push({ ...draw6Base, id: id++, image: 'mas 6.png' });
             deck.push({ ...draw6Base, id: id++, image: 'mas 6 dos .png' });
             deck.push({ ...draw6Base, id: id++, image: 'mas 6 3.png' });
+            deck.push({ ...draw6Base, id: id++, image: 'mas 6.png' }); // Duplicado
+            deck.push({ ...draw6Base, id: id++, image: 'mas 6 dos .png' }); // Duplicado
+            deck.push({ ...draw6Base, id: id++, image: 'mas 6 3.png' }); // Duplicado
             
-            // 3 x Wild Draw 10 (Según tu lista)
+            // *** MODIFICADO: 6 x Wild Draw 10 (Antes 3) ***
             const draw10Base = { type: 'wild-draw10', color: 'black', value: '+10' };
             deck.push({ ...draw10Base, id: id++, image: 'mas10.png' });
             deck.push({ ...draw10Base, id: id++, image: 'mas10 dos.png' });
-            deck.push({ ...draw10Base, id: id++, image: 'mas10  tres.png' }); // Usando el doble espacio de tu lista
+            deck.push({ ...draw10Base, id: id++, image: 'mas10  tres.png' });
+            deck.push({ ...draw10Base, id: id++, image: 'mas10.png' }); // Duplicado
+            deck.push({ ...draw10Base, id: id++, image: 'mas10 dos.png' }); // Duplicado
+            deck.push({ ...draw10Base, id: id++, image: 'mas10  tres.png' }); // Duplicado
             
-            // 4 x Wild Reverse Draw 4 (Según tu lista)
+            // *** MODIFICADO: 8 x Wild Reverse Draw 4 (Antes 4) ***
             const rev4Base = { type: 'wild-reverse-draw4', color: 'black', value: 'R+4' };
             deck.push({ ...rev4Base, id: id++, image: 'reversa mas4 uno.png' });
             deck.push({ ...rev4Base, id: id++, image: 'reversa mas4 dos.png' });
-            deck.push({ ...rev4Base, id: id++, image: 'reversa mas4  tres.png' }); // Usando el doble espacio de tu lista
-            deck.push({ ...rev4Base, id: id++, image: 'reversa mas4 - cuatro.png' }); // Usando el guión de tu lista
+            deck.push({ ...rev4Base, id: id++, image: 'reversa mas4  tres.png' });
+            deck.push({ ...rev4Base, id: id++, image: 'reversa mas4 - cuatro.png' });
+            deck.push({ ...rev4Base, id: id++, image: 'reversa mas4 uno.png' }); // Duplicado
+            deck.push({ ...rev4Base, id: id++, image: 'reversa mas4 dos.png' }); // Duplicado
+            deck.push({ ...rev4Base, id: id++, image: 'reversa mas4  tres.png' }); // Duplicado
+            deck.push({ ...rev4Base, id: id++, image: 'reversa mas4 - cuatro.png' }); // Duplicado
 
-            // 4 x Wild Color Roulette (Según tu lista)
+            // *** MODIFICADO: 8 x Wild Color Roulette (Antes 4) ***
             const rouletteBase = { type: 'wild-color-roulette', color: 'black', value: 'C' };
             deck.push({ ...rouletteBase, id: id++, image: 'sad face.png' });
             deck.push({ ...rouletteBase, id: id++, image: 'sad face dos.png' });
             deck.push({ ...rouletteBase, id: id++, image: 'sad face 3.png' });
             deck.push({ ...rouletteBase, id: id++, image: 'sad face cuatro.png' });
+            deck.push({ ...rouletteBase, id: id++, image: 'sad face.png' }); // Duplicado
+            deck.push({ ...rouletteBase, id: id++, image: 'sad face dos.png' }); // Duplicado
+            deck.push({ ...rouletteBase, id: id++, image: 'sad face 3.png' }); // Duplicado
+            deck.push({ ...rouletteBase, id: id++, image: 'sad face cuatro.png' }); // Duplicado
             
             return deck;
         }
@@ -726,6 +798,7 @@
                 player.hand = data.deck.splice(0, 7);
                 player.cardCount = 7;
                 player.isSafe = false;
+                player.status = 'playing'; // *** RESETEAR ESTADO AL REINICIAR ***
             });
             
             // Sacar primera carta (asegurarse que sea un número)
@@ -737,7 +810,9 @@
             let firstCard = data.deck.splice(firstCardIndex, 1)[0];
             
             data.discardPile = [firstCard];
-            data.lastColorCalled = null; // <<< LÍNEA CORREGIDA (antes era firstCard.color)
+            data.lastColorCalled = null;
+            data.drawStack = 0; // Limpiar stack
+            data.playDirection = 1; // Resetear dirección
             data.currentPlayerIndex = 0;
             data.message = `Turno de ${data.players[0].name}.`;
             
@@ -746,8 +821,8 @@
 
         // Click en una carta de mi mano
         async function onCardClick(card) {
-            if (!isMyTurn()) {
-                console.log("No es tu turno.");
+            if (!isMyTurn() || !amIActive()) { // No jugar si no es mi turno O si perdí
+                console.log("No es tu turno o has perdido.");
                 return;
             }
             
@@ -769,16 +844,76 @@
         
         // Click en el mazo para robar
         deckPile.addEventListener('click', async () => {
-            if (!isMyTurn()) return;
+            if (!isMyTurn() || !amIActive()) return; // No robar si no es mi turno O si perdí
             
             let data = { ...currentGameData };
             let player = data.players[data.currentPlayerIndex];
+            
+            // --- INICIO MODIFICACIÓN: Lógica de "Sad Face" (Ruleta) ---
+            // Esta fase ahora se maneja aquí, robando carta por carta.
+            if (data.gamePhase === 'roulette-draw') {
+                const colorToFind = data.lastColorCalled;
+
+                // 1. Manejar mazo vacío y re-barajar
+                if (data.deck.length === 0) {
+                    const lastCard = data.discardPile.pop();
+                    const newDeck = shuffleDeck(data.discardPile);
+                    data.deck = [...data.deck, ...newDeck];
+                    data.discardPile = [lastCard];
+                    if (data.deck.length === 0) {
+                        console.log("No hay más cartas para robar.");
+                        // Si no hay cartas, el castigo no se puede cumplir
+                        data.gamePhase = 'playing';
+                        data.lastColorCalled = null;
+                        data.message = `¡${player.name} no pudo robar más! Turno terminado.`;
+                        advanceTurn(data);
+                        await updateDoc(gameRef, data);
+                        return;
+                    }
+                }
+
+                // 2. Robar una carta
+                let drawnCard = data.deck.pop();
+                player.hand.push(drawnCard);
+                player.cardCount = player.hand.length;
+                player.isSafe = false;
+
+                // 3. Comprobar si perdió
+                if (player.cardCount > 25) {
+                    player.status = 'lost';
+                    data.message = `¡${player.name} HA PERDIDO! (Tiene ${player.cardCount} cartas).`;
+                    data.gamePhase = 'playing'; // Salir de la fase
+                    data.lastColorCalled = null;
+                    if (checkEndGame(data)) {
+                        // checkEndGame actualiza el estado y mensaje
+                    } else {
+                        advanceTurn(data); // Avanzar turno si pierde
+                    }
+                } 
+                // 4. Comprobar si encontró la carta
+                else if (drawnCard.color === colorToFind) {
+                    data.gamePhase = 'playing';
+                    // data.lastColorCalled = null; // <-- ¡ERROR CORREGIDO! No reseteamos el color.
+                    // El color ("verde" en el ejemplo) DEBE persistir
+                    // para el siguiente jugador (Pedro).
+                    data.message = `${player.name} encontró la carta ${colorToFind}. ¡Turno terminado!`;
+                    advanceTurn(data); // ¡Turno termina!
+                } 
+                // 5. No la encontró, sigue robando
+                else {
+                    data.message = `${player.name} robó 1. Sigue buscando ${colorToFind}.`;
+                    // No se avanza el turno
+                }
+                
+                await updateDoc(gameRef, data);
+                return; // Termina el click handler aquí
+            }
+            // --- FIN MODIFICACIÓN ---
+
             let newCards = [];
 
-            // 1. Manejar fase "Repite"
+            // 1. Manejar fase "Repite" (que usa un botón, no el mazo)
             if (data.gamePhase === 'repeat-play') {
-                // MODIFICADO: El click en el mazo ya no hace nada.
-                // El jugador DEBE usar el botón "ROBAR POR REPITE".
                 messageEl.textContent = 'Debes usar el botón "ROBAR POR REPITE"';
                 return;
             } else if (data.drawStack > 0) {
@@ -795,35 +930,48 @@
                 newCards = data.deck.splice(0, 1);
                 data.message = `${player.name} roba 1 carta. Sigue su turno.`; // Mensaje actualizado
                 // El jugador robó, NO PASA EL TURNO.
-                // advanceTurn(data); // <--- ESTA LÍNEA SE HA ELIMINADO
             }
             
             // 4. Manejar mazo vacío
             if (data.deck.length < (data.drawStack || 1)) {
-                const lastCard = data.discardPile.pop();
-                const newDeck = shuffleDeck(data.discardPile);
-                data.deck = [...data.deck, ...newDeck];
-                data.discardPile = [lastCard];
-                console.log("Mazo re-barajado.");
+                if (data.deck.length < (newCards.length === 0 ? 1 : data.drawStack - newCards.length)) {
+                    const lastCard = data.discardPile.pop();
+                    const newDeck = shuffleDeck(data.discardPile);
+                    data.deck = [...data.deck, ...newDeck];
+                    data.discardPile = [lastCard];
+                    console.log("Mazo re-barajado.");
+                }
                 // Intentar robar de nuevo si es necesario
                 if (data.drawStack > 0 && newCards.length < data.drawStack) {
                     const needed = data.drawStack - newCards.length;
                     newCards.push(...data.deck.splice(0, needed));
                 } else if (newCards.length === 0 && data.drawStack === 0) {
                     // Si el robo normal falló por mazo vacío
-                    newCards.push(...data.deck.splice(0, 1));
+                    if (data.deck.length > 0) {
+                        newCards.push(...data.deck.splice(0, 1));
+                    } else {
+                        console.log("No hay cartas en el mazo ni en el descarte.");
+                        data.message = `${player.name} intentó robar, ¡pero no hay cartas!`;
+                        // No se puede hacer nada más, el turno no avanza
+                    }
                 }
             }
             
-            // 5. Actualizar mano del jugador
-            player.hand.push(...newCards);
-            player.cardCount = player.hand.length;
-            player.isSafe = false; // Ya no está a salvo
+            // 5. Actualizar mano del jugador (solo si se robaron cartas)
+            if (newCards.length > 0) {
+                player.hand.push(...newCards);
+                player.cardCount = player.hand.length;
+                player.isSafe = false; // Ya no está a salvo
+            }
             
-            // 6. Verificar si perdió
+            // 6. *** MODIFICADO: Verificar si perdió ***
             if (player.cardCount > 25) {
-                data.status = 'finished';
-                data.message = `¡${player.name} PIERDE! Tiene ${player.cardCount} cartas.`;
+                player.status = 'lost';
+                data.message = `¡${player.name} HA PERDIDO! (Tiene ${player.cardCount} cartas).`;
+                // Comprobar si el juego termina
+                if (checkEndGame(data)) {
+                    // data.status y data.message ya fueron actualizados por checkEndGame
+                }
             }
             
             await updateDoc(gameRef, data);
@@ -840,55 +988,12 @@
              }
         });
 
-        // Botón "Robar por Ruleta"
-        drawRouletteBtn.addEventListener('click', async () => {
-            if (!isMyTurn() || currentGameData.gamePhase !== 'roulette-draw') return;
-            
-            let data = { ...currentGameData };
-            let player = data.players[data.currentPlayerIndex];
-            const colorToFind = data.lastColorCalled;
-            let newCards = [];
-            let foundCard = false;
-            
-            do {
-                if (data.deck.length === 0) {
-                    const lastCard = data.discardPile.pop();
-                    data.deck = shuffleDeck(data.discardPile);
-                    data.discardPile = [lastCard];
-                    if (data.deck.length === 0) {
-                        console.log("No hay más cartas para robar.");
-                        break;
-                    }
-                }
-                
-                let drawnCard = data.deck.pop();
-                newCards.push(drawnCard);
-                
-                if (drawnCard.color === colorToFind) {
-                    foundCard = true;
-                }
-
-            } while (!foundCard && newCards.length < 50); // Límite de seguridad
-            
-            player.hand.push(...newCards);
-            player.cardCount = player.hand.length;
-            player.isSafe = false;
-            data.gamePhase = 'playing'; // Volver a la fase normal
-            
-            data.message = `${player.name} robó ${newCards.length} cartas hasta encontrar ${colorToFind}.`;
-            
-            if (player.cardCount > 25) {
-                data.status = 'finished';
-                data.message = `¡${player.name} PIERDE! Tiene ${player.cardCount} cartas por la ruleta.`;
-            }
-            // No se avanza el turno, el jugador ahora debe jugar.
-            
-            await updateDoc(gameRef, data);
-        });
+        // *** MODIFICACIÓN: El botón 'drawRouletteBtn' y su listener han sido eliminados ***
+        // La lógica ahora está en deckPile.addEventListener('click', ...)
 
         // NUEVO: Botón "Robar por Repite"
         drawRepeatBtn.addEventListener('click', async () => {
-            if (!isMyTurn() || currentGameData.gamePhase !== 'repeat-play') return;
+            if (!isMyTurn() || currentGameData.gamePhase !== 'repeat-play' || !amIActive()) return;
             
             let data = { ...currentGameData };
             let player = data.players[data.currentPlayerIndex];
@@ -925,13 +1030,19 @@
             
             data.message = `${player.name} robó ${newCards.length} cartas hasta encontrar ${colorToFind}.`;
             
+            // *** MODIFICADO: Verificar si perdió ***
             if (player.cardCount > 25) {
-                data.status = 'finished';
-                data.message = `¡${player.name} PIERDE! Tiene ${player.cardCount} cartas.`;
+                player.status = 'lost';
+                data.message = `¡${player.name} HA PERDIDO! (Tiene ${player.cardCount} cartas).`;
+                if (checkEndGame(data)) {
+                    // data.status y data.message ya fueron actualizados
+                }
             }
             
             // A diferencia de la Ruleta, esta acción SÍ termina el turno.
-            advanceTurn(data);
+            if (data.status === 'playing') { // Solo avanzar turno si el juego no terminó
+                advanceTurn(data);
+            }
             
             await updateDoc(gameRef, data);
         });
@@ -954,6 +1065,13 @@
         function isMyTurn() {
             if (!currentGameData || !currentUser) return false;
             return currentGameData.players[currentGameData.currentPlayerIndex]?.uid === currentUser.uid;
+        }
+
+        // *** NUEVO: Helper para saber si estoy activo ***
+        function amIActive() {
+            if (!currentGameData || !currentUser) return false;
+            const me = currentGameData.players.find(p => p.uid === currentUser.uid);
+            return me?.status === 'playing';
         }
 
         function isCardPlayable(card) {
@@ -983,11 +1101,23 @@
             
             // Caso 2: No hay stack. Juego normal.
             if (card.color === 'black') return true; // Comodines negros siempre jugables
+            
             if (data.lastColorCalled) {
                 // Si la última carta fue un comodín, se juega contra el color elegido
                 return card.color === data.lastColorCalled;
             } else {
-                // Juego normal contra la carta superior
+                // Lógica normal contra la carta superior
+                
+                // --- INICIO DE MODIFICACIÓN (Regla 2) ---
+                // Permitir jugar cartas de "robar" (de color) sobre otras cartas de "robar" (de color)
+                const isTopCardDraw = ['draw2', 'draw4'].includes(topCard.type);
+                const isCardDraw = ['draw2', 'draw4'].includes(card.type);
+                
+                if (isTopCardDraw && isCardDraw) {
+                    return true;
+                }
+                // --- FIN DE MODIFICACIÓN ---
+                
                 return card.color === topCard.color || card.value === topCard.value;
             }
         }
@@ -1021,7 +1151,7 @@
                 // NUEVO: Lógica para Cartas 0 y 7
                 case 'number':
                     if (card.value === '0') {
-                        // ¡Rotar todas las manos!
+                        // ¡Rotar todas las manos! (Incluye a los que perdieron, pero no afecta su estado)
                         const hands = data.players.map(p => p.hand);
                         const counts = data.players.map(p => p.cardCount);
                         
@@ -1049,6 +1179,11 @@
                 case 'reverse':
                     data.playDirection *= -1;
                     data.message = "¡Reversa!";
+                    // Si solo hay 2 jugadores activos, la reversa actúa como un bloqueo
+                    const activePlayersCount = data.players.filter(p => p.status === 'playing').length;
+                    if (activePlayersCount === 2) {
+                        data.currentPlayerIndex = getNextPlayerIndex(data);
+                    }
                     break;
                 case 'skip':
                     // Se salta al siguiente jugador (se avanza 2 veces)
@@ -1070,9 +1205,6 @@
                     data.stackType = 'draw2/4';
                     data.drawStack += 4;
                     break;
-                case 'wild-draw4': // Esta ya no existe, la eliminamos
-                    // ...
-                    break;
                 case 'wild-draw6':
                     data.stackType = 'draw6/10';
                     data.drawStack += 6;
@@ -1093,9 +1225,9 @@
                 case 'wild-color-roulette': // "Carita"
                     data.gamePhase = 'roulette-draw'; // Fase especial
                     data.lastColorCalled = chosenColor;
-                    data.message = `¡Ruleta de Color! El siguiente debe robar hasta encontrar ${chosenColor}.`;
+                    // *** MODIFICACIÓN: Mensaje actualizado ***
+                    data.message = `¡Castigo Sad Face! El siguiente debe robar CARTA POR CARTA hasta encontrar ${chosenColor}.`;
                     break;
-                // 'wild' simple ya no existe
             }
             
             // 4. Verificar si ganó
@@ -1116,22 +1248,66 @@
                 advanceTurn(data);
             }
             
-            // 7. Actualizar Firebase
+            // 7. Comprobar si el juego termina (por si esta jugada hizo perder a otros y solo queda 1)
+            // (Aunque en este caso, nadie pierde por jugar carta, solo al robar)
+            // checkEndGame(data); // No es necesario aquí, solo al robar
+            
+            // 8. Actualizar Firebase
             await updateDoc(gameRef, data);
         }
 
         // --- Helpers de Lógica de Turno ---
         
+        // *** MODIFICADO: Ahora salta a jugadores que perdieron ***
         function getNextPlayerIndex(data) {
             let index = data.currentPlayerIndex;
             const playerCount = data.players.length;
-            index = (index + data.playDirection + playerCount) % playerCount;
+            let attempts = 0; // Evitar bucle infinito
+            
+            const activePlayersCount = data.players.filter(p => p.status === 'playing').length;
+            if (activePlayersCount <= 1) {
+                return index; // No mover si solo queda 1 o 0 jugadores
+            }
+            
+            do {
+                index = (index + data.playDirection + playerCount) % playerCount;
+                attempts++;
+            } while (data.players[index].status === 'lost' && attempts < (playerCount * 2)); // Doble de intentos por si acaso
+            
             return index;
+        }
+
+        // *** NUEVO: Helper para comprobar fin del juego ***
+        function checkEndGame(data) {
+            const activePlayers = data.players.filter(p => p.status === 'playing');
+            
+            if (activePlayers.length === 1) {
+                data.status = 'finished';
+                data.message = `¡${activePlayers[0].name} GANA! ¡Es el último en pie!`;
+                return true; // El juego terminó
+            } else if (activePlayers.length === 0) {
+                 data.status = 'finished';
+                 data.message = `¡Juego terminado! No quedan jugadores.`;
+                 return true; // El juego terminó
+            }
+            return false; // El juego continúa
         }
 
         function advanceTurn(data) {
             data.currentPlayerIndex = getNextPlayerIndex(data);
-            data.message = `Turno de ${data.players[data.currentPlayerIndex].name}.`;
+            const nextPlayer = data.players[data.currentPlayerIndex];
+            
+            if (nextPlayer.status === 'lost') {
+                 // Esto no debería pasar si getNextPlayerIndex funciona, pero por si acaso
+                 console.log("Error de turno, saltando a jugador perdido.");
+                 advanceTurn(data); // Intentar de nuevo
+                 return;
+            }
+            
+            // Solo cambiar el mensaje si el juego no ha entrado en una fase especial
+            if (data.gamePhase === 'playing') {
+                data.message = `Turno de ${nextPlayer.name}.`;
+            }
         }
 
         // NUEVO: Función para ejecutar el intercambio de manos de la Carta 7
@@ -1140,8 +1316,12 @@
             const currentPlayer = data.players[data.currentPlayerIndex];
             const targetPlayer = data.players.find(p => p.uid === targetPlayerUid);
 
-            if (!currentPlayer || !targetPlayer) {
-                console.error("Error al intercambiar manos: Jugador no encontrado.");
+            if (!currentPlayer || !targetPlayer || targetPlayer.status === 'lost') {
+                console.error("Error al intercambiar manos: Jugador no válido o perdido.");
+                swapHandModal.classList.add('hidden');
+                // Devolver el turno al jugador para que intente de nuevo o robe
+                data.gamePhase = 'playing'; // Salir de la fase de intercambio
+                await updateDoc(gameRef, data);
                 return;
             }
             
