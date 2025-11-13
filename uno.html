@@ -1180,21 +1180,46 @@
                     data.playDirection *= -1;
                     data.message = "¡Reversa!";
                     // Si solo hay 2 jugadores activos, la reversa actúa como un bloqueo
-                    const activePlayersCount = data.players.filter(p => p.status === 'playing').length;
-                    if (activePlayersCount === 2) {
-                        data.currentPlayerIndex = getNextPlayerIndex(data);
-                    }
+                    // const activePlayersCount = data.players.filter(p => p.status === 'playing').length;
+                    // if (activePlayersCount === 2) {
+                    //     data.currentPlayerIndex = getNextPlayerIndex(data);
+                    // }
+                    // <-- MODIFICADO: Se elimina el bloque 'if (activePlayersCount === 2)'
+                    // Ahora la reversa con 2 jugadores simplemente pasa el turno.
                     break;
                 case 'skip':
                     // Se salta al siguiente jugador (se avanza 2 veces)
                     data.currentPlayerIndex = getNextPlayerIndex(data);
                     data.message = "¡Bloqueo!";
                     break;
-                case 'repeat': // NUEVA CARTA
-                    data.gamePhase = 'repeat-play';
-                    data.mustPlayColor = card.color;
-                    data.message = `¡Repite! ${player.name} debe jugar otra carta ${card.color}.`;
-                    turnAdvances = false; // El jugador NO pasa el turno
+                case 'repeat': // NUEVA CARTA // <-- MODIFICADO: Ahora es "Bajar Color"
+                    // Ya no cambia la fase, el jugador no repite turno.
+                    // data.gamePhase = 'repeat-play';
+                    // data.mustPlayColor = card.color;
+                    // data.message = `¡Repite! ${player.name} debe jugar otra carta ${card.color}.`;
+                    // turnAdvances = false; // El jugador NO pasa el turno
+                    
+                    const colorToDrop = card.color;
+                    let cardsDropped = 0;
+                    
+                    // Encontrar todas las cartas del mismo color en la mano (de atrás para adelante para evitar problemas de índice)
+                    for (let i = player.hand.length - 1; i >= 0; i--) {
+                        if (player.hand[i].color === colorToDrop) {
+                            // Mover carta de la mano al descarte
+                            const [droppedCard] = player.hand.splice(i, 1);
+                            data.discardPile.push(droppedCard);
+                            cardsDropped++;
+                        }
+                    }
+                    
+                    player.cardCount = player.hand.length;
+                    
+                    if (cardsDropped > 0) {
+                        data.message = `¡${player.name} baja ${cardsDropped} cartas ${colorToDrop} adicionales!`;
+                    } else {
+                        data.message = `¡${player.name} jugó Bajar Color ${colorToDrop}!`;
+                    }
+                    // El turno avanza normalmente (turnAdvances = true por defecto)
                     break;
                 // --- Stacks (Reglas del Usuario) ---
                 case 'draw2':
