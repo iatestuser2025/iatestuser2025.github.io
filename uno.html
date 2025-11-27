@@ -14,7 +14,7 @@
             overflow: hidden;
         }
         
-        /* Estilos de Cartas (Ahora para <img>) */
+        /* Estilos de Cartas */
         .card {
             width: 80px;
             height: 112px;
@@ -45,6 +45,7 @@
             border-radius: 6px;
             box-shadow: 0 0 15px 5px var(--chosen-color, transparent);
             border: 3px solid var(--chosen-color, transparent);
+            pointer-events: none;
         }
 
         /* Áreas de Juego */
@@ -60,7 +61,7 @@
         #opponents-area {
             display: flex;
             justify-content: center;
-            flex-wrap: wrap; /* Para que quepan más oponentes */
+            flex-wrap: wrap;
             padding: 10px;
             min-height: 100px;
         }
@@ -72,7 +73,7 @@
             padding: 8px;
             border-radius: 8px;
             transition: all 0.3s ease;
-            position: relative; /* <--- AÑADIDO: Para estado "Perdió" */
+            position: relative;
         }
         .opponent.active-player {
             background-color: rgba(234, 179, 8, 0.3);
@@ -84,7 +85,7 @@
             font-size: 16px;
         }
         
-        /* --- NUEVO: Estilo para jugador perdido --- */
+        /* Estilo para jugador perdido */
         .opponent.lost-player {
             opacity: 0.5;
             filter: grayscale(80%);
@@ -112,7 +113,7 @@
         #modal-overlay { background-color: rgba(0, 0, 0, 0.7); }
         .hidden { display: none; }
         
-        /* Chat (Sin cambios) */
+        /* Chat */
         #chat-container {
             height: calc(100vh - 100px);
             max-height: 600px;
@@ -168,9 +169,7 @@
     <div id="game-container" class="w-full h-screen flex flex-col items-center justify-between p-4 hidden">
         
         <!-- Área de Oponentes (Arriba) -->
-        <div id="opponents-area" class="w-full">
-            <!-- Los oponentes se renderizarán aquí -->
-        </div>
+        <div id="opponents-area" class="w-full"></div>
 
         <!-- Área de Mensajes e Info (Centro) -->
         <div class="flex flex-col items-center justify-center text-center">
@@ -183,13 +182,10 @@
         <div id="table-area" class="flex justify-center items-center space-x-8 my-4">
             <!-- Mazo de Robar -->
             <div id="deck-pile" class="cursor-pointer card">
-                <!-- Actualizado para usar la imagen de dorso -->
                 <img src="cards/back cover.PNG" alt="Mazo" class="w-full h-full rounded-md object-cover">
             </div>
             <!-- Pila de Descarte -->
-            <div id="discard-pile" class="relative">
-                <!-- Carta superior se renderizará aquí -->
-            </div>
+            <div id="discard-pile" class="relative"></div>
             <div id="draw-stack-indicator" class="text-2xl font-bold text-red-500 p-4 bg-gray-900/50 rounded-lg hidden">
                 ¡ROBA <span id="draw-stack-count">0</span>!
             </div>
@@ -199,13 +195,9 @@
         <div id="action-buttons" class="flex justify-center space-x-4 mb-4">
             <button id="start-game-btn" class="btn bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">INICIAR JUEGO</button>
             <button id="say-uno-btn" class="btn bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">¡UNO!</button>
-            <!-- El botón de Ruleta se elimina de la UI, la lógica ahora está en el mazo -->
-            <button id="draw-roulette-btn" class="btn bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">ROBAR POR RULETA</button>
-            <!-- NUEVO BOTÓN PARA REGLA DE "REPITE" -->
-            <button id="draw-repeat-btn" class="btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg hidden">ROBAR POR REPITE</button>
         </div>
 
-        <!-- *** NUEVO: Contador de Cartas Propias *** -->
+        <!-- Contador de Cartas Propias -->
         <div id="my-card-count-container" class="text-center mb-2">
             <span class="text-xl font-bold text-white">Tus Cartas: 
                 <span id="my-card-count-el" class="text-yellow-300">0</span>
@@ -213,9 +205,7 @@
         </div>
 
         <!-- Mi Mano (Abajo) -->
-        <div id="my-hand-area" class="w-full bg-gray-900/50 p-2 rounded-lg">
-            <!-- Mis cartas se renderizarán aquí -->
-        </div>
+        <div id="my-hand-area" class="w-full bg-gray-900/50 p-2 rounded-lg"></div>
     </div>
     
     <!-- Modal de Selección de Color -->
@@ -231,17 +221,15 @@
         </div>
     </div>
 
-    <!-- NUEVO: Modal de Intercambio de Mano (Carta 7) -->
+    <!-- Modal de Intercambio de Mano (Carta 7) -->
     <div id="swap-hand-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden">
         <div class="bg-gray-800 p-8 rounded-lg shadow-xl text-center w-full max-w-md">
             <h3 class="text-2xl font-bold mb-6 text-white">¡Carta 7! Elige con quién intercambiar mano:</h3>
-            <div id="swap-player-list" class="flex flex-col space-y-3">
-                <!-- La lista de jugadores para intercambiar se generará aquí -->
-            </div>
+            <div id="swap-player-list" class="flex flex-col space-y-3"></div>
         </div>
     </div>
 
-    <!-- Contenedor del Chat (Copiado de Blackjack) -->
+    <!-- Contenedor del Chat -->
     <div id="chat-container" class="bg-gray-800/80 backdrop-blur-sm rounded-lg p-4 flex flex-col">
         <h3 class="text-2xl font-bold mb-4 text-center">Chat de la Sala</h3>
         <div id="chat-messages" class="flex-grow overflow-y-auto mb-4 pr-2"></div>
@@ -258,13 +246,12 @@
         </div>
     </div>
 
-    <!-- Referencias de Firebase (Cambiadas para Firestore) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, setDoc, getDoc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // !!! REEMPLAZA ESTO CON TU PROPIA CONFIGURACIÓN DE FIREBASE !!!
+        // CONFIGURACIÓN DE FIREBASE (Usa la tuya)
         const firebaseConfig = {
             apiKey: "AIzaSyA6uydlodXo1vnyqoocwzHytwt5W0riIDQ",
             authDomain: "blackjack-d6b7b.firebaseapp.com",
@@ -284,13 +271,11 @@
         let unsubscribe = null;
         let isChatVisible = false;
         let lastMessageCount = 0;
-        let pendingWildCard = null; // Almacena la carta comodín jugada mientras se elige color
+        let pendingWildCard = null;
         const playerColors = ['#60a5fa', '#34d399', '#f87171', '#fbbf24', '#a78bfa', '#f472b6', '#76e6d1'];
-        
-        // RUTA A TUS IMÁGENES PNG
-        const CARD_IMAGE_PATH = "cards/"; // Asume una carpeta 'cards'
+        const CARD_IMAGE_PATH = "cards/";
 
-        // --- Elementos UI ---
+        // Elementos UI
         const modalOverlay = document.getElementById("modal-overlay");
         const nicknameInput = document.getElementById("nickname-input");
         const modalErrorEl = document.getElementById("modal-error");
@@ -301,36 +286,22 @@
         const joinRoomBtn = document.getElementById("join-room-btn");
         const roomIdInput = document.getElementById("room-id-input");
         const backToEntryBtn = document.getElementById("back-to-entry-btn");
-        
         const gameContainer = document.getElementById("game-container");
         const messageEl = document.getElementById("message-el");
         const roomIdEl = document.getElementById("room-id-el");
         const userIdEl = document.getElementById("user-id-el");
         const opponentsArea = document.getElementById("opponents-area");
-        const tableArea = document.getElementById("table-area");
         const deckPile = document.getElementById("deck-pile");
         const discardPile = document.getElementById("discard-pile");
         const drawStackIndicator = document.getElementById("draw-stack-indicator");
         const drawStackCount = document.getElementById("draw-stack-count");
         const myHandArea = document.getElementById("my-hand-area");
-        
-        // *** NUEVO: Elemento contador de cartas propias ***
         const myCardCountEl = document.getElementById("my-card-count-el");
-
-        const actionButtons = document.getElementById("action-buttons");
         const startGameBtn = document.getElementById("start-game-btn");
         const sayUnoBtn = document.getElementById("say-uno-btn");
-        // *** MODIFICACIÓN: Se elimina la referencia al botón de ruleta, ya no se usa ***
-        // const drawRouletteBtn = document.getElementById("draw-roulette-btn"); 
-        const drawRepeatBtn = document.getElementById("draw-repeat-btn"); // NUEVO
-        
         const colorPickerModal = document.getElementById("color-picker-modal");
-        
-        // NUEVOS Elementos para Modal de Carta 7
         const swapHandModal = document.getElementById("swap-hand-modal");
         const swapPlayerList = document.getElementById("swap-player-list");
-
-        // --- Elementos de Chat (Copiado) ---
         const chatContainer = document.getElementById("chat-container");
         const chatMessages = document.getElementById("chat-messages");
         const chatInput = document.getElementById("chat-input");
@@ -339,19 +310,13 @@
         const chatToggleBtn = document.getElementById("chat-toggle-btn");
         const chatNotification = document.getElementById("chat-notification");
 
-        // --- Autenticación ---
         onAuthStateChanged(auth, user => { if (user) currentUser = user; });
-        await signInAnonymously(auth);
+        signInAnonymously(auth);
 
-        // --- Lógica del Lobby (Adaptada de Blackjack) ---
-
+        // LOBBY
         function validateNickname() {
             const nickname = nicknameInput.value.trim();
-            if (nickname.length < 3) {
-                modalErrorEl.textContent = "El apodo debe tener al menos 3 caracteres.";
-                return null;
-            }
-            modalErrorEl.textContent = "";
+            if (nickname.length < 3) { modalErrorEl.textContent = "Apodo min 3 letras."; return null; }
             return nickname;
         }
 
@@ -362,31 +327,10 @@
             const nickname = validateNickname(); if (!nickname) return;
             const roomId = Math.floor(100000 + Math.random() * 900000).toString();
             gameRef = doc(db, 'uno-no-mercy-games', roomId);
-            const newPlayer = {
-                uid: currentUser.uid,
-                name: nickname,
-                hand: [],
-                cardCount: 0,
-                color: playerColors[0],
-                isSafe: false, // Para el botón "UNO"
-                status: 'playing' // <-- NUEVO: 'playing', 'lost'
-            };
+            const newPlayer = { uid: currentUser.uid, name: nickname, hand: [], cardCount: 0, color: playerColors[0], isSafe: false, status: 'playing' };
             const newGameData = {
-                roomId,
-                players: [newPlayer],
-                status: 'waiting', // 'waiting', 'playing', 'finished'
-                creatorUid: currentUser.uid,
-                message: "Esperando jugadores...",
-                chatMessages: [],
-                deck: [],
-                discardPile: [],
-                currentPlayerIndex: 0,
-                drawStack: 0, // Acumulador de cartas a robar
-                stackType: null, // "draw2/4", "draw6/10", "draw4Reverse"
-                playDirection: 1, // 1 = clockwise, -1 = counter-clockwise
-                lastColorCalled: null, // Para comodines
-                mustPlayColor: null, // NUEVO: Para la carta "Repite"
-                gamePhase: 'lobby' // 'lobby', 'playing', 'roulette-draw', 'repeat-play', 'finished'
+                roomId, players: [newPlayer], status: 'waiting', creatorUid: currentUser.uid, message: "Esperando...", chatMessages: [], deck: [], discardPile: [],
+                currentPlayerIndex: 0, drawStack: 0, stackType: null, playDirection: 1, lastColorCalled: null, mustPlayColor: null, gamePhase: 'lobby'
             };
             await setDoc(gameRef, newGameData);
             subscribeToGame(gameRef);
@@ -395,70 +339,40 @@
         joinRoomBtn.addEventListener('click', async () => {
             const nickname = validateNickname(); if (!nickname) return;
             const roomId = roomIdInput.value.trim();
-            if (!roomId || roomId.length !== 6) { modalErrorEl.textContent = "Debes ingresar un ID de sala de 6 dígitos."; return; }
-            
+            if (roomId.length !== 6) { modalErrorEl.textContent = "ID debe ser 6 dígitos."; return; }
             gameRef = doc(db, 'uno-no-mercy-games', roomId);
             const gameDoc = await getDoc(gameRef);
-            
             if (!gameDoc.exists()) { modalErrorEl.textContent = "Sala no encontrada."; return; }
-            const gameData = gameDoc.data();
-            if (gameData.status !== 'waiting') { modalErrorEl.textContent = "La partida ya ha comenzado."; return; }
-            if (gameData.players.length >= 7) { modalErrorEl.textContent = "La sala está llena (máx 7 jugadores)."; return; }
-            
-            if (!gameData.players.some(p => p.uid === currentUser.uid)) {
-                const newPlayer = {
-                    uid: currentUser.uid,
-                    name: nickname,
-                    hand: [],
-                    cardCount: 0,
-                    color: playerColors[gameData.players.length % playerColors.length],
-                    isSafe: false,
-                    status: 'playing' // <-- NUEVO: 'playing', 'lost'
-                };
+            const data = gameDoc.data();
+            if (data.status !== 'waiting') { modalErrorEl.textContent = "Ya comenzó."; return; }
+            if (data.players.length >= 7) { modalErrorEl.textContent = "Sala llena."; return; }
+            if (!data.players.some(p => p.uid === currentUser.uid)) {
+                const newPlayer = { uid: currentUser.uid, name: nickname, hand: [], cardCount: 0, color: playerColors[data.players.length % playerColors.length], isSafe: false, status: 'playing' };
                 await updateDoc(gameRef, { players: arrayUnion(newPlayer) });
             }
             subscribeToGame(gameRef);
         });
 
-        // --- Lógica del Chat (Copiada) ---
+        // CHAT
         async function sendMessage() {
             const text = chatInput.value.trim();
             if (text === "" || !currentGameData) return;
             const me = currentGameData.players.find(p => p.uid === currentUser.uid);
             if (!me) return;
-            const newMessage = { senderName: me.name, senderUid: currentUser.uid, text: text, timestamp: new Date() };
-            await updateDoc(gameRef, { chatMessages: arrayUnion(newMessage) });
+            await updateDoc(gameRef, { chatMessages: arrayUnion({ senderName: me.name, senderUid: currentUser.uid, text, timestamp: new Date() }) });
             chatInput.value = "";
         }
-
-        function toggleChat() {
-            isChatVisible = !isChatVisible;
-            if (isChatVisible) {
-                chatContainer.classList.add("visible");
-                chatNotification.classList.add("hidden");
-            } else {
-                chatContainer.classList.remove("visible");
-            }
-        }
-        chatToggleBtn.addEventListener("click", toggleChat);
+        chatToggleBtn.addEventListener("click", () => { isChatVisible = !isChatVisible; chatContainer.classList.toggle("visible", isChatVisible); if(isChatVisible) chatNotification.classList.add("hidden"); });
         sendChatBtn.addEventListener("click", sendMessage);
         chatInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
         emojiPicker.addEventListener("click", (e) => { if (e.target.classList.contains("emoji-btn")) { chatInput.value += e.target.textContent; chatInput.focus(); } });
 
-
-        // --- Suscripción y Renderizado del Juego ---
+        // CORE GAME FUNCTIONS
         function subscribeToGame(ref) {
             if (unsubscribe) unsubscribe();
             unsubscribe = onSnapshot(ref, (docSnap) => {
-                if (docSnap.exists()) {
-                    currentGameData = docSnap.data();
-                    renderGame(currentGameData);
-                } else {
-                    console.error("El documento del juego no existe.");
-                    // Evitar alert()
-                    messageEl.textContent = "Error: La sala ya no existe. Recargando...";
-                    setTimeout(() => window.location.reload(), 3000);
-                }
+                if (docSnap.exists()) { currentGameData = docSnap.data(); renderGame(currentGameData); }
+                else { messageEl.textContent = "Sala cerrada."; setTimeout(() => window.location.reload(), 3000); }
             });
             modalOverlay.classList.add("hidden");
             gameContainer.classList.remove("hidden");
@@ -467,311 +381,190 @@
 
         function renderGame(data) {
             if (!data) return;
-
-            // Info y Mensajes
             messageEl.textContent = data.message || "";
-            roomIdEl.textContent = data.roomId || "";
+            roomIdEl.textContent = data.roomId;
             userIdEl.textContent = currentUser.uid;
 
-            // Oponentes
+            // Render Oponentes
             opponentsArea.innerHTML = "";
             const me = data.players.find(p => p.uid === currentUser.uid);
             data.players.forEach((player, index) => {
                 if (player.uid === currentUser.uid) return;
-                
-                const opponentDiv = document.createElement('div');
-                opponentDiv.className = 'opponent';
-                
-                // --- LÓGICA DE RENDERIZADO MODIFICADA ---
-                let playerStatusHTML = '';
-                if (player.status === 'lost') {
-                    opponentDiv.classList.add('lost-player');
-                    playerStatusHTML = '<span class="lost-status">PERDIÓ</span>';
-                }
-                else if (index === data.currentPlayerIndex) {
-                    opponentDiv.classList.add('active-player');
-                }
-                
-                // Muestra el dorso y el conteo de cartas
-                opponentDiv.innerHTML = `
-                    ${playerStatusHTML} 
-                    <p class="font-bold text-sm" style="color: ${player.color};">${player.name}</p>
-                    <div class="card">
-                        <img src="${CARD_IMAGE_PATH}back cover.PNG" alt="Dorso">
-                    </div>
+                const div = document.createElement('div');
+                div.className = 'opponent';
+                if (player.status === 'lost') { div.classList.add('lost-player'); div.innerHTML += '<span class="lost-status">PERDIÓ</span>'; }
+                else if (index === data.currentPlayerIndex) div.classList.add('active-player');
+                div.innerHTML += `<p class="font-bold text-sm" style="color: ${player.color};">${player.name}</p>
+                    <div class="card"><img src="${CARD_IMAGE_PATH}back cover.PNG" alt="Dorso"></div>
                     <span class="text-lg font-bold">${player.cardCount}</span>
-                    ${player.isSafe ? '<span class="text-yellow-400 text-xs">UNO!</span>' : ''}
-                `;
-                opponentsArea.appendChild(opponentDiv);
+                    ${player.isSafe ? '<span class="text-yellow-400 text-xs">UNO!</span>' : ''}`;
+                opponentsArea.appendChild(div);
             });
 
-            // Pila de descarte
+            // Descarte
             discardPile.innerHTML = "";
             if (data.discardPile.length > 0) {
-                const topCard = data.discardPile[data.discardPile.length - 1];
-                const cardEl = createCardElement(topCard, false);
-                // Mostrar el color elegido si es un comodín
-                if (topCard.color === 'black' && data.lastColorCalled) {
+                const top = data.discardPile[data.discardPile.length - 1];
+                const cardEl = createCardElement(top, false);
+                // Mostrar overlay si es comodín o si es Sad Face
+                if ((top.color === 'black' || top.type === 'wild-color-roulette') && data.lastColorCalled) {
                     cardEl.innerHTML += `<div class="color-overlay" style="--chosen-color: ${data.lastColorCalled};"></div>`;
                 }
                 discardPile.appendChild(cardEl);
-            } else {
-                 discardPile.innerHTML = `<div class="w-20 h-28 border-2 border-dashed border-gray-600 rounded-lg"></div>`;
-            }
-            
-            // Indicador de "Robar"
-            if (data.drawStack > 0) {
-                drawStackCount.textContent = data.drawStack;
-                drawStackIndicator.classList.remove('hidden');
-            } else {
-                drawStackIndicator.classList.add('hidden');
-            }
+            } else discardPile.innerHTML = `<div class="w-20 h-28 border-2 border-dashed border-gray-600 rounded-lg"></div>`;
 
-            // Mi Mano y Contador
+            drawStackIndicator.classList.toggle('hidden', data.drawStack <= 0);
+            drawStackCount.textContent = data.drawStack;
+
+            // Mi Mano
             myHandArea.innerHTML = "";
             if (me) {
-                me.hand.forEach(card => {
-                    const cardEl = createCardElement(card, true);
-                    cardEl.addEventListener('click', () => onCardClick(card));
-                    myHandArea.appendChild(cardEl);
-                });
-                // *** NUEVO: Actualizar contador propio ***
-                myCardCountEl.textContent = me.cardCount;
-                
-                // Ocultar mi mano y contador si perdí
                 if (me.status === 'lost') {
                     myHandArea.innerHTML = '<p class="text-red-500 text-2xl font-bold">HAS PERDIDO</p>';
-                    myCardCountEl.textContent = me.cardCount; // Seguir mostrando el conteo final
+                    myCardCountEl.textContent = me.cardCount;
+                } else {
+                    me.hand.forEach(card => {
+                        const el = createCardElement(card, true);
+                        el.addEventListener('click', () => onCardClick(card));
+                        myHandArea.appendChild(el);
+                    });
+                    myCardCountEl.textContent = me.cardCount;
                 }
-
-            } else {
-                myCardCountEl.textContent = '0';
             }
-            
-            // Botones de Acción
-            const amICurrentPlayer = data.players[data.currentPlayerIndex]?.uid === currentUser.uid;
-            const amIActive = me?.status === 'playing'; // Comprobar si no he perdido
-            
-            // *** MODIFICACIÓN: Se quita 'drawRouletteBtn' de la lista de botones a ocultar/mostrar ***
-            [startGameBtn, sayUnoBtn, drawRepeatBtn].forEach(btn => btn.classList.add('hidden'));
+
+            // Controles
+            const amICurrent = data.players[data.currentPlayerIndex]?.uid === currentUser.uid;
+            startGameBtn.classList.add('hidden');
+            sayUnoBtn.classList.add('hidden');
 
             if (data.status === 'waiting') {
                 startGameBtn.classList.remove('hidden');
-                startGameBtn.textContent = "INICIAR JUEGO"; // Asegurar texto original
+                startGameBtn.textContent = "INICIAR JUEGO";
                 startGameBtn.disabled = data.creatorUid !== currentUser.uid || data.players.length < 2;
-                if (data.players.length < 2) {
-                    messageEl.textContent = "Esperando al menos 2 jugadores...";
-                } else {
-                    messageEl.textContent = "Esperando que el creador inicie...";
-                }
-            } else if (data.status === 'playing' && amIActive) { // Solo mostrar si estoy activo
-                if (me?.cardCount === 1 && !me.isSafe) {
-                    sayUnoBtn.classList.remove('hidden');
-                }
+                if (data.players.length < 2) messageEl.textContent = "Esperando jugadores...";
+            } else if (data.status === 'playing' && me?.status === 'playing') {
+                if (me?.cardCount === 1 && !me.isSafe) sayUnoBtn.classList.remove('hidden');
                 
-                // *** MODIFICACIÓN: Lógica de "Sad Face" (Ruleta) actualizada ***
-                if (data.gamePhase === 'roulette-draw' && amICurrentPlayer) {
-                    // Ya no se muestra el botón, solo el mensaje para que el jugador haga click en el mazo
-                    messageEl.textContent = `¡Castigo Sad Face! Roba CARTA POR CARTA (del mazo) hasta encontrar ${data.lastColorCalled}.`;
-                } else if (data.gamePhase === 'repeat-play' && amICurrentPlayer) {
-                    messageEl.textContent = `¡Juega una carta ${data.mustPlayColor} o roba hasta encontrar una!`;
-                    drawRepeatBtn.classList.remove('hidden');
-                } else if (data.gamePhase === 'swap-hand-choice' && amICurrentPlayer) {
+                // Mensajes de estado especiales
+                if (data.gamePhase === 'swap-hand-choice' && amICurrent) {
                     messageEl.textContent = "Elige un jugador para intercambiar tu mano.";
                     swapPlayerList.innerHTML = '';
-                    data.players.forEach(player => {
-                        // *** MODIFICADO: Solo mostrar jugadores activos ***
-                        if (player.uid === currentUser.uid || player.status === 'lost') return; 
-                        const playerBtn = document.createElement('button');
-                        playerBtn.textContent = `${player.name} (${player.cardCount} cartas)`;
-                        playerBtn.className = 'btn w-full p-3 rounded-lg font-semibold text-white transition';
-                        playerBtn.style.backgroundColor = player.color;
-                        playerBtn.addEventListener('click', () => performHandSwap(player.uid));
-                        swapPlayerList.appendChild(playerBtn);
+                    data.players.forEach(p => {
+                        if (p.uid === currentUser.uid || p.status === 'lost') return;
+                        const btn = document.createElement('button');
+                        btn.textContent = `${p.name} (${p.cardCount})`;
+                        btn.className = 'btn w-full p-3 rounded-lg font-semibold text-white transition';
+                        btn.style.backgroundColor = p.color;
+                        btn.addEventListener('click', () => performHandSwap(p.uid));
+                        swapPlayerList.appendChild(btn);
                     });
                     swapHandModal.classList.remove('hidden');
-                } else if (amICurrentPlayer) {
-                    messageEl.textContent = "¡Es tu turno!";
-                } else {
-                    // Mensaje de espera
-                    const currentPlayerName = data.players[data.currentPlayerIndex]?.name || '...';
-                    if (data.gamePhase === 'roulette-draw') {
-                        // *** MODIFICACIÓN: Mensaje actualizado ***
-                        messageEl.textContent = `${currentPlayerName} está robando CARTA POR CARTA por el castigo Sad Face...`;
-                    } else if (data.gamePhase === 'repeat-play') {
-                        messageEl.textContent = `${currentPlayerName} debe jugar otra carta o robar...`;
-                    } else if (data.gamePhase === 'swap-hand-choice') {
-                        messageEl.textContent = `${currentPlayerName} está eligiendo con quién cambiar mano...`;
-                    } else {
-                        messageEl.textContent = `Turno de ${currentPlayerName}...`;
-                    }
+                } else if (data.gamePhase === 'repeat-play' && amICurrent) {
+                    messageEl.textContent = `¡REPITE! Juega otra carta ${data.mustPlayColor} o roba.`;
                 }
             } else if (data.status === 'finished') {
-                // Lógica de fin de juego
                 messageEl.textContent = data.message;
                 if (data.creatorUid === currentUser.uid) {
                     startGameBtn.classList.remove('hidden');
                     startGameBtn.textContent = "JUGAR DE NUEVO";
                     startGameBtn.disabled = false;
-                } else {
-                    messageEl.textContent += " Esperando que el creador reinicie la sala.";
                 }
             }
+            
+            if (data.gamePhase !== 'swap-hand-choice') swapHandModal.classList.add('hidden');
 
-            // Ocultar modal de intercambio si la fase cambia
-            if (data.gamePhase !== 'swap-hand-choice') {
-                swapHandModal.classList.add('hidden');
-            }
-
-            // Renderizado del Chat (Copiado)
-            const newMessages = data.chatMessages || [];
-            if (newMessages.length > lastMessageCount && !isChatVisible) {
-                const lastMessage = newMessages[newMessages.length - 1];
-                if (lastMessage.senderUid !== currentUser.uid) chatNotification.classList.remove("hidden");
-            }
-            lastMessageCount = newMessages.length;
+            // Chat render
+            const msgs = data.chatMessages || [];
+            if (msgs.length > lastMessageCount && !isChatVisible && msgs[msgs.length - 1].senderUid !== currentUser.uid) chatNotification.classList.remove("hidden");
+            lastMessageCount = msgs.length;
             chatMessages.innerHTML = '';
-            newMessages.forEach(msg => {
-                const sender = data.players.find(p => p.uid === msg.senderUid);
-                const senderColor = sender ? sender.color : '#cbd5e0';
-                const msgDiv = document.createElement('div');
-                msgDiv.classList.add('mb-2', 'p-2', 'rounded-md', 'bg-gray-700', 'break-words');
-                msgDiv.innerHTML = `<strong class="font-bold" style="color: ${senderColor};">${msg.senderName}:</strong> ${msg.text}`;
-                chatMessages.appendChild(msgDiv);
+            msgs.forEach(m => {
+                const s = data.players.find(p => p.uid === m.senderUid);
+                chatMessages.innerHTML += `<div class="mb-2 p-2 rounded-md bg-gray-700 break-words"><strong style="color:${s?s.color:'#ccc'}">${m.senderName}:</strong> ${m.text}</div>`;
             });
             if (chatMessages.scrollHeight > chatMessages.clientHeight) chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
-        // --- Helpers de UI de Cartas (Actualizado para PNG) ---
         function createCardElement(card, isMyCard) {
-            const cardDiv = document.createElement('div');
-            cardDiv.className = 'card';
-            cardDiv.dataset.id = card.id;
-            
-            const altText = `${card.type} ${card.color} ${card.value}`;
-            cardDiv.innerHTML = `<img src="${CARD_IMAGE_PATH}${card.image}" alt="${altText}">`;
-
-            if (isMyCard) {
-                cardDiv.classList.add('my-card');
-            }
-            
-            return cardDiv;
+            const div = document.createElement('div');
+            div.className = 'card' + (isMyCard ? ' my-card' : '');
+            div.innerHTML = `<img src="${CARD_IMAGE_PATH}${card.image}" alt="${card.type}">`;
+            return div;
         }
 
-        // --- Lógica de Creación de Mazo (Actualizada) ---
-        
+        // MAZO (Con nombres corregidos y nuevas cartas)
         function createSingleDeck() {
             let deck = [];
             const colors = ['red', 'green', 'blue', 'yellow'];
-            // Mapeo de colores a nombres de archivo en español
             const colorMap = { red: 'rojo', green: 'verde', blue: 'azul', yellow: 'amarillo' };
-            let id = 0; // El ID se re-asignará después de duplicar
+            let id = 0;
 
             for (const color of colors) {
-                const colorName = colorMap[color];
-                
-                // 1 x 0
-                deck.push({ id: id++, type: 'number', color, value: '0', image: `0 ${colorName}.png` });
-                // 2 x 1-9
+                const cName = colorMap[color];
+                // Números 0-9
+                deck.push({ id: id++, type: 'number', color, value: '0', image: `0 ${cName}.png` });
                 for (let i = 1; i <= 9; i++) {
-                    const cardData = { type: 'number', color, value: i.toString(), image: `${i} ${colorName}.png` };
-                    deck.push({ ...cardData, id: id++ });
-                    deck.push({ ...cardData, id: id++ });
+                    const cd = { type: 'number', color, value: i.toString(), image: `${i} ${cName}.png` };
+                    deck.push({ ...cd, id: id++ }); deck.push({ ...cd, id: id++ });
                 }
+                // Acción Básica
+                const skip = { type: 'skip', color, value: 'S', image: `bloqueo ${cName}.png` };
+                deck.push({ ...skip, id: id++ }); deck.push({ ...skip, id: id++ });
                 
-                // 2 x Bloqueo (Skip)
-                const skipData = { type: 'skip', color, value: 'S', image: `bloqueo ${colorName}.png` };
-                deck.push({ ...skipData, id: id++ });
-                deck.push({ ...skipData, id: id++ });
+                const rev = { type: 'reverse', color, value: 'R', image: `reversa ${cName}.png` };
+                deck.push({ ...rev, id: id++ }); deck.push({ ...rev, id: id++ });
 
-                // 2 x Reversa
-                const reverseData = { type: 'reverse', color, value: 'R', image: `reversa ${colorName}.png` };
-                deck.push({ ...reverseData, id: id++ });
-                deck.push({ ...reverseData, id: id++ });
+                // Repite (MODIFICADO: Ahora es jugar de nuevo)
+                const rep = { type: 'repeat', color, value: 'REP', image: `repite ${cName}.png` };
+                deck.push({ ...rep, id: id++ }); deck.push({ ...rep, id: id++ });
 
-                // 2 x Repite (NUEVO)
-                const repeatData = { type: 'repeat', color, value: 'REP', image: `repite ${colorName}.png` };
-                deck.push({ ...repeatData, id: id++ });
-                deck.push({ ...repeatData, id: id++ });
+                // Bajar Color (NUEVO - "discard-all")
+                const baj = { type: 'discard-all', color, value: 'BAJ', image: `bajar color ${cName}.png` }; // Nombre ajustado para coincidir con patrón
+                // NOTA: Tu lista dice "bajar color amarillo.png" y "baja color rojo.png" (sin r al final).
+                // Voy a normalizar según tu lista específica:
+                let imgName = `bajar color ${cName}.png`;
+                if(color === 'red') imgName = "baja color rojo.png"; // Excepción según tu lista
+                
+                deck.push({ ...baj, image: imgName, id: id++ }); 
+                deck.push({ ...baj, image: imgName, id: id++ });
 
-                // 2 x Draw 2 - Usando los nombres exactos de tu lista
-                if (color === 'red') {
-                    deck.push({ id: id++, type: 'draw2', color: 'red', value: '+2', image: 'mas 2 rojo.png' });
-                    deck.push({ id: id++, type: 'draw2', color: 'red', value: '+2', image: 'mas 2 rojo.png' });
-                } else if (color === 'green') {
-                    deck.push({ id: id++, type: 'draw2', color: 'green', value: '+2', image: 'mas 2 verde.png' });
-                    deck.push({ id: id++, type: 'draw2', color: 'green', value: '+2', image: 'mas 2 verde.png' });
-                } else if (color === 'yellow') {
-                    deck.push({ id: id++, type: 'draw2', color: 'yellow', value: '+2', image: 'mas2 amarillo.png' });
-                    deck.push({ id: id++, type: 'draw2', color: 'yellow', value: '+2', image: 'mas2 amarillo.png' });
-                } else if (color === 'blue') {
-                    deck.push({ id: id++, type: 'draw2', color: 'blue', value: '+2', image: 'mas2 azul.png' });
-                    deck.push({ id: id++, type: 'draw2', color: 'blue', value: '+2', image: 'mas2 azul.png' });
-                }
+                // Draw 2
+                let d2Img = `mas 2 ${cName}.png`;
+                if(color==='yellow') d2Img = "mas2 amarillo.png";
+                if(color==='blue') d2Img = "mas2 azul.png";
+                if(color==='red') d2Img = "mas 2 rojo.png"; // cuidado con espacios
+                if(color==='green') d2Img = "mas 2 verde.png";
+                
+                deck.push({ id: id++, type: 'draw2', color, value: '+2', image: d2Img });
+                deck.push({ id: id++, type: 'draw2', color, value: '+2', image: d2Img });
 
-                // 2 x Draw 4 (NUEVO - de color)
-                const draw4Data = { type: 'draw4', color, value: '+4', image: `mas4 ${colorName}.png` };
-                deck.push({ ...draw4Data, id: id++ });
-                deck.push({ ...draw4Data, id: id++ });
+                // Draw 4
+                deck.push({ id: id++, type: 'draw4', color, value: '+4', image: `mas4 ${cName}.png` });
+                deck.push({ id: id++, type: 'draw4', color, value: '+4', image: `mas4 ${cName}.png` });
             }
 
-            // --- Cartas "No Mercy" (Negras/Wild) ---
-            
-            // *** MODIFICADO: 6 x Wild Draw 6 (Antes 3) ***
-            const draw6Base = { type: 'wild-draw6', color: 'black', value: '+6' };
-            deck.push({ ...draw6Base, id: id++, image: 'mas 6.png' });
-            deck.push({ ...draw6Base, id: id++, image: 'mas 6 dos .png' });
-            deck.push({ ...draw6Base, id: id++, image: 'mas 6 3.png' });
-            deck.push({ ...draw6Base, id: id++, image: 'mas 6.png' }); // Duplicado
-            deck.push({ ...draw6Base, id: id++, image: 'mas 6 dos .png' }); // Duplicado
-            deck.push({ ...draw6Base, id: id++, image: 'mas 6 3.png' }); // Duplicado
-            
-            // *** MODIFICADO: 6 x Wild Draw 10 (Antes 3) ***
-            const draw10Base = { type: 'wild-draw10', color: 'black', value: '+10' };
-            deck.push({ ...draw10Base, id: id++, image: 'mas10.png' });
-            deck.push({ ...draw10Base, id: id++, image: 'mas10 dos.png' });
-            deck.push({ ...draw10Base, id: id++, image: 'mas10  tres.png' });
-            deck.push({ ...draw10Base, id: id++, image: 'mas10.png' }); // Duplicado
-            deck.push({ ...draw10Base, id: id++, image: 'mas10 dos.png' }); // Duplicado
-            deck.push({ ...draw10Base, id: id++, image: 'mas10  tres.png' }); // Duplicado
-            
-            // *** MODIFICADO: 8 x Wild Reverse Draw 4 (Antes 4) ***
-            const rev4Base = { type: 'wild-reverse-draw4', color: 'black', value: 'R+4' };
-            deck.push({ ...rev4Base, id: id++, image: 'reversa mas4 uno.png' });
-            deck.push({ ...rev4Base, id: id++, image: 'reversa mas4 dos.png' });
-            deck.push({ ...rev4Base, id: id++, image: 'reversa mas4  tres.png' });
-            deck.push({ ...rev4Base, id: id++, image: 'reversa mas4 - cuatro.png' });
-            deck.push({ ...rev4Base, id: id++, image: 'reversa mas4 uno.png' }); // Duplicado
-            deck.push({ ...rev4Base, id: id++, image: 'reversa mas4 dos.png' }); // Duplicado
-            deck.push({ ...rev4Base, id: id++, image: 'reversa mas4  tres.png' }); // Duplicado
-            deck.push({ ...rev4Base, id: id++, image: 'reversa mas4 - cuatro.png' }); // Duplicado
-
-            // *** MODIFICADO: 8 x Wild Color Roulette (Antes 4) ***
-            const rouletteBase = { type: 'wild-color-roulette', color: 'black', value: 'C' };
-            deck.push({ ...rouletteBase, id: id++, image: 'sad face.png' });
-            deck.push({ ...rouletteBase, id: id++, image: 'sad face dos.png' });
-            deck.push({ ...rouletteBase, id: id++, image: 'sad face 3.png' });
-            deck.push({ ...rouletteBase, id: id++, image: 'sad face cuatro.png' });
-            deck.push({ ...rouletteBase, id: id++, image: 'sad face.png' }); // Duplicado
-            deck.push({ ...rouletteBase, id: id++, image: 'sad face dos.png' }); // Duplicado
-            deck.push({ ...rouletteBase, id: id++, image: 'sad face 3.png' }); // Duplicado
-            deck.push({ ...rouletteBase, id: id++, image: 'sad face cuatro.png' }); // Duplicado
-            
-            return deck;
-        }
-
-        function buildDeck() {
-            // Crear dos barajas y unirlas
-            const deck1 = createSingleDeck();
-            const deck2 = createSingleDeck();
-            let fullDeck = [...deck1, ...deck2];
-            
-            // Re-asignar IDs únicos a toda la baraja
-            fullDeck.forEach((card, index) => {
-                card.id = index;
+            // Cartas Negras
+            const d6 = { type: 'wild-draw6', color: 'black', value: '+6' };
+            ['mas 6.png', 'mas 6 dos .png', 'mas 6 3.png'].forEach(img => {
+                deck.push({ ...d6, id: id++, image: img }); deck.push({ ...d6, id: id++, image: img });
             });
-            
-            return shuffleDeck(fullDeck);
+
+            const d10 = { type: 'wild-draw10', color: 'black', value: '+10' };
+            ['mas10.png', 'mas10 dos.png', 'mas10  tres.png'].forEach(img => {
+                deck.push({ ...d10, id: id++, image: img }); deck.push({ ...d10, id: id++, image: img });
+            });
+
+            const rev4 = { type: 'wild-reverse-draw4', color: 'black', value: 'R+4' };
+            ['reversa mas4 uno.png', 'reversa mas4 dos.png', 'reversa mas4  tres.png', 'reversa mas4 - cuatro.png'].forEach(img => {
+                deck.push({ ...rev4, id: id++, image: img }); deck.push({ ...rev4, id: id++, image: img });
+            });
+
+            const roulette = { type: 'wild-color-roulette', color: 'black', value: 'C' };
+            ['sad face.png', 'sad face dos.png', 'sad face 3.png', 'sad face cuatro.png'].forEach(img => {
+                deck.push({ ...roulette, id: id++, image: img }); deck.push({ ...roulette, id: id++, image: img });
+            });
+
+            return deck;
         }
 
         function shuffleDeck(deck) {
@@ -781,599 +574,343 @@
             }
             return deck;
         }
-        
-        // --- Acciones del Juego (Funciones de Firebase) ---
 
-        // Iniciar Juego
+        // LÓGICA DE JUEGO
         startGameBtn.addEventListener('click', async () => {
             if (currentGameData.creatorUid !== currentUser.uid) return;
+            const deck1 = createSingleDeck(); const deck2 = createSingleDeck();
+            let fullDeck = shuffleDeck([...deck1, ...deck2]);
+            fullDeck.forEach((c, i) => c.id = i);
+
+            let data = { ...currentGameData, status: 'playing', gamePhase: 'playing', deck: fullDeck };
+            data.players.forEach(p => { p.hand = data.deck.splice(0, 7); p.cardCount = 7; p.isSafe = false; p.status = 'playing'; });
             
-            let data = { ...currentGameData };
-            data.status = 'playing';
-            data.gamePhase = 'playing';
-            data.deck = buildDeck();
+            let firstIndex = data.deck.findIndex(c => c.type === 'number');
+            if (firstIndex === -1) firstIndex = 0;
+            data.discardPile = [data.deck.splice(firstIndex, 1)[0]];
             
-            // Repartir 7 cartas
-            data.players.forEach(player => {
-                player.hand = data.deck.splice(0, 7);
-                player.cardCount = 7;
-                player.isSafe = false;
-                player.status = 'playing'; // *** RESETEAR ESTADO AL REINICIAR ***
-            });
-            
-            // Sacar primera carta (asegurarse que sea un número)
-            let firstCardIndex = data.deck.findIndex(card => card.type === 'number' && card.value !== '0');
-            if (firstCardIndex === -1) { 
-                 firstCardIndex = data.deck.findIndex(card => card.color !== 'black');
-                 if (firstCardIndex === -1) firstCardIndex = 0; // Si falla todo
-            }
-            let firstCard = data.deck.splice(firstCardIndex, 1)[0];
-            
-            data.discardPile = [firstCard];
-            data.lastColorCalled = null;
-            data.drawStack = 0; // Limpiar stack
-            data.playDirection = 1; // Resetear dirección
-            data.currentPlayerIndex = 0;
+            data.lastColorCalled = null; data.drawStack = 0; data.playDirection = 1; data.currentPlayerIndex = 0;
             data.message = `Turno de ${data.players[0].name}.`;
-            
             await setDoc(gameRef, data);
         });
 
-        // Click en una carta de mi mano
         async function onCardClick(card) {
-            if (!isMyTurn() || !amIActive()) { // No jugar si no es mi turno O si perdí
-                console.log("No es tu turno o has perdido.");
-                return;
-            }
+            if (!isMyTurn() || !amIActive()) return;
+            if (!isCardPlayable(card)) { messageEl.textContent = "Carta inválida."; return; }
             
-            if (!isCardPlayable(card)) {
-                console.log("Carta no jugable:", card);
-                messageEl.textContent = "No puedes jugar esa carta.";
-                return;
-            }
-            
-            // Si es un comodín (negro), pedir color primero
             if (card.color === 'black') {
                 pendingWildCard = card;
                 colorPickerModal.classList.remove('hidden');
             } else {
-                // Jugar carta normal (de color)
                 await playCard(card, card.color);
             }
         }
-        
-        // Click en el mazo para robar
+
+        // Listener del Mazo (Lógica de Robo y Sad Face corregida)
         deckPile.addEventListener('click', async () => {
-            if (!isMyTurn() || !amIActive()) return; // No robar si no es mi turno O si perdí
-            
+            if (!isMyTurn() || !amIActive()) return;
             let data = { ...currentGameData };
             let player = data.players[data.currentPlayerIndex];
-            
-            // --- INICIO MODIFICACIÓN: Lógica de "Sad Face" (Ruleta) ---
-            // Esta fase ahora se maneja aquí, robando carta por carta.
+
+            // 1. Sad Face / Ruleta
             if (data.gamePhase === 'roulette-draw') {
                 const colorToFind = data.lastColorCalled;
-
-                // 1. Manejar mazo vacío y re-barajar
-                if (data.deck.length === 0) {
-                    const lastCard = data.discardPile.pop();
-                    const newDeck = shuffleDeck(data.discardPile);
-                    data.deck = [...data.deck, ...newDeck];
-                    data.discardPile = [lastCard];
-                    if (data.deck.length === 0) {
-                        console.log("No hay más cartas para robar.");
-                        // Si no hay cartas, el castigo no se puede cumplir
-                        data.gamePhase = 'playing';
-                        data.lastColorCalled = null;
-                        data.message = `¡${player.name} no pudo robar más! Turno terminado.`;
-                        advanceTurn(data);
-                        await updateDoc(gameRef, data);
-                        return;
-                    }
+                if (data.deck.length === 0) refillDeck(data);
+                
+                if (data.deck.length === 0) { // Si aún no hay cartas
+                    data.gamePhase = 'playing';
+                    data.message = "¡Mazo vacío! Fin del castigo.";
+                    advanceTurn(data);
+                    await updateDoc(gameRef, data); return;
                 }
 
-                // 2. Robar una carta
-                let drawnCard = data.deck.pop();
-                player.hand.push(drawnCard);
-                player.cardCount = player.hand.length;
-                player.isSafe = false;
+                let drawn = data.deck.pop();
+                player.hand.push(drawn); player.cardCount++; player.isSafe = false;
 
-                // 3. Comprobar si perdió
                 if (player.cardCount > 25) {
                     player.status = 'lost';
-                    data.message = `¡${player.name} HA PERDIDO! (Tiene ${player.cardCount} cartas).`;
-                    data.gamePhase = 'playing'; // Salir de la fase
-                    data.lastColorCalled = null;
-                    if (checkEndGame(data)) {
-                        // checkEndGame actualiza el estado y mensaje
-                    } else {
-                        advanceTurn(data); // Avanzar turno si pierde
-                    }
-                } 
-                // 4. Comprobar si encontró la carta
-                else if (drawnCard.color === colorToFind) {
+                    data.message = `¡${player.name} PERDIÓ (>25 cartas)!`;
                     data.gamePhase = 'playing';
-                    // data.lastColorCalled = null; // <-- ¡ERROR CORREGIDO! No reseteamos el color.
-                    // El color ("verde" en el ejemplo) DEBE persistir
-                    // para el siguiente jugador (Pedro).
-                    data.message = `${player.name} encontró la carta ${colorToFind}. ¡Turno terminado!`;
-                    advanceTurn(data); // ¡Turno termina!
-                } 
-                // 5. No la encontró, sigue robando
-                else {
-                    data.message = `${player.name} robó 1. Sigue buscando ${colorToFind}.`;
-                    // No se avanza el turno
+                    // IMPORTANTE: NO borramos data.lastColorCalled para que el siguiente sepa el color
+                    if (!checkEndGame(data)) advanceTurn(data);
+                } else if (drawn.color === colorToFind) {
+                    data.gamePhase = 'playing';
+                    data.message = `${player.name} encontró ${colorToFind}.`;
+                    advanceTurn(data);
+                } else {
+                    const vIdx = getNextPlayerIndex(data, true); // Obtener índice del jugador que está buscando
+                    const vName = data.players[vIdx].name;
+                    data.message = `${vName} busca ${colorToFind}...`;
                 }
-                
-                await updateDoc(gameRef, data);
-                return; // Termina el click handler aquí
+                await updateDoc(gameRef, data); return;
             }
-            // --- FIN MODIFICACIÓN ---
 
+            // 2. Robo Normal o Robo por Repite
             let newCards = [];
-
-            // 1. Manejar fase "Repite" (que usa un botón, no el mazo)
+            // Si estamos en 'repeat-play', robamos 1 del mazo
             if (data.gamePhase === 'repeat-play') {
-                messageEl.textContent = 'Debes usar el botón "ROBAR POR REPITE"';
-                return;
+                 if (data.deck.length === 0) refillDeck(data);
+                 if (data.deck.length > 0) {
+                     let c = data.deck.pop();
+                     player.hand.push(c); player.cardCount++;
+                     // Si la carta sirve (es del color del repite o es otro repite), el jugador puede jugarla
+                     // Si no, pasa el turno.
+                     if (c.color === data.mustPlayColor || c.type === 'repeat') {
+                         data.message = `Robó 1. Puede jugarla si es ${data.mustPlayColor}.`;
+                     } else {
+                         data.gamePhase = 'playing'; // Se acaba la fase repite
+                         data.mustPlayColor = null;
+                         data.message = `Robó carta equivocada. Pasa turno.`;
+                         advanceTurn(data);
+                     }
+                 }
             } else if (data.drawStack > 0) {
-            // 2. Comprobar si hay un stack de robo
-                newCards = data.deck.splice(0, data.drawStack);
-                data.message = `${player.name} roba ${data.drawStack} cartas.`;
-                data.drawStack = 0;
-                data.stackType = null;
-                // El jugador robó, ahora pasa el turno
+                // Robo acumulado
+                let amount = Math.min(data.drawStack, data.deck.length);
+                if (amount < data.drawStack) { refillDeck(data); amount += Math.min(data.drawStack - amount, data.deck.length); }
+                
+                newCards = data.deck.splice(0, amount);
+                player.hand.push(...newCards); player.cardCount += newCards.length;
+                data.drawStack = 0; data.stackType = null;
+                data.message = `${player.name} comió ${newCards.length} cartas.`;
                 advanceTurn(data);
-
             } else {
-            // 3. Robo normal
-                newCards = data.deck.splice(0, 1);
-                data.message = `${player.name} roba 1 carta. Sigue su turno.`; // Mensaje actualizado
-                // El jugador robó, NO PASA EL TURNO.
-            }
-            
-            // 4. Manejar mazo vacío
-            if (data.deck.length < (data.drawStack || 1)) {
-                if (data.deck.length < (newCards.length === 0 ? 1 : data.drawStack - newCards.length)) {
-                    const lastCard = data.discardPile.pop();
-                    const newDeck = shuffleDeck(data.discardPile);
-                    data.deck = [...data.deck, ...newDeck];
-                    data.discardPile = [lastCard];
-                    console.log("Mazo re-barajado.");
-                }
-                // Intentar robar de nuevo si es necesario
-                if (data.drawStack > 0 && newCards.length < data.drawStack) {
-                    const needed = data.drawStack - newCards.length;
-                    newCards.push(...data.deck.splice(0, needed));
-                } else if (newCards.length === 0 && data.drawStack === 0) {
-                    // Si el robo normal falló por mazo vacío
-                    if (data.deck.length > 0) {
-                        newCards.push(...data.deck.splice(0, 1));
-                    } else {
-                        console.log("No hay cartas en el mazo ni en el descarte.");
-                        data.message = `${player.name} intentó robar, ¡pero no hay cartas!`;
-                        // No se puede hacer nada más, el turno no avanza
-                    }
+                // Robo simple
+                if (data.deck.length === 0) refillDeck(data);
+                if (data.deck.length > 0) {
+                    newCards = data.deck.splice(0, 1);
+                    player.hand.push(...newCards); player.cardCount++;
+                    data.message = `${player.name} robó 1 carta.`;
+                    // En UNO oficial, si robas y es jugable la juegas, si no pasa turno.
+                    // Aquí simplificamos: Robas y sigues jugando (puedes tirar la que robaste u otra).
                 }
             }
-            
-            // 5. Actualizar mano del jugador (solo si se robaron cartas)
-            if (newCards.length > 0) {
-                player.hand.push(...newCards);
-                player.cardCount = player.hand.length;
-                player.isSafe = false; // Ya no está a salvo
-            }
-            
-            // 6. *** MODIFICADO: Verificar si perdió ***
+
             if (player.cardCount > 25) {
                 player.status = 'lost';
-                data.message = `¡${player.name} HA PERDIDO! (Tiene ${player.cardCount} cartas).`;
-                // Comprobar si el juego termina
-                if (checkEndGame(data)) {
-                    // data.status y data.message ya fueron actualizados por checkEndGame
-                }
+                data.message = `¡${player.name} PERDIÓ!`;
+                if (!checkEndGame(data) && data.gamePhase !== 'repeat-play') advanceTurn(data); // Si perdió en repeat, checkEndGame manejará o el if de arriba
             }
-            
+
             await updateDoc(gameRef, data);
         });
 
-        // Botón "¡UNO!"
         sayUnoBtn.addEventListener('click', async () => {
-             if (currentGameData.status !== 'playing') return;
+             if (currentGameData?.status !== 'playing') return;
              let data = { ...currentGameData };
              let me = data.players.find(p => p.uid === currentUser.uid);
-             if (me && me.cardCount === 1) {
-                 me.isSafe = true;
-                 await updateDoc(gameRef, { players: data.players });
-             }
+             if (me && me.cardCount === 1) { me.isSafe = true; await updateDoc(gameRef, { players: data.players }); }
         });
 
-        // *** MODIFICACIÓN: El botón 'drawRouletteBtn' y su listener han sido eliminados ***
-        // La lógica ahora está en deckPile.addEventListener('click', ...)
-
-        // NUEVO: Botón "Robar por Repite"
-        drawRepeatBtn.addEventListener('click', async () => {
-            if (!isMyTurn() || currentGameData.gamePhase !== 'repeat-play' || !amIActive()) return;
-            
-            let data = { ...currentGameData };
-            let player = data.players[data.currentPlayerIndex];
-            const colorToFind = data.mustPlayColor;
-            let newCards = [];
-            let foundCard = false;
-            
-            do {
-                if (data.deck.length === 0) {
-                    const lastCard = data.discardPile.pop();
-                    data.deck = shuffleDeck(data.discardPile);
-                    data.discardPile = [lastCard];
-                    if (data.deck.length === 0) {
-                        console.log("No hay más cartas para robar.");
-                        break;
-                    }
-                }
-                
-                let drawnCard = data.deck.pop();
-                newCards.push(drawnCard);
-                
-                if (drawnCard.color === colorToFind) {
-                    foundCard = true;
-                }
-
-            } while (!foundCard && newCards.length < 50); // Límite de seguridad
-            
-            player.hand.push(...newCards);
-            player.cardCount = player.hand.length;
-            player.isSafe = false;
-            
-            data.gamePhase = 'playing'; // Volver a la fase normal
-            data.mustPlayColor = null;
-            
-            data.message = `${player.name} robó ${newCards.length} cartas hasta encontrar ${colorToFind}.`;
-            
-            // *** MODIFICADO: Verificar si perdió ***
-            if (player.cardCount > 25) {
-                player.status = 'lost';
-                data.message = `¡${player.name} HA PERDIDO! (Tiene ${player.cardCount} cartas).`;
-                if (checkEndGame(data)) {
-                    // data.status y data.message ya fueron actualizados
-                }
-            }
-            
-            // A diferencia de la Ruleta, esta acción SÍ termina el turno.
-            if (data.status === 'playing') { // Solo avanzar turno si el juego no terminó
-                advanceTurn(data);
-            }
-            
-            await updateDoc(gameRef, data);
-        });
-        
-        // Selección de Color (Modal)
         colorPickerModal.addEventListener('click', async (e) => {
             if (e.target.classList.contains('color-choice-btn')) {
                 const color = e.target.dataset.color;
-                const cardToPlay = pendingWildCard;
-                
-                pendingWildCard = null;
+                const c = pendingWildCard; pendingWildCard = null;
                 colorPickerModal.classList.add('hidden');
-                
-                await playCard(cardToPlay, color);
+                await playCard(c, color);
             }
         });
+
+        // HELPERS
+        function isMyTurn() { return currentGameData?.players[currentGameData.currentPlayerIndex]?.uid === currentUser.uid; }
+        function amIActive() { return currentGameData?.players.find(p => p.uid === currentUser.uid)?.status === 'playing'; }
         
-        // --- Funciones Principales de Lógica del Juego ---
-
-        function isMyTurn() {
-            if (!currentGameData || !currentUser) return false;
-            return currentGameData.players[currentGameData.currentPlayerIndex]?.uid === currentUser.uid;
-        }
-
-        // *** NUEVO: Helper para saber si estoy activo ***
-        function amIActive() {
-            if (!currentGameData || !currentUser) return false;
-            const me = currentGameData.players.find(p => p.uid === currentUser.uid);
-            return me?.status === 'playing';
+        function refillDeck(data) {
+            if (data.discardPile.length > 1) {
+                const top = data.discardPile.pop();
+                data.deck = shuffleDeck(data.discardPile);
+                data.discardPile = [top];
+            }
         }
 
         function isCardPlayable(card) {
             const data = currentGameData;
-            const topCard = data.discardPile[data.discardPile.length - 1];
-            
-            // Caso 0: Fase "Repite"
+            const top = data.discardPile[data.discardPile.length - 1];
+
+            // Fase "Repite"
             if (data.gamePhase === 'repeat-play') {
-                // MODIFICADO: Ahora se puede apilar "Repite" de otro color
-                return card.color === data.mustPlayColor || card.type === 'repeat';
+                // Solo cartas del mismo color O otro Repite (que ya será del mismo color)
+                return card.color === data.mustPlayColor || (card.type === 'repeat' && card.color === data.mustPlayColor);
             }
 
-            // Caso 1: Hay un stack de robo
             if (data.drawStack > 0) {
-                switch (data.stackType) {
-                    case 'draw2/4':
-                        // Ahora +4 es de color, así que también debe coincidir el color O ser un +2
-                        return card.type === 'draw2' || card.type === 'draw4';
-                    case 'draw6/10':
-                        return card.type === 'wild-draw6' || card.type === 'wild-draw10';
-                    case 'draw4Reverse':
-                        return card.type === 'wild-reverse-draw4';
-                    default:
-                        return false;
-                }
+                if (data.stackType === 'draw2/4') return card.type === 'draw2' || card.type === 'draw4';
+                if (data.stackType === 'draw6/10') return card.type === 'wild-draw6' || card.type === 'wild-draw10';
+                if (data.stackType === 'draw4Reverse') return card.type === 'wild-reverse-draw4';
+                return false;
             }
+
+            if (card.color === 'black') return true;
+            if (data.lastColorCalled) return card.color === data.lastColorCalled;
             
-            // Caso 2: No hay stack. Juego normal.
-            if (card.color === 'black') return true; // Comodines negros siempre jugables
-            
-            if (data.lastColorCalled) {
-                // Si la última carta fue un comodín, se juega contra el color elegido
-                return card.color === data.lastColorCalled;
-            } else {
-                // Lógica normal contra la carta superior
-                
-                // --- INICIO DE MODIFICACIÓN (Regla 2) ---
-                // Permitir jugar cartas de "robar" (de color) sobre otras cartas de "robar" (de color)
-                const isTopCardDraw = ['draw2', 'draw4'].includes(topCard.type);
-                const isCardDraw = ['draw2', 'draw4'].includes(card.type);
-                
-                if (isTopCardDraw && isCardDraw) {
-                    return true;
-                }
-                // --- FIN DE MODIFICACIÓN ---
-                
-                return card.color === topCard.color || card.value === topCard.value;
-            }
+            // Regla No Mercy: Apilar cartas de robo de color
+            const isTopDraw = ['draw2', 'draw4'].includes(top.type);
+            const isCardDraw = ['draw2', 'draw4'].includes(card.type);
+            if (isTopDraw && isCardDraw) return true;
+
+            return card.color === top.color || card.value === top.value;
         }
 
         async function playCard(card, chosenColor) {
             let data = { ...currentGameData };
             let player = data.players[data.currentPlayerIndex];
             
-            // 1. Mover carta de la mano al descarte
-            const cardIndex = player.hand.findIndex(c => c.id === card.id);
-            if (cardIndex === -1) {
-                console.error("Error: Carta no encontrada en la mano.");
-                return;
-            }
-            player.hand.splice(cardIndex, 1);
+            // Quitar de mano
+            const idx = player.hand.findIndex(c => c.id === card.id);
+            if (idx === -1) return;
+            player.hand.splice(idx, 1);
             player.cardCount = player.hand.length;
             data.discardPile.push(card);
-            
-            // 2. Resetear estados
+
             data.lastColorCalled = null;
-            // Si estábamos en fase 'repeat', la superamos
+            let turnAdvances = true;
+
+            // Resetear fase Repite si jugamos exitosamente
             if (data.gamePhase === 'repeat-play') {
                 data.gamePhase = 'playing';
                 data.mustPlayColor = null;
+                // Si jugó un número, el turno avanza. 
+                // Si jugó OTRO repite, se procesará abajo.
             }
-            
-            let turnAdvances = true; // Por defecto el turno avanza
 
-            // 3. Aplicar efecto de la carta
             switch (card.type) {
-                // NUEVO: Lógica para Cartas 0 y 7
                 case 'number':
                     if (card.value === '0') {
-                        // ¡Rotar todas las manos! (Incluye a los que perdieron, pero no afecta su estado)
                         const hands = data.players.map(p => p.hand);
                         const counts = data.players.map(p => p.cardCount);
-                        
-                        // Rotar a la derecha (el último va al primero)
-                        const lastHand = hands.pop();
-                        hands.unshift(lastHand);
-                        const lastCount = counts.pop();
-                        counts.unshift(lastCount);
-                        
-                        data.players.forEach((p, index) => {
-                            p.hand = hands[index];
-                            p.cardCount = counts[index];
-                            p.isSafe = false; // Resetear UNO
-                        });
-                        
-                        data.message = "¡CARTA 0! ¡Todas las manos rotan a la derecha!";
+                        const lastH = hands.pop(); hands.unshift(lastH);
+                        const lastC = counts.pop(); counts.unshift(lastC);
+                        data.players.forEach((p, i) => { p.hand = hands[i]; p.cardCount = counts[i]; p.isSafe = false; });
+                        data.message = "¡CARTA 0! Rotación de manos."; // Mensaje para carta 0
                     }
                     if (card.value === '7') {
-                        // ¡Intercambiar mano!
-                        data.gamePhase = 'swap-hand-choice'; // Entrar en modo de elección
-                        data.message = `¡CARTA 7! ${player.name} debe elegir con quién cambiar mano.`;
-                        turnAdvances = false; // El turno no avanza, espera la elección
+                        data.gamePhase = 'swap-hand-choice';
+                        data.message = `${player.name} elige intercambio.`;
+                        turnAdvances = false;
                     }
                     break;
                 case 'reverse':
                     data.playDirection *= -1;
                     data.message = "¡Reversa!";
-                    // Si solo hay 2 jugadores activos, la reversa actúa como un bloqueo
-                    // const activePlayersCount = data.players.filter(p => p.status === 'playing').length;
-                    // if (activePlayersCount === 2) {
-                    //     data.currentPlayerIndex = getNextPlayerIndex(data);
-                    // }
-                    // <-- MODIFICADO: Se elimina el bloque 'if (activePlayersCount === 2)'
-                    // Ahora la reversa con 2 jugadores simplemente pasa el turno.
                     break;
                 case 'skip':
-                    // Se salta al siguiente jugador (se avanza 2 veces)
                     data.currentPlayerIndex = getNextPlayerIndex(data);
                     data.message = "¡Bloqueo!";
                     break;
-                case 'repeat': // NUEVA CARTA // <-- MODIFICADO: Ahora es "Bajar Color"
-                    // Ya no cambia la fase, el jugador no repite turno.
-                    // data.gamePhase = 'repeat-play';
-                    // data.mustPlayColor = card.color;
-                    // data.message = `¡Repite! ${player.name} debe jugar otra carta ${card.color}.`;
-                    // turnAdvances = false; // El jugador NO pasa el turno
-                    
-                    const colorToDrop = card.color;
-                    let cardsDropped = 0;
-                    
-                    // Encontrar todas las cartas del mismo color en la mano (de atrás para adelante para evitar problemas de índice)
+                
+                // CORREGIDO: Repite = Jugar otra vez
+                case 'repeat':
+                    data.gamePhase = 'repeat-play';
+                    data.mustPlayColor = card.color;
+                    data.message = `¡REPITE! ${player.name} juega otra ${card.color}.`;
+                    turnAdvances = false; // El turno NO avanza
+                    break;
+
+                // NUEVO: Bajar Color = Descartar todas las de ese color
+                case 'discard-all':
+                    const cColor = card.color;
+                    let count = 0;
                     for (let i = player.hand.length - 1; i >= 0; i--) {
-                        if (player.hand[i].color === colorToDrop) {
-                            // Mover carta de la mano al descarte
-                            const [droppedCard] = player.hand.splice(i, 1);
-                            data.discardPile.push(droppedCard);
-                            cardsDropped++;
+                        if (player.hand[i].color === cColor) {
+                            data.discardPile.push(player.hand.splice(i, 1)[0]);
+                            count++;
                         }
                     }
-                    
                     player.cardCount = player.hand.length;
-                    
-                    if (cardsDropped > 0) {
-                        data.message = `¡${player.name} baja ${cardsDropped} cartas ${colorToDrop} adicionales!`;
-                    } else {
-                        data.message = `¡${player.name} jugó Bajar Color ${colorToDrop}!`;
-                    }
-                    // El turno avanza normalmente (turnAdvances = true por defecto)
+                    data.message = `¡${player.name} bajó ${count} cartas ${cColor} extras!`; // Mensaje para bajar color
+                    // Turno avanza normal
                     break;
-                // --- Stacks (Reglas del Usuario) ---
-                case 'draw2':
-                    data.stackType = 'draw2/4';
-                    data.drawStack += 2;
+
+                case 'draw2': data.stackType = 'draw2/4'; data.drawStack += 2; break;
+                case 'draw4': data.stackType = 'draw2/4'; data.drawStack += 4; break;
+                case 'wild-draw6': data.stackType = 'draw6/10'; data.drawStack += 6; data.lastColorCalled = chosenColor; break;
+                case 'wild-draw10': data.stackType = 'draw6/10'; data.drawStack += 10; data.lastColorCalled = chosenColor; break;
+                case 'wild-reverse-draw4': 
+                    data.stackType = 'draw4Reverse'; data.drawStack += 4; 
+                    data.playDirection *= -1; data.lastColorCalled = chosenColor; 
                     break;
-                case 'draw4': // NUEVA CARTA (de color)
-                    data.stackType = 'draw2/4';
-                    data.drawStack += 4;
-                    break;
-                case 'wild-draw6':
-                    data.stackType = 'draw6/10';
-                    data.drawStack += 6;
+                // CORREGIDO: Nombrar explícitamente a la víctima
+                case 'wild-color-roulette':
+                    data.gamePhase = 'roulette-draw';
                     data.lastColorCalled = chosenColor;
+                    // El turno avanza al siguiente.
+                    const nextPlayerIndex = getNextPlayerIndex(data);
+                    const vName = data.players[nextPlayerIndex].name;
+                    data.message = `¡Sad Face! ${vName} debe buscar ${chosenColor}.`;
+                    data.currentPlayerIndex = nextPlayerIndex; // Asigna el castigo al siguiente
+                    turnAdvances = false; // El turno ya fue avanzado manualmente
                     break;
-                case 'wild-draw10':
-                    data.stackType = 'draw6/10';
-                    data.drawStack += 10;
-                    data.lastColorCalled = chosenColor;
-                    break;
-                case 'wild-reverse-draw4':
-                    data.stackType = 'draw4Reverse';
-                    data.drawStack += 4;
-                    data.playDirection *= -1;
-                    data.lastColorCalled = chosenColor;
-                    break;
-                // --- Cartas Especiales ---
-                case 'wild-color-roulette': // "Carita"
-                    data.gamePhase = 'roulette-draw'; // Fase especial
-                    data.lastColorCalled = chosenColor;
-                    // *** MODIFICACIÓN: Mensaje actualizado ***
-                    data.message = `¡Castigo Sad Face! El siguiente debe robar CARTA POR CARTA hasta encontrar ${chosenColor}.`;
-                    break;
-            }
-            
-            // 4. Verificar si ganó
-            if (player.cardCount === 0) {
-                data.status = 'finished';
-                data.message = `¡${player.name} GANA EL JUEGO!`;
-                await updateDoc(gameRef, data);
-                return;
             }
 
-            // 5. Resetear "Safe" de UNO
-            if (player.cardCount > 1) {
-                player.isSafe = false;
+            // Notificación de chat
+            const cardName = card.type === 'number' ? card.value : (card.type === 'wild-color-roulette' ? 'Sad Face' : (card.type === 'discard-all' ? 'Bajar Color' : card.type));
+            const colorText = card.color !== 'black' ? card.color : chosenColor;
+            const chatMsgText = `${player.name} jugó ${cardName}${colorText ? ` (${colorText})` : ''}.`;
+            await updateDoc(gameRef, { chatMessages: arrayUnion({ senderName: 'Sistema', senderUid: 'system', text: chatMsgText, timestamp: new Date() }) });
+
+            if (player.cardCount === 0) {
+                data.status = 'finished';
+                data.message = `¡${player.name} GANÓ!`;
+            } else {
+                if (player.cardCount > 1) player.isSafe = false;
+                if (turnAdvances) advanceTurn(data);
             }
-            
-            // 6. Avanzar turno (si aplica)
-            if (turnAdvances) {
-                advanceTurn(data);
-            }
-            
-            // 7. Comprobar si el juego termina (por si esta jugada hizo perder a otros y solo queda 1)
-            // (Aunque en este caso, nadie pierde por jugar carta, solo al robar)
-            // checkEndGame(data); // No es necesario aquí, solo al robar
-            
-            // 8. Actualizar Firebase
             await updateDoc(gameRef, data);
         }
 
-        // --- Helpers de Lógica de Turno ---
-        
-        // *** MODIFICADO: Ahora salta a jugadores que perdieron ***
-        function getNextPlayerIndex(data) {
-            let index = data.currentPlayerIndex;
-            const playerCount = data.players.length;
-            let attempts = 0; // Evitar bucle infinito
-            
-            const activePlayersCount = data.players.filter(p => p.status === 'playing').length;
-            if (activePlayersCount <= 1) {
-                return index; // No mover si solo queda 1 o 0 jugadores
-            }
-            
-            do {
-                index = (index + data.playDirection + playerCount) % playerCount;
-                attempts++;
-            } while (data.players[index].status === 'lost' && attempts < (playerCount * 2)); // Doble de intentos por si acaso
-            
-            return index;
-        }
+        function getNextPlayerIndex(data, ignoreLost = true) {
+            let idx = data.currentPlayerIndex;
+            const len = data.players.length;
+            let attempts = 0;
+            const activeCount = data.players.filter(p => p.status === 'playing').length;
+            if (activeCount <= 1 && ignoreLost) return idx;
 
-        // *** NUEVO: Helper para comprobar fin del juego ***
-        function checkEndGame(data) {
-            const activePlayers = data.players.filter(p => p.status === 'playing');
-            
-            if (activePlayers.length === 1) {
-                data.status = 'finished';
-                data.message = `¡${activePlayers[0].name} GANA! ¡Es el último en pie!`;
-                return true; // El juego terminó
-            } else if (activePlayers.length === 0) {
-                 data.status = 'finished';
-                 data.message = `¡Juego terminado! No quedan jugadores.`;
-                 return true; // El juego terminó
-            }
-            return false; // El juego continúa
+            do {
+                idx = (idx + data.playDirection + len) % len;
+                attempts++;
+            } while (data.players[idx].status === 'lost' && attempts < len * 2);
+            return idx;
         }
 
         function advanceTurn(data) {
             data.currentPlayerIndex = getNextPlayerIndex(data);
-            const nextPlayer = data.players[data.currentPlayerIndex];
-            
-            if (nextPlayer.status === 'lost') {
-                 // Esto no debería pasar si getNextPlayerIndex funciona, pero por si acaso
-                 console.log("Error de turno, saltando a jugador perdido.");
-                 advanceTurn(data); // Intentar de nuevo
-                 return;
-            }
-            
-            // Solo cambiar el mensaje si el juego no ha entrado en una fase especial
-            if (data.gamePhase === 'playing') {
-                data.message = `Turno de ${nextPlayer.name}.`;
-            }
+            const nextP = data.players[data.currentPlayerIndex];
+            if (data.gamePhase === 'playing') data.message = `Turno de ${nextP.name}.`;
         }
 
-        // NUEVO: Función para ejecutar el intercambio de manos de la Carta 7
-        async function performHandSwap(targetPlayerUid) {
-            let data = { ...currentGameData };
-            const currentPlayer = data.players[data.currentPlayerIndex];
-            const targetPlayer = data.players.find(p => p.uid === targetPlayerUid);
-
-            if (!currentPlayer || !targetPlayer || targetPlayer.status === 'lost') {
-                console.error("Error al intercambiar manos: Jugador no válido o perdido.");
-                swapHandModal.classList.add('hidden');
-                // Devolver el turno al jugador para que intente de nuevo o robe
-                data.gamePhase = 'playing'; // Salir de la fase de intercambio
-                await updateDoc(gameRef, data);
-                return;
+        function checkEndGame(data) {
+            const active = data.players.filter(p => p.status === 'playing');
+            if (active.length <= 1) {
+                data.status = 'finished';
+                data.message = active.length === 1 ? `¡${active[0].name} GANÓ (Único sobreviviente)!` : "¡Todos perdieron!";
+                return true;
             }
-            
+            return false;
+        }
+
+        window.performHandSwap = async (targetUid) => {
+            let data = { ...currentGameData };
+            const curr = data.players[data.currentPlayerIndex];
+            const target = data.players.find(p => p.uid === targetUid);
+            if (!curr || !target) return;
+
             // Ocultar modal
             swapHandModal.classList.add('hidden');
 
-            // Intercambiar manos y conteos
-            const tempHand = currentPlayer.hand;
-            const tempCount = currentPlayer.cardCount;
-            
-            currentPlayer.hand = targetPlayer.hand;
-            currentPlayer.cardCount = targetPlayer.cardCount;
-            currentPlayer.isSafe = false; // Resetear UNO
-            
-            targetPlayer.hand = tempHand;
-            targetPlayer.cardCount = tempCount;
-            targetPlayer.isSafe = false; // Resetear UNO
+            const tempH = curr.hand; const tempC = curr.cardCount;
+            curr.hand = target.hand; curr.cardCount = target.cardCount; curr.isSafe = false;
+            target.hand = tempH; target.cardCount = tempC; target.isSafe = false;
 
-            // Resetear fase y avanzar turno
             data.gamePhase = 'playing';
-            data.message = `¡${currentPlayer.name} intercambió manos con ${targetPlayer.name}!`;
-            
-            advanceTurn(data); // El turno ahora sí avanza
-            
+            data.message = `¡${curr.name} intercambió manos con ${target.name}!`;
+
+            // Notificación de chat
+            const chatMsgText = `${curr.name} activó la Carta 7 e intercambió manos con ${target.name}.`;
+            await updateDoc(gameRef, { chatMessages: arrayUnion({ senderName: 'Sistema', senderUid: 'system', text: chatMsgText, timestamp: new Date() }) });
+
+            advanceTurn(data);
             await updateDoc(gameRef, data);
         }
-
     </script>
 </body>
 </html>
