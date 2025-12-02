@@ -68,7 +68,7 @@
                         {renderView()}
                     </div>
                     <footer className="mt-8 text-gray-400 text-sm text-center">
-                        Sistema de Guía Interactiva v2.0
+                        Sistema de Guía Interactiva v2.1
                     </footer>
                 </div>
             );
@@ -219,35 +219,51 @@
             );
         };
 
-        // --- Replacement Guide ---
+        // --- Replacement Guide (RESTAURADO CON TEXTOS COMPLETOS) ---
         const ReplacementGuide = ({ onBack }) => {
             const [step, setStep] = useState('START');
             const content = {
-                START: { title: "Verificación de Respaldo", desc: "Iniciaremos verificando si hay copias de seguridad.", question: "¿El cliente cuenta con respaldos?", yesAction: () => setStep('VERIFY_DATE'), noAction: () => setStep('CHECK_SLAVE'), type: 'question' },
-                VERIFY_DATE: { title: "Verificación de Fecha", desc: "Revise fecha del respaldo.", question: "¿El cliente está de acuerdo con la fecha?", yesAction: () => setStep('SELECT_OS'), noAction: () => setStep('CHECK_SLAVE'), yesText: "Sí", noText: "No", type: 'question' },
-                SELECT_OS: { title: "Selección de OS", desc: "Seleccione el sistema operativo.", customButtons: [{label:"Windows", action:()=>setStep('TOOLS_WINDOWS_MENU'), icon:"🪟"}, {label:"Mac/Linux", action:()=>setStep('TOOLS_MAC_MENU'), icon:"🍎/🐧"}], type: 'selection' },
-                TOOLS_WINDOWS_MENU: { title: "Herramienta (Windows)", desc: "Seleccione herramienta.", customButtons: [{label:"GuiTools", action:()=>setStep('WINDOWS_PREP'), icon:"🛠️"}, {label:"Sicar Tool", action:()=>setStep('TOOLS_WINDOWS_LEGACY'), icon:"📦"}], type: 'selection' },
-                WINDOWS_PREP: { title: "1. Preparación", desc: "Prepare el sistema.", instructions: ["Cambiar extensión .sr a .zip.", "Instalar SICAR en blanco.", "Nombrar carpeta: SICAR-S-LICENCIA."], nextStep: 'WINDOWS_RESTORE', nextText: "Siguiente", type: 'manual_procedure' },
-                WINDOWS_RESTORE: { title: "2. Restauración GuiTools", desc: "Inyectar base de datos.", instructions: ["Descomprimir db.properties.", "Conectar GuiTools.", "Usar Restore.", "Crear BD si no existe e Ignorar errores."], nextStep: 'WINDOWS_POST', nextText: "Siguiente", type: 'manual_procedure' },
-                WINDOWS_POST: { title: "3. Finalización", desc: "Limpieza final.", instructions: ["Borrar archivo de licencia.", "Verificar acceso."], nextStep: 'CHECK_CLOUD', nextText: "Continuar", type: 'manual_procedure' },
-                TOOLS_MAC_MENU: { title: "Herramienta (Mac/Linux)", desc: "Seleccione herramienta.", customButtons: [{label:"DBeaver", action:()=>setStep('MAC_PREP'), icon:"🦫"}, {label:"Sicar Tool", action:()=>setStep('MAC_PREP'), icon:"🧰"}], type: 'selection' },
-                MAC_PREP: { title: "1. Validación (Mac/Linux)", desc: "Preparación entorno.", instructions: ["Validar Single Instance.", "Crear nueva BD si es necesario.", "Cambiar extensión a .zip."], nextStep: 'MAC_RESTORE', nextText: "Siguiente", type: 'manual_procedure' },
-                MAC_RESTORE: { title: "2. Restauración", desc: "Inyección y Fix.", instructions: ["Conectar DBeaver/SicarTool.", "Ejecutar SQL.", "CRÍTICO: Aplicar 'Win to Mac'."], nextStep: 'MAC_POST', nextText: "Siguiente", type: 'manual_procedure' },
-                MAC_POST: { title: "3. Acceso", desc: "Validar inicio.", instructions: ["Iniciar SICAR.", "Verificar credenciales."], nextStep: 'CHECK_CLOUD', nextText: "Continuar", type: 'manual_procedure' },
-                CHECK_CLOUD: { title: "Servicios Nube", desc: "¿Tiene Nube?", question: "¿Cuenta con Nube?", yesAction: () => setStep('CLOUD_PROCEDURE'), noAction: () => setStep('NO_CLOUD_ACTIVATION'), yesText: "Sí", noText: "No", type: 'question' },
-                CLOUD_PROCEDURE: { title: "Validación Nube", desc: "Validar IDs.", instructions: ["Cancelar y clonar licencia.", "Activar licencia en sistema.", "Activar póliza en CRM.", "Asociar nube (CMD).", "Validar IDs con asesor."], nextStep: 'CHECK_TERMINALS_REP', nextText: "Continuar", type: 'manual_procedure' },
-                NO_CLOUD_ACTIVATION: { title: "Activación (Sin Nube)", desc: "Reactivar licencia.", instructions: ["Cancelar y clonar licencia.", "Activar en sistema."], nextStep: 'CHECK_TERMINALS_REP', nextText: "Continuar", type: 'manual_procedure' },
-                CHECK_TERMINALS_REP: { title: "Terminales", desc: "¿Hay terminales?", question: "¿Tiene terminales?", yesAction: () => setStep('TERMINALS_REP_PROCEDURE'), noAction: () => setStep('FINISH_REPLACEMENT'), yesText: "Sí", noText: "No", type: 'question' },
-                TERMINALS_REP_PROCEDURE: { title: "Reconexión", desc: "Red.", instructions: ["Redireccionar IP.", "Error F4: Reactivar terminal."], nextStep: 'FINISH_REPLACEMENT', nextText: "Finalizar", type: 'manual_procedure' },
-                FINISH_REPLACEMENT: { title: "Cierre", desc: "Configuraciones finales.", instructions: ["Respaldos (Local/Drive) 30min antes cierre.", "Impresoras y Periféricos.", "Series Facturación."], final: true, finalType: 'success' },
-                TOOLS_WINDOWS_LEGACY: { title: "Windows Básico", desc: "Herramienta alternativa.", instructions: ["Sicar Tool"], final: true, finalType: 'info' },
-                CHECK_SLAVE: { title: "Disco Esclavo", desc: "¿Acceso físico?", question: "¿Puede conectar disco como esclavo?", yesAction: () => setStep('SLAVE_OPTIONS'), noAction: () => setStep('CHECK_CLOUD_SCRATCH'), type: 'question' },
-                SLAVE_OPTIONS: { title: "Método Esclavo", desc: "Seleccione tipo.", customButtons: [{label:"Buscar Archivos", action:()=>setStep('SLAVE_SEARCH_BACKUPS'), icon:"🔍"}, {label:"Técnica ibdata", action:()=>setStep('SLAVE_IBDATA_TUTORIAL'), icon:"🔧"}], type: 'selection' },
-                SLAVE_SEARCH_BACKUPS: { title: "Buscar Archivos", desc: "Carpetas usuario.", instructions: ["Buscar .sr/.zip en Documentos/Escritorio."], nextStep: 'SELECT_OS', nextText: "Ir a Herramientas", type: 'manual_procedure' },
-                SLAVE_IBDATA_TUTORIAL: { title: "Tutorial ibdata", desc: "Extracción cruda.", instructions: ["Instalar SICAR limpio (Temp).", "Detener MySQL.", "Reemplazar carpeta 'data' con la del esclavo.", "Iniciar MySQL.", "Sacar respaldo con herramienta.", "Instalar SICAR final y restaurar."], nextStep: 'CHECK_CLOUD', nextText: "Continuar", type: 'manual_procedure' },
-                CHECK_CLOUD_SCRATCH: { title: "Instalación Cero", desc: "Sin respaldo.", question: "¿Tiene Nube?", yesAction: () => setStep('CLOUD_RESTORE'), noAction: () => setStep('TOTAL_RESET'), type: 'question' },
-                CLOUD_RESTORE: { title: "Vía Nube", desc: "Solo artículos.", instructions: ["Instalación limpia.", "Nube descarga artículos.", "Se pierde historial."], nextStep: 'FINISH_REPLACEMENT', nextText: "Finalizar", type: 'manual_procedure' },
-                TOTAL_RESET: { title: "Cero Total", desc: "Sin nada.", instructions: ["Instalación limpia.", "Capturar todo de nuevo."], nextStep: 'FINISH_REPLACEMENT', nextText: "Finalizar", type: 'manual_procedure' }
+                START: { 
+                    title: "Verificación de Respaldo del Cliente", 
+                    desc: "Iniciaremos verificando si el cliente posee copias de seguridad válidas.", 
+                    question: "¿El cliente cuenta con respaldos?", 
+                    yesAction: () => setStep('VERIFY_DATE'), 
+                    noAction: () => setStep('CHECK_SLAVE'), 
+                    type: 'question' 
+                },
+                VERIFY_DATE: { 
+                    title: "Verificación de Fecha", 
+                    desc: "Es crucial asegurar que la información sea reciente y útil para el cliente.", 
+                    question: "Revise la fecha del respaldo y notifique al cliente. ¿El cliente está de acuerdo con la fecha del respaldo?", 
+                    yesAction: () => setStep('SELECT_OS'), 
+                    noAction: () => setStep('CHECK_SLAVE'), 
+                    yesText: "Sí, proceder", 
+                    noText: "No, buscar otra opción", 
+                    type: 'question' 
+                },
+                SELECT_OS: { title: "Selección de Sistema Operativo", desc: "Seleccione el sistema operativo donde se realizará la restauración.", customButtons: [{label:"Windows", action:()=>setStep('TOOLS_WINDOWS_MENU'), icon:"🪟"}, {label:"Mac / Linux", action:()=>setStep('TOOLS_MAC_MENU'), icon:"🍎/🐧"}], type: 'selection' },
+                TOOLS_WINDOWS_MENU: { title: "Herramienta de Restauración (Windows)", desc: "Seleccione la herramienta que utilizará para el proceso.", customButtons: [{label:"GuiTools (Recomendado)", action:()=>setStep('WINDOWS_PREP'), icon:"🛠️"}, {label:"Sicar Tool", action:()=>setStep('TOOLS_WINDOWS_LEGACY'), icon:"📦"}], type: 'selection' },
+                WINDOWS_PREP: { title: "1. Preparación e Instalación", desc: "Prepare el respaldo y el sistema base antes de intentar restaurar.", instructions: ["Cambiar extensión del respaldo de .sr a .zip y descomprimir.", "Instalar SICAR en blanco.", "IMPORTANTE: Al instalar, nombrar la carpeta como servidor: SICAR-S-LICENCIA (ej. SICAR-S-ED849)."], nextStep: 'WINDOWS_RESTORE', nextText: "Siguiente: Restauración", type: 'manual_procedure' },
+                WINDOWS_RESTORE: { title: "2. Restauración con GuiTools", desc: "Ejecute GuiTools para inyectar la base de datos.", instructions: ["Descomprimir archivo 'db.properties' para obtener credenciales de conexión.", "Abrir GuiTools y conectar a la base de datos.", "Usar función 'Restore'.", "Seleccionar el archivo SQL descomprimido.", "Marcar casillas: 'Crear base de datos si no existe' e 'Ignorar errores'.", "Proceder con la restauración."], nextStep: 'WINDOWS_POST', nextText: "Siguiente: Finalización", type: 'manual_procedure' },
+                WINDOWS_POST: { title: "3. Finalización de Restauración", desc: "Limpieza final para permitir el acceso al sistema.", instructions: ["Borrar el archivo de licencia o registros antiguos.", "Abrir el sistema SICAR para verificar acceso."], nextStep: 'CHECK_CLOUD', nextText: "Continuar a Verificación Nube", type: 'manual_procedure' },
+                TOOLS_MAC_MENU: { title: "Herramienta de Restauración (Mac/Linux)", desc: "Seleccione la herramienta de gestión de base de datos.", customButtons: [{label:"DBeaver (Recomendado)", action:()=>setStep('MAC_PREP'), icon:"🦫"}, {label:"Sicar Tool", action:()=>setStep('MAC_PREP'), icon:"🧰"}], type: 'selection' },
+                MAC_PREP: { title: "1. Validación de Entorno (Mac/Linux)", desc: "Preparación del entorno MySQL y el archivo de respaldo.", instructions: ["Validar instancias: Asegurar que NO exista otro servidor ejecutándose (Single Instance).", "Si ya existe un servidor instalado: Crear una nueva base de datos (ej. 'sicar1', 'sicar2').", "Cambiar extensión del respaldo de .sr a .zip y descomprimir para obtener el SQL."], nextStep: 'MAC_RESTORE', nextText: "Siguiente: Restauración y Fix", type: 'manual_procedure' },
+                MAC_RESTORE: { title: "2. Restauración y Win to Mac", desc: "Proceso de inyección de datos y corrección de compatibilidad.", instructions: ["Abrir DBeaver o SicarTool y conectar a la instancia local.", "Ejecutar el script SQL del respaldo en la base de datos destino.", "CRÍTICO: Aplicar proceso 'Win to Mac'.", "Explicación: Esto renombra las tablas para que sean legibles en sistemas Case Sensitive (Linux/Mac).", "Sin este paso, el sistema marcará errores de tablas inexistentes."], nextStep: 'MAC_POST', nextText: "Siguiente: Finalización", type: 'manual_procedure' },
+                MAC_POST: { title: "3. Verificación de Acceso", desc: "Validar que el sistema inicie correctamente con los datos restaurados.", instructions: ["Iniciar SICAR apuntando a la base de datos correcta (sicar, sicar1, etc).", "Verificar acceso con credenciales del cliente."], nextStep: 'CHECK_CLOUD', nextText: "Continuar a Verificación Nube", type: 'manual_procedure' },
+                CHECK_CLOUD: { title: "Verificación de Servicios Nube", desc: "Validación de conectividad con servicios online.", question: "¿El cliente cuenta con servicio de Nube?", yesAction: () => setStep('CLOUD_PROCEDURE'), noAction: () => setStep('NO_CLOUD_ACTIVATION'), yesText: "Sí, tiene nube", noText: "No", type: 'question' },
+                CLOUD_PROCEDURE: { title: "Protocolo de Validación de Nube", desc: "Es necesario validar los IDs para evitar conflictos.", instructions: ["Cancelar y clonar la licencia actual.", "Activar la licencia en el sistema.", "En Administrador (CRM): Activar la póliza de la licencia.", "Abrir SICAR mediante CMD (Símbolo del sistema).", "Asociar la nube desde el sistema.", "Copiar los IDs de nube generados.", "Enviar a asesor de Nube: IDs + Cuenta de Nube + Nombre de Sucursal.", "SI ASESOR CONFIRMA: Dejar asociada.", "SI ASESOR RECHAZA: Borrar nube y activar como nueva sucursal."], nextStep: 'CHECK_TERMINALS_REP', nextText: "Continuar a Terminales", type: 'manual_procedure' },
+                NO_CLOUD_ACTIVATION: { title: "Activación de Licencia (Sin Nube)", desc: "Procedimiento para reactivar la licencia en el nuevo equipo.", instructions: ["Cancelar la licencia anterior y clonarla.", "Activar la licencia en el sistema."], nextStep: 'CHECK_TERMINALS_REP', nextText: "Continuar a Terminales", type: 'manual_procedure' },
+                CHECK_TERMINALS_REP: { title: "Verificación de Terminales", desc: "¿Existen equipos adicionales conectados?", question: "¿El sistema cuenta con terminales?", yesAction: () => setStep('TERMINALS_REP_PROCEDURE'), noAction: () => setStep('FINISH_REPLACEMENT'), yesText: "Sí", noText: "No", type: 'question' },
+                TERMINALS_REP_PROCEDURE: { title: "Reconexión de Terminales", desc: "Restablecer conexión de red.", instructions: ["Redireccionar IP en las terminales hacia el servidor nuevo.", "Nota: Regularmente NO es necesario aplicar UPD.", "Si marca error F4 al abrir: Solucionar reactivando la terminal."], nextStep: 'FINISH_REPLACEMENT', nextText: "Ir a Configuraciones Finales", type: 'manual_procedure' },
+                FINISH_REPLACEMENT: { title: "Configuraciones Finales y Cierre", desc: "Realice las últimas configuraciones para garantizar la seguridad y operatividad.", instructions: ["Configurar respaldos automáticos: Locales y en Google Drive.", "Preguntar al cliente su hora de cierre y programar el respaldo 30 minutos antes.", "Configurar impresoras y periféricos.", "Revisar y validar series de facturación.", "Verificar funcionamiento general del sistema."], final: true, finalType: 'success' },
+                TOOLS_WINDOWS_LEGACY: { title: "Herramientas para Windows (Básico)", desc: "Herramientas alternativas:", instructions: ["Sicar Tool"], final: true, finalType: 'info' },
+                CHECK_SLAVE: { title: "Acceso Físico al Disco", desc: "Al no contar con un respaldo válido, debemos intentar la recuperación física.", question: "¿El cliente tiene acceso al disco duro y puede conectarlo como esclavo?", yesAction: () => setStep('SLAVE_OPTIONS'), noAction: () => setStep('CHECK_CLOUD_SCRATCH'), type: 'question' },
+                SLAVE_OPTIONS: { title: "Método de Recuperación (Disco Esclavo)", desc: "Seleccione el tipo de búsqueda a realizar en el disco conectado.", customButtons: [{label:"1. Buscar Respaldos (.sr/.zip)", action:()=>setStep('SLAVE_SEARCH_BACKUPS'), icon:"🔍"}, {label:"2. Recuperación Técnica (ibdata)", action:()=>setStep('SLAVE_IBDATA_TUTORIAL'), icon:"🔧"}], type: 'selection' },
+                SLAVE_SEARCH_BACKUPS: { title: "Búsqueda de Respaldos", desc: "Indague en las carpetas del usuario del disco esclavo.", instructions: ["Revisar carpeta 'Documentos', 'Escritorio' y 'Descargas'.", "Buscar archivos con extensión .sr o .zip.", "Si encuentra uno válido, proceda al menú de Herramientas de Restauración."], nextStep: 'SELECT_OS', nextText: "Ir a Herramientas de Restauración", type: 'manual_procedure' },
+                SLAVE_IBDATA_TUTORIAL: { title: "Mini-Tutorial: Recuperación por ibdata", desc: "Protocolo avanzado de extracción de datos crudos.", instructions: ["1. Instalar un SICAR en blanco (Instalación Temporal).", "2. Detener el servicio de MySQL de esta nueva instalación.", "3. En la carpeta 'db' de la instalación LIMPIA: Eliminar carpetas 'sicar', 'racis' y el archivo 'ibdata1'.", "4. Ubicar carpeta 'db' en el DISCO ESCLAVO.", "5. Copiar 'sicar', 'racis' e 'ibdata1' del esclavo y pegarlos en la instalación limpia.", "6. Iniciar el servicio de MySQL.", "7. SI INICIA: Usar GuiTools o SicarTool (función Backup) para generar un respaldo nuevo.", "8. FINAL: Instalar un SICAR NUEVO en otro puerto (Regla: SICAR-S-LICENCIA) y restaurar ese respaldo con GuiTools."], nextStep: 'CHECK_CLOUD', nextText: "Continuar a Verificación Nube", type: 'manual_procedure' },
+                CHECK_CLOUD_SCRATCH: { title: "Instalación desde Cero", desc: "No hay respaldos ni acceso físico. Se procederá con una instalación limpia.", question: "¿El cliente cuenta con servicio de Nube contratado?", yesAction: () => setStep('CLOUD_RESTORE'), noAction: () => setStep('TOTAL_RESET'), type: 'question' },
+                CLOUD_RESTORE: { title: "Instalación con Nube", desc: "El cliente tiene servicio de nube.", instructions: ["Realizar instalación en blanco.", "La Nube descargará automáticamente el catálogo de artículos.", "Nota: Historiales y configuraciones locales se perderán, solo se recuperan artículos."], nextStep: 'FINISH_REPLACEMENT', nextText: "Ir a Configuraciones Finales", type: 'manual_procedure' },
+                TOTAL_RESET: { title: "Inicio Totalmente desde Cero", desc: "Sin respaldo y sin nube.", instructions: ["El cliente debe comenzar desde cero.", "Realizar instalación limpia.", "El cliente deberá capturar toda su información nuevamente."], nextStep: 'FINISH_REPLACEMENT', nextText: "Ir a Configuraciones Finales", type: 'manual_procedure' }
             };
             const current = content[step];
             return (
@@ -255,9 +271,9 @@
                     <div className="bg-blue-600 p-4 text-white flex items-center shadow-md"><button onClick={onBack} className="mr-4 hover:bg-blue-700 p-2 rounded-full transition"><IconArrowLeft /></button><h2 className="text-xl font-bold flex items-center gap-2"><IconRefresh /> Guía de Reposiciones</h2></div>
                     <div className="flex-grow flex flex-col items-center justify-center p-8"><div className="max-w-xl w-full bg-white p-8 rounded-xl shadow-lg border-t-4 border-blue-500">
                         <h3 className="text-2xl font-bold text-gray-800 mb-4">{current.title}</h3><p className="text-gray-600 mb-6 text-lg leading-relaxed">{current.desc}</p>
-                        {current.type === 'manual_procedure' && (<div className="animate-fade-in"><ul className="space-y-3 mb-8">{current.instructions.map((inst, i) => (<li key={i} className="flex items-start gap-3 text-sm text-gray-700 border-b border-gray-100 pb-2 last:border-0"><IconCheck size={18} className="text-blue-500 mt-0.5" /><span>{inst}</span></li>))}</ul><button onClick={() => setStep(current.nextStep)} className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition shadow-lg">{current.nextText} →</button></div>)}
-                        {current.final && (<div className="animate-fade-in"><ul className="space-y-3 mb-8">{current.instructions.map((inst, i) => (<li key={i} className="flex items-start gap-3 text-gray-700"><div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${current.finalType==='success'?'bg-green-500':'bg-orange-500'}`}></div><span>{inst}</span></li>))}</ul><button onClick={() => setStep('START')} className="w-full py-3 border-2 border-gray-200 text-gray-600 font-semibold rounded-lg hover:bg-gray-50 transition">Reiniciar Guía</button></div>)}
-                        {current.type === 'question' && (<div className="space-y-4"><div className="grid grid-cols-2 gap-4"><button onClick={current.yesAction} className="bg-green-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-green-700 transition shadow-sm flex justify-center items-center gap-2"><IconCheck size={18} /> {current.yesText || "SÍ"}</button><button onClick={current.noAction} className="bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition shadow-sm">{current.noText || "NO"}</button></div></div>)}
+                        {current.type === 'manual_procedure' && (<div className="animate-fade-in"><div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6"><div className="flex items-center gap-2 font-bold text-blue-700 mb-2"><IconSettings size={20} /> Instrucciones Técnicas</div></div><ul className="space-y-3 mb-8">{current.instructions.map((inst, i) => (<li key={i} className="flex items-start gap-3 text-sm text-gray-700 border-b border-gray-100 pb-2 last:border-0"><IconCheck className="flex-shrink-0 text-blue-500 mt-0.5" size={18} /><span>{inst}</span></li>))}</ul><button onClick={() => setStep(current.nextStep)} className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition shadow-lg">{current.nextText} <span className="ml-2">→</span></button></div>)}
+                        {current.final && (<div className="animate-fade-in"><h4 className="font-bold text-gray-700 mb-3 border-b pb-2">Resumen de acciones:</h4><ul className="space-y-3 mb-8">{current.instructions.map((inst, i) => (<li key={i} className="flex items-start gap-3 text-gray-700"><div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${current.finalType==='success'?'bg-green-500':current.finalType==='warning'?'bg-orange-500':current.finalType==='info'?'bg-blue-500':'bg-red-500'}`}></div>{inst}</li>))}</ul><button onClick={() => setStep('START')} className="w-full py-3 border-2 border-gray-200 text-gray-600 font-semibold rounded-lg hover:bg-gray-50 transition">Reiniciar Guía</button></div>)}
+                        {current.type === 'question' && (<div className="space-y-4"><div className="bg-blue-50 p-4 rounded-lg text-blue-800 font-medium mb-6 flex items-start gap-3"><IconAlert className="flex-shrink-0 mt-1"/>{current.question}</div><div className="grid grid-cols-2 gap-4"><button onClick={current.yesAction} className="bg-green-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-green-700 transition shadow-sm flex justify-center items-center gap-2"><IconCheck size={18} /> {current.yesText || "SÍ"}</button><button onClick={current.noAction} className="bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition shadow-sm">{current.noText || "NO"}</button></div></div>)}
                         {current.type === 'selection' && (<div className="grid gap-4">{current.customButtons.map((btn, idx) => (<button key={idx} onClick={btn.action} className="flex items-center justify-between p-4 border-2 border-blue-100 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition group"><span className="font-bold text-gray-700 group-hover:text-blue-700">{btn.label}</span><span className="text-2xl">{btn.icon}</span></button>))}</div>)}
                     </div></div>
                 </div>
@@ -268,112 +284,13 @@
         const MigrationGuide = ({ onBack }) => {
             const [step, setStep] = useState('START');
             const content = {
-                START: { 
-                    title: "Sistema Operativo", 
-                    desc: "Seleccione el servidor DESTINO.", 
-                    customButtons: [
-                        { label: "Windows", action: () => setStep('WIN_CHECK_TERMINALS'), icon: "🪟" }, 
-                        { label: "Mac / Linux", action: () => setStep('MAC_LINUX_MIGRATION'), icon: "🍎/🐧" } 
-                    ], 
-                    type: 'selection' 
-                },
-                
-                // --- WINDOWS FLOW ---
-                WIN_CHECK_TERMINALS: { 
-                    title: "Infraestructura", 
-                    desc: "¿Servidor actual con terminales?", 
-                    question: "¿Hay terminales?", 
-                    yesAction: () => setStep('WIN_ACCESS_CHECK'), 
-                    noAction: () => setStep('WIN_SIMPLE'), 
-                    yesText: "Sí", 
-                    noText: "No", 
-                    type: 'question' 
-                },
-                WIN_SIMPLE: { 
-                    title: "Migración Simple", 
-                    desc: "Sin terminales.", 
-                    instructions: [
-                        "Respaldo servidor anterior.", 
-                        "Pasar a nuevo.", 
-                        "Instalar SICAR estándar.", 
-                        "Restaurar.", 
-                        "IMPORTANTE: Activar licencia.",
-                        "PRO TIP: Copiar 'caja.properties', 'cbb.properties', 'printer.properties', 'print.settings' del antiguo al nuevo (Reemplazar).",
-                        "Nota: Las impresoras en Windows deben tener EL MISMO NOMBRE para que funcione.",
-                        "Configurar respaldos/impresoras."
-                    ], 
-                    final: true, 
-                    finalType: 'success' 
-                },
-                WIN_ACCESS_CHECK: { 
-                    title: "Tipo de Acceso", 
-                    desc: "¿Acceso simultáneo a ambos equipos?", 
-                    question: "¿Tiene acceso a ambos servidores AL MISMO TIEMPO?", 
-                    yesAction: () => setStep('WIN_CLONE_SIMULTANEOUS'), 
-                    noAction: () => setStep('WIN_CLONE_ASYNC'), 
-                    yesText: "Sí", 
-                    noText: "No (USB)", 
-                    type: 'question' 
-                },
-                WIN_CLONE_SIMULTANEOUS: { 
-                    title: "Clonación Simultánea", 
-                    desc: "Evita reconfigurar terminales.", 
-                    instructions: [
-                        "NUEVO: Instalar SICAR (Mismo Puerto/Pass).", 
-                        "Cerrar terminales.", 
-                        "Respaldo ANTIGUO -> NUEVO (Red).", 
-                        "NUEVO: Restaurar.", 
-                        "PRO TIP: Copiar 'caja.properties', 'cbb.properties', 'printer.properties', 'print.settings' del antiguo al nuevo (Reemplazar).",
-                        "Nota: Las impresoras en Windows deben tener EL MISMO NOMBRE para que funcione.",
-                        "NUEVO: Desactivar Firewall.", 
-                        "Copiar Hostname ANTIGUO -> Renombrar ANTIGUO -> Poner Hostname original al NUEVO.", 
-                        "ANTIGUO: Quitar servicio MySQL.", 
-                        "Activar NUEVO y validar terminales.", 
-                        "Configurar finales."
-                    ], 
-                    final: true, 
-                    finalType: 'success' 
-                },
-                WIN_CLONE_ASYNC: { 
-                    title: "Clonación Asíncrona (USB)", 
-                    desc: "Sin acceso simultáneo.", 
-                    instructions: [
-                        "Cerrar terminales.", 
-                        "Respaldo ANTIGUO -> USB.", 
-                        "Respaldar en USB: 'caja.properties', 'cbb.properties', 'printer.properties', 'print.settings'.",
-                        "Anotar Hostname/Puerto/Pass.", 
-                        "Apagar ANTIGUO.", 
-                        "NUEVO: Instalar (Mismo Puerto/Pass).", 
-                        "NUEVO: Restaurar USB y pegar archivos de configuración (Reemplazar).", 
-                        "Nota: Las impresoras en Windows deben tener EL MISMO NOMBRE para que funcione.",
-                        "Renombrar NUEVO a Hostname original.", 
-                        "Desactivar Firewall.", 
-                        "Validar terminales.", 
-                        "Configurar finales."
-                    ], 
-                    final: true, 
-                    finalType: 'warning' 
-                },
-
-                // --- MAC / LINUX FLOW ---
-                MAC_LINUX_MIGRATION: { 
-                    title: "Migración Mac / Linux", 
-                    desc: "Protocolo estándar Unix.", 
-                    instructions: [
-                        "Generar respaldo en el servidor origen.",
-                        "Respaldar archivos clave: 'caja.properties', 'cbb.properties', 'printer.properties', 'print.settings'.",
-                        "Transferir todo al nuevo equipo (USB/PC Asesor).",
-                        "Realizar instalación en blanco en el nuevo equipo.",
-                        "Montar respaldo (DBeaver/SicarTool).",
-                        "Pegar y reemplazar archivos de configuración en la nueva instalación.",
-                        "Nota: Las impresoras deben llamarse IGUAL en el sistema operativo.",
-                        "CRÍTICO: Si origen es Windows -> 'Win to Mac'.",
-                        "IMPORTANTE: Activar licencia.",
-                        "Redireccionar terminales (IP) y configurar finales."
-                    ], 
-                    final: true, 
-                    finalType: 'info' 
-                }
+                START: { title: "Sistema Operativo", desc: "Seleccione el servidor DESTINO.", customButtons: [{ label: "Windows", action: () => setStep('WIN_CHECK_TERMINALS'), icon: "🪟" }, { label: "Mac / Linux", action: () => setStep('MAC_LINUX_MIGRATION'), icon: "🍎/🐧" }], type: 'selection' },
+                WIN_CHECK_TERMINALS: { title: "Infraestructura", desc: "¿Servidor actual con terminales?", question: "¿Hay terminales?", yesAction: () => setStep('WIN_ACCESS_CHECK'), noAction: () => setStep('WIN_SIMPLE'), yesText: "Sí", noText: "No", type: 'question' },
+                WIN_SIMPLE: { title: "Migración Simple", desc: "Sin terminales.", instructions: ["Respaldo servidor anterior.", "Pasar a nuevo.", "Instalar SICAR estándar.", "Restaurar.", "IMPORTANTE: Activar licencia.", "PRO TIP: Copiar 'caja.properties', 'cbb.properties', 'printer.properties', 'print.settings' del antiguo al nuevo (Reemplazar).", "Nota: Las impresoras en Windows deben tener EL MISMO NOMBRE para que funcione.", "Configurar respaldos/impresoras."], final: true, finalType: 'success' },
+                WIN_ACCESS_CHECK: { title: "Tipo de Acceso", desc: "¿Acceso simultáneo a ambos equipos?", question: "¿Tiene acceso a ambos servidores AL MISMO TIEMPO?", yesAction: () => setStep('WIN_CLONE_SIMULTANEOUS'), noAction: () => setStep('WIN_CLONE_ASYNC'), yesText: "Sí", noText: "No (USB)", type: 'question' },
+                WIN_CLONE_SIMULTANEOUS: { title: "Clonación Simultánea", desc: "Evita reconfigurar terminales.", instructions: ["NUEVO: Instalar SICAR (Mismo Puerto/Pass).", "Cerrar terminales.", "Respaldo ANTIGUO -> NUEVO (Red).", "NUEVO: Restaurar.", "PRO TIP: Copiar 'caja.properties', 'cbb.properties', 'printer.properties', 'print.settings' del antiguo al nuevo (Reemplazar).", "Nota: Las impresoras en Windows deben tener EL MISMO NOMBRE para que funcione.", "NUEVO: Desactivar Firewall.", "Copiar Hostname ANTIGUO -> Renombrar ANTIGUO -> Poner Hostname original al NUEVO.", "ANTIGUO: Quitar servicio MySQL.", "Activar NUEVO y validar terminales.", "Configurar finales."], final: true, finalType: 'success' },
+                WIN_CLONE_ASYNC: { title: "Clonación Asíncrona (USB)", desc: "Sin acceso simultáneo.", instructions: ["Cerrar terminales.", "Respaldo ANTIGUO -> USB.", "Respaldar en USB: 'caja.properties', 'cbb.properties', 'printer.properties', 'print.settings'.", "Anotar Hostname/Puerto/Pass.", "Apagar ANTIGUO.", "NUEVO: Instalar (Mismo Puerto/Pass).", "NUEVO: Restaurar USB y pegar archivos de configuración (Reemplazar).", "Nota: Las impresoras en Windows deben tener EL MISMO NOMBRE para que funcione.", "Renombrar NUEVO a Hostname original.", "Desactivar Firewall.", "Validar terminales.", "Configurar finales."], final: true, finalType: 'warning' },
+                MAC_LINUX_MIGRATION: { title: "Migración Mac / Linux", desc: "Protocolo estándar Unix.", instructions: ["Generar respaldo en el servidor origen.", "Respaldar archivos clave: 'caja.properties', 'cbb.properties', 'printer.properties', 'print.settings'.", "Transferir todo al nuevo equipo (USB/PC Asesor).", "Realizar instalación en blanco en el nuevo equipo.", "Montar respaldo (DBeaver/SicarTool).", "Pegar y reemplazar archivos de configuración en la nueva instalación.", "Nota: Las impresoras deben llamarse IGUAL en el sistema operativo.", "CRÍTICO: Si origen es Windows -> 'Win to Mac'.", "IMPORTANTE: Activar licencia.", "Redireccionar terminales (IP) y configurar finales."], final: true, finalType: 'info' }
             };
             const current = content[step];
             return (
