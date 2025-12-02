@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guía de Operaciones de Base de Datos</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        // --- Icon Components ---
+        const IconServer = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>;
+        const IconTrash = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
+        const IconRefresh = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>;
+        const IconArrowLeft = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>;
+        const IconCheck = ({size}) => <svg xmlns="http://www.w3.org/2000/svg" width={size || 24} height={size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>;
+        const IconAlert = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>;
+        const IconHardDrive = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" x2="2" y1="12" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" x2="6.01" y1="16" y2="16"/><line x1="10" x2="10.01" y1="16" y2="16"/></svg>;
+        const IconDatabase = ({size}) => <svg xmlns="http://www.w3.org/2000/svg" width={size || 24} height={size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>;
+        const IconCloud = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19c0-3.037-2.463-5.5-5.5-5.5S6.5 15.963 6.5 19"/><path d="M20.6 16c.4.6.6 1.3.6 2 0 2.2-1.8 4-4 4h-11c-2.2 0-4-1.8-4-4 0-1.5.8-2.8 2-3.5"/><path d="M16.6 13a6 6 0 0 0-11.2 0"/><path d="M12 3a9 9 0 0 1 9 9"/></svg>;
+        const IconTerminal = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg>;
+        const IconFolder = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>;
+        const IconSettings = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>;
+        const IconDownload = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>;
+        const IconBox = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" x2="12" y1="22.08" y2="12"/></svg>;
+        const IconCopy = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>;
+
+        // --- Main App Component ---
+        const App = () => {
+            const [currentView, setCurrentView] = useState('HOME');
+
+            const renderView = () => {
+                switch(currentView) {
+                    case 'DELETION':
+                        return <DeletionGuide onBack={() => setCurrentView('HOME')} />;
+                    case 'REPLACEMENT':
+                        return <ReplacementGuide onBack={() => setCurrentView('HOME')} />;
+                    case 'MIGRATION':
+                        return <MigrationGuide onBack={() => setCurrentView('HOME')} />;
+                    case 'RESOURCES':
+                        return <ResourcesView onBack={() => setCurrentView('HOME')} />;
+                    default:
+                        return <MainMenu onSelect={setCurrentView} />;
+                }
+            };
+
+            return (
+                <div className="min-h-screen flex flex-col items-center py-10 px-4 max-w-4xl mx-auto">
+                    <header className="mb-8 text-center">
+                        <h1 className="text-3xl font-bold text-gray-800 mb-2">Guía Técnica de Bases de Datos</h1>
+                        <p className="text-gray-500">Seleccione el procedimiento a realizar</p>
+                    </header>
+                    <div className="w-full bg-white shadow-xl rounded-2xl overflow-hidden min-h-[500px] flex flex-col">
+                        {renderView()}
+                    </div>
+                    <footer className="mt-8 text-gray-400 text-sm text-center">
+                        Sistema de Guía Interactiva v2.0
+                    </footer>
+                </div>
+            );
+        };
+
+        // --- Main Menu ---
+        const MainMenu = ({ onSelect }) => {
+            return (
+                <div className="p-8 grid gap-6 md:grid-cols-2 h-full flex-grow items-center fade-in">
+                    <button onClick={() => onSelect('MIGRATION')} className="group flex flex-col items-center p-6 border-2 border-indigo-100 rounded-xl hover:border-indigo-500 hover:bg-indigo-50 transition-all duration-300 h-64 justify-center">
+                        <div className="p-4 bg-indigo-100 text-indigo-600 rounded-full mb-4 group-hover:scale-110 transition-transform"><IconServer /></div>
+                        <h3 className="text-xl font-bold text-gray-800">Migraciones</h3>
+                        <p className="text-center text-gray-500 text-sm mt-2">Traslado de datos entre equipos.</p>
+                    </button>
+                    <button onClick={() => onSelect('REPLACEMENT')} className="group flex flex-col items-center p-6 border-2 border-blue-100 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all duration-300 h-64 justify-center">
+                        <div className="p-4 bg-blue-100 text-blue-600 rounded-full mb-4 group-hover:scale-110 transition-transform"><IconRefresh /></div>
+                        <h3 className="text-xl font-bold text-gray-800">Reposiciones</h3>
+                        <p className="text-center text-gray-500 text-sm mt-2">Restauración y recuperación.</p>
+                    </button>
+                     <button onClick={() => onSelect('DELETION')} className="group flex flex-col items-center p-6 border-2 border-red-100 rounded-xl hover:border-red-500 hover:bg-red-50 transition-all duration-300 h-64 justify-center">
+                        <div className="p-4 bg-red-100 text-red-600 rounded-full mb-4 group-hover:scale-110 transition-transform"><IconTrash /></div>
+                        <h3 className="text-xl font-bold text-gray-800">Borrado de BD</h3>
+                        <p className="text-center text-gray-500 text-sm mt-2">Eliminación segura y checklist.</p>
+                    </button>
+                     <button onClick={() => onSelect('RESOURCES')} className="group flex flex-col items-center p-6 border-2 border-emerald-100 rounded-xl hover:border-emerald-500 hover:bg-emerald-50 transition-all duration-300 h-64 justify-center">
+                        <div className="p-4 bg-emerald-100 text-emerald-600 rounded-full mb-4 group-hover:scale-110 transition-transform"><IconBox /></div>
+                        <h3 className="text-xl font-bold text-gray-800">Recursos</h3>
+                        <p className="text-center text-gray-500 text-sm mt-2">Descarga de herramientas y utilidades.</p>
+                    </button>
+                </div>
+            );
+        };
+
+        // --- Resources Guide ---
+        const ResourcesView = ({ onBack }) => {
+            const [copiedIndex, setCopiedIndex] = useState(null);
+            const resources = [
+                { name: "Gui Tools", url: "https://storage.googleapis.com/sicarutils/guitools.zip", desc: "Gestión de BD, respaldos y herramientas varias." },
+                { name: "Instalador v4 Windows", url: "https://storage.googleapis.com/credible-cab-5917/installers/setupSICARv4.0R190630_MySQL5.6_Offline_DA.exe", desc: "Instalador Offline para Windows (MySQL 5.6)." },
+                { name: "Instalador v4 Mac/Linux", url: "https://administrador.sicar.mx/extern/downloadsicar", desc: "Instalador multiplataforma." },
+                { name: "UPD v4", url: "https://storage.googleapis.com/credible-cab-5917/update/SICARv4.0R190630.upd", desc: "Archivo de actualización v4 (Binarios)." },
+                { name: "SicarTool", url: "https://www.dropbox.com/scl/fi/zoycnv29zwwzk24zg9xq4/SicarTool.jar?rlkey=7xk2h804z40h3tyb040ck70s2&st=ktoc4i0j&dl=1", desc: "Herramienta de soporte y diagnóstico (.jar)." },
+                { name: "DBeaver", url: "https://dbeaver.io/download/", desc: "Gestor universal de base de datos." }
+            ];
+
+            const copyToClipboard = (text, index) => {
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    setCopiedIndex(index);
+                    setTimeout(() => setCopiedIndex(null), 2000);
+                } catch (err) { console.error('Error al copiar', err); }
+                document.body.removeChild(textArea);
+            };
+
+            return (
+                <div className="flex flex-col h-full bg-gray-50 fade-in">
+                    <div className="bg-emerald-600 p-4 text-white flex items-center shadow-md">
+                        <button onClick={onBack} className="mr-4 hover:bg-emerald-700 p-2 rounded-full transition"><IconArrowLeft /></button>
+                        <h2 className="text-xl font-bold flex items-center gap-2"><IconBox /> Recursos y Descargas</h2>
+                    </div>
+                    <div className="p-8 flex-grow overflow-y-auto">
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+                            {resources.map((res, idx) => (
+                                <div key={idx} className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow flex flex-col justify-between">
+                                    <div>
+                                        <h3 className="font-bold text-lg text-gray-800 mb-1 flex items-center gap-2">{res.name}</h3>
+                                        <p className="text-gray-500 text-sm mb-4">{res.desc}</p>
+                                    </div>
+                                    <button onClick={() => copyToClipboard(res.url, idx)} className={`inline-flex items-center justify-center w-full px-4 py-2 border rounded-lg transition font-medium text-sm ${copiedIndex === idx ? 'bg-green-100 text-green-700 border-green-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'}`}>
+                                        {copiedIndex === idx ? <><IconCheck size={18} className="mr-2" /> ¡Copiado!</> : <><IconCopy className="w-4 h-4 mr-2" /> Copiar Enlace</>}
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Deletion Guide ---
+        const DeletionGuide = ({ onBack }) => {
+            const [step, setStep] = useState('CHECK_TERMINALS');
+            const content = {
+                CHECK_TERMINALS: {
+                    title: "Verificación de Infraestructura", desc: "Antes de cualquier acción, verifique la estructura de red.",
+                    question: "¿El sistema cuenta con terminales conectadas?",
+                    yesAction: () => setStep('TERMINAL_PROCEDURE'), noAction: () => setStep('EVALUATE_DATA'),
+                    yesText: "Sí, tiene terminales", noText: "No, es equipo único", type: 'question'
+                },
+                TERMINAL_PROCEDURE: {
+                    title: "Protocolo de Actualización de Binarios", desc: "Se detectaron terminales. Limpieza manual requerida.",
+                    instructions: [
+                        "Solicitar acceso remoto a Servidor y Terminales.",
+                        "En Terminales: Descargar UPD, renombrar a .zip y descomprimir.",
+                        "En Terminales (Carpeta SICAR): Borrar 'bundle', 'lib', 'mark', 'modulos', 'tools', 'SICAR.jar', 'sicar.ksf', 'SICAR.binx'.",
+                        "Copiar del UPD descomprimido las 5 carpetas y 2 archivos a la carpeta de instalación.",
+                        "Redireccionar las terminales."
+                    ],
+                    nextStep: 'EVALUATE_DATA', nextText: "Continuar a Evaluación de Datos", type: 'manual_procedure'
+                },
+                EVALUATE_DATA: {
+                    title: "Evaluación de Conservación", desc: "Determine el destino de la información actual.",
+                    question: "¿El cliente desea conservar algún catálogo?",
+                    yesAction: () => setStep('SELECT_OS_KEEP'), noAction: () => setStep('SELECT_OS_CLEAN'),
+                    yesText: "Sí, conservar datos", noText: "No, borrar todo", type: 'question'
+                },
+                SELECT_OS_KEEP: {
+                    title: "Sistema Operativo (Conservar Datos)", desc: "Seleccione el SO para mostrar herramientas adecuadas.",
+                    customButtons: [ { label: "Windows", action: () => setStep('KEEP_DATA_WINDOWS'), icon: "🪟" }, { label: "Mac / Linux", action: () => setStep('KEEP_DATA_MAC_LINUX'), icon: "🍎/🐧" } ], type: 'selection'
+                },
+                SELECT_OS_CLEAN: {
+                    title: "Sistema Operativo (Borrado Total)", desc: "Seleccione el SO para protocolo de eliminación.",
+                    customButtons: [ { label: "Windows", action: () => setStep('CLEAN_INSTALL_WINDOWS'), icon: "🪟" }, { label: "Mac / Linux", action: () => setStep('CLEAN_INSTALL_MAC_LINUX'), icon: "🍎/🐧" } ], type: 'selection'
+                },
+                KEEP_DATA_WINDOWS: {
+                    title: "Conservar Datos (Windows)", desc: "Protocolo para conservar catálogos en Windows.",
+                    instructions: [ "CRÍTICO: Generar Respaldo Previo.", "Exportar catálogos y configuraciones.", "Reinstalar sistema o borrar BD con GuiTools/SicarTool.", "Re-importar información.", "Configurar respaldos, impresoras y redireccionar terminales." ], final: true, finalType: 'info'
+                },
+                KEEP_DATA_MAC_LINUX: {
+                    title: "Conservar Datos (Mac/Linux)", desc: "Protocolo para conservar catálogos en Mac/Linux. NO desinstalar App.",
+                    instructions: [ "CRÍTICO: Generar Respaldo Previo.", "Exportar catálogos.", "Borrar ÚNICAMENTE la BD usando SicarTools/DBeaver.", "Instalar nueva instancia de BD.", "Re-importar información.", "Configurar respaldos, impresoras y redireccionar terminales." ], final: true, finalType: 'info'
+                },
+                CLEAN_INSTALL_WINDOWS: {
+                    title: "Instalación Limpia (Windows)", desc: "Borrado total e inicio desde cero.",
+                    instructions: [ "CRÍTICO: Respaldo Previo.", "Desactivar Licencia.", "Eliminar carpeta de instalación y BD.", "Instalación limpia.", "Configurar respaldos, impresoras y redireccionar terminales." ], final: true, finalType: 'danger'
+                },
+                CLEAN_INSTALL_MAC_LINUX: {
+                    title: "Instalación Limpia (Mac/Linux)", desc: "Protocolo de borrado seguro para Unix.",
+                    instructions: [ "CRÍTICO: Respaldo Previo.", "Desactivar Licencia.", "NO desinstalar aplicación.", "Borrar BD actual con SicarTools/DBeaver.", "Instalar BD limpia.", "Aplicar UPD si es necesario.", "Configurar respaldos, impresoras y redireccionar terminales." ], final: true, finalType: 'danger'
+                }
+            };
+            const current = content[step];
+            return (
+                <div className="flex flex-col h-full bg-gray-50 fade-in">
+                    <div className="bg-red-600 p-4 text-white flex items-center shadow-md"><button onClick={onBack} className="mr-4 hover:bg-red-700 p-2 rounded-full transition"><IconArrowLeft /></button><h2 className="text-xl font-bold flex items-center gap-2"><IconTrash /> Guía de Borrado de BD</h2></div>
+                    <div className="flex-grow flex flex-col items-center justify-center p-8"><div className="max-w-xl w-full bg-white p-8 rounded-xl shadow-lg border-t-4 border-red-500">
+                        <h3 className="text-2xl font-bold text-gray-800 mb-4">{current.title}</h3><p className="text-gray-600 mb-6 text-lg leading-relaxed">{current.desc}</p>
+                        {current.type === 'manual_procedure' && (<div className="animate-fade-in"><ul className="space-y-3 mb-8">{current.instructions.map((inst, i) => (<li key={i} className="flex items-start gap-3 text-sm text-gray-700 border-b border-gray-100 pb-2 last:border-0"><IconFolder size={18} className="text-gray-400 mt-0.5" /><span>{inst}</span></li>))}</ul><button onClick={() => setStep(current.nextStep)} className="w-full py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition shadow-lg">{current.nextText} →</button></div>)}
+                        {current.final && (<div className="animate-fade-in"><ul className="space-y-3 mb-8">{current.instructions.map((inst, i) => (<li key={i} className="flex items-start gap-3 text-gray-700"><div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${current.finalType==='danger'?'bg-red-500':'bg-blue-500'}`}></div><span className={inst.includes("CRÍTICO")?"font-bold text-red-600":""}>{inst}</span></li>))}</ul><button onClick={() => setStep('CHECK_TERMINALS')} className="w-full py-3 border-2 border-gray-200 text-gray-600 font-semibold rounded-lg hover:bg-gray-50 transition">Reiniciar Guía</button></div>)}
+                        {current.type === 'question' && (<div className="space-y-4"><div className="grid grid-cols-2 gap-4"><button onClick={current.yesAction} className="bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition shadow-sm flex justify-center items-center gap-2"><IconCheck size={18} /> {current.yesText}</button><button onClick={current.noAction} className="bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition shadow-sm">{current.noText}</button></div></div>)}
+                        {current.type === 'selection' && (<div className="grid gap-4">{current.customButtons.map((btn, idx) => (<button key={idx} onClick={btn.action} className="flex items-center justify-between p-4 border-2 border-red-100 rounded-lg hover:border-red-500 hover:bg-red-50 transition group"><span className="font-bold text-gray-700 group-hover:text-red-700">{btn.label}</span><span className="text-2xl">{btn.icon}</span></button>))}</div>)}
+                    </div></div>
+                </div>
+            );
+        };
+
+        // --- Replacement Guide ---
+        const ReplacementGuide = ({ onBack }) => {
+            const [step, setStep] = useState('START');
+            const content = {
+                START: { title: "Verificación de Respaldo", desc: "Iniciaremos verificando si hay copias de seguridad.", question: "¿El cliente cuenta con respaldos?", yesAction: () => setStep('VERIFY_DATE'), noAction: () => setStep('CHECK_SLAVE'), type: 'question' },
+                VERIFY_DATE: { title: "Verificación de Fecha", desc: "Revise fecha del respaldo.", question: "¿El cliente está de acuerdo con la fecha?", yesAction: () => setStep('SELECT_OS'), noAction: () => setStep('CHECK_SLAVE'), yesText: "Sí", noText: "No", type: 'question' },
+                SELECT_OS: { title: "Selección de OS", desc: "Seleccione el sistema operativo.", customButtons: [{label:"Windows", action:()=>setStep('TOOLS_WINDOWS_MENU'), icon:"🪟"}, {label:"Mac/Linux", action:()=>setStep('TOOLS_MAC_MENU'), icon:"🍎/🐧"}], type: 'selection' },
+                TOOLS_WINDOWS_MENU: { title: "Herramienta (Windows)", desc: "Seleccione herramienta.", customButtons: [{label:"GuiTools", action:()=>setStep('WINDOWS_PREP'), icon:"🛠️"}, {label:"Sicar Tool", action:()=>setStep('TOOLS_WINDOWS_LEGACY'), icon:"📦"}], type: 'selection' },
+                WINDOWS_PREP: { title: "1. Preparación", desc: "Prepare el sistema.", instructions: ["Cambiar extensión .sr a .zip.", "Instalar SICAR en blanco.", "Nombrar carpeta: SICAR-S-LICENCIA."], nextStep: 'WINDOWS_RESTORE', nextText: "Siguiente", type: 'manual_procedure' },
+                WINDOWS_RESTORE: { title: "2. Restauración GuiTools", desc: "Inyectar base de datos.", instructions: ["Descomprimir db.properties.", "Conectar GuiTools.", "Usar Restore.", "Crear BD si no existe e Ignorar errores."], nextStep: 'WINDOWS_POST', nextText: "Siguiente", type: 'manual_procedure' },
+                WINDOWS_POST: { title: "3. Finalización", desc: "Limpieza final.", instructions: ["Borrar archivo de licencia.", "Verificar acceso."], nextStep: 'CHECK_CLOUD', nextText: "Continuar", type: 'manual_procedure' },
+                TOOLS_MAC_MENU: { title: "Herramienta (Mac/Linux)", desc: "Seleccione herramienta.", customButtons: [{label:"DBeaver", action:()=>setStep('MAC_PREP'), icon:"🦫"}, {label:"Sicar Tool", action:()=>setStep('MAC_PREP'), icon:"🧰"}], type: 'selection' },
+                MAC_PREP: { title: "1. Validación (Mac/Linux)", desc: "Preparación entorno.", instructions: ["Validar Single Instance.", "Crear nueva BD si es necesario.", "Cambiar extensión a .zip."], nextStep: 'MAC_RESTORE', nextText: "Siguiente", type: 'manual_procedure' },
+                MAC_RESTORE: { title: "2. Restauración", desc: "Inyección y Fix.", instructions: ["Conectar DBeaver/SicarTool.", "Ejecutar SQL.", "CRÍTICO: Aplicar 'Win to Mac'."], nextStep: 'MAC_POST', nextText: "Siguiente", type: 'manual_procedure' },
+                MAC_POST: { title: "3. Acceso", desc: "Validar inicio.", instructions: ["Iniciar SICAR.", "Verificar credenciales."], nextStep: 'CHECK_CLOUD', nextText: "Continuar", type: 'manual_procedure' },
+                CHECK_CLOUD: { title: "Servicios Nube", desc: "¿Tiene Nube?", question: "¿Cuenta con Nube?", yesAction: () => setStep('CLOUD_PROCEDURE'), noAction: () => setStep('NO_CLOUD_ACTIVATION'), yesText: "Sí", noText: "No", type: 'question' },
+                CLOUD_PROCEDURE: { title: "Validación Nube", desc: "Validar IDs.", instructions: ["Cancelar y clonar licencia.", "Activar licencia en sistema.", "Activar póliza en CRM.", "Asociar nube (CMD).", "Validar IDs con asesor."], nextStep: 'CHECK_TERMINALS_REP', nextText: "Continuar", type: 'manual_procedure' },
+                NO_CLOUD_ACTIVATION: { title: "Activación (Sin Nube)", desc: "Reactivar licencia.", instructions: ["Cancelar y clonar licencia.", "Activar en sistema."], nextStep: 'CHECK_TERMINALS_REP', nextText: "Continuar", type: 'manual_procedure' },
+                CHECK_TERMINALS_REP: { title: "Terminales", desc: "¿Hay terminales?", question: "¿Tiene terminales?", yesAction: () => setStep('TERMINALS_REP_PROCEDURE'), noAction: () => setStep('FINISH_REPLACEMENT'), yesText: "Sí", noText: "No", type: 'question' },
+                TERMINALS_REP_PROCEDURE: { title: "Reconexión", desc: "Red.", instructions: ["Redireccionar IP.", "Error F4: Reactivar terminal."], nextStep: 'FINISH_REPLACEMENT', nextText: "Finalizar", type: 'manual_procedure' },
+                FINISH_REPLACEMENT: { title: "Cierre", desc: "Configuraciones finales.", instructions: ["Respaldos (Local/Drive) 30min antes cierre.", "Impresoras y Periféricos.", "Series Facturación."], final: true, finalType: 'success' },
+                TOOLS_WINDOWS_LEGACY: { title: "Windows Básico", desc: "Herramienta alternativa.", instructions: ["Sicar Tool"], final: true, finalType: 'info' },
+                CHECK_SLAVE: { title: "Disco Esclavo", desc: "¿Acceso físico?", question: "¿Puede conectar disco como esclavo?", yesAction: () => setStep('SLAVE_OPTIONS'), noAction: () => setStep('CHECK_CLOUD_SCRATCH'), type: 'question' },
+                SLAVE_OPTIONS: { title: "Método Esclavo", desc: "Seleccione tipo.", customButtons: [{label:"Buscar Archivos", action:()=>setStep('SLAVE_SEARCH_BACKUPS'), icon:"🔍"}, {label:"Técnica ibdata", action:()=>setStep('SLAVE_IBDATA_TUTORIAL'), icon:"🔧"}], type: 'selection' },
+                SLAVE_SEARCH_BACKUPS: { title: "Buscar Archivos", desc: "Carpetas usuario.", instructions: ["Buscar .sr/.zip en Documentos/Escritorio."], nextStep: 'SELECT_OS', nextText: "Ir a Herramientas", type: 'manual_procedure' },
+                SLAVE_IBDATA_TUTORIAL: { title: "Tutorial ibdata", desc: "Extracción cruda.", instructions: ["Instalar SICAR limpio (Temp).", "Detener MySQL.", "Reemplazar carpeta 'data' con la del esclavo.", "Iniciar MySQL.", "Sacar respaldo con herramienta.", "Instalar SICAR final y restaurar."], nextStep: 'CHECK_CLOUD', nextText: "Continuar", type: 'manual_procedure' },
+                CHECK_CLOUD_SCRATCH: { title: "Instalación Cero", desc: "Sin respaldo.", question: "¿Tiene Nube?", yesAction: () => setStep('CLOUD_RESTORE'), noAction: () => setStep('TOTAL_RESET'), type: 'question' },
+                CLOUD_RESTORE: { title: "Vía Nube", desc: "Solo artículos.", instructions: ["Instalación limpia.", "Nube descarga artículos.", "Se pierde historial."], nextStep: 'FINISH_REPLACEMENT', nextText: "Finalizar", type: 'manual_procedure' },
+                TOTAL_RESET: { title: "Cero Total", desc: "Sin nada.", instructions: ["Instalación limpia.", "Capturar todo de nuevo."], nextStep: 'FINISH_REPLACEMENT', nextText: "Finalizar", type: 'manual_procedure' }
+            };
+            const current = content[step];
+            return (
+                <div className="flex flex-col h-full bg-gray-50 fade-in">
+                    <div className="bg-blue-600 p-4 text-white flex items-center shadow-md"><button onClick={onBack} className="mr-4 hover:bg-blue-700 p-2 rounded-full transition"><IconArrowLeft /></button><h2 className="text-xl font-bold flex items-center gap-2"><IconRefresh /> Guía de Reposiciones</h2></div>
+                    <div className="flex-grow flex flex-col items-center justify-center p-8"><div className="max-w-xl w-full bg-white p-8 rounded-xl shadow-lg border-t-4 border-blue-500">
+                        <h3 className="text-2xl font-bold text-gray-800 mb-4">{current.title}</h3><p className="text-gray-600 mb-6 text-lg leading-relaxed">{current.desc}</p>
+                        {current.type === 'manual_procedure' && (<div className="animate-fade-in"><ul className="space-y-3 mb-8">{current.instructions.map((inst, i) => (<li key={i} className="flex items-start gap-3 text-sm text-gray-700 border-b border-gray-100 pb-2 last:border-0"><IconCheck size={18} className="text-blue-500 mt-0.5" /><span>{inst}</span></li>))}</ul><button onClick={() => setStep(current.nextStep)} className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition shadow-lg">{current.nextText} →</button></div>)}
+                        {current.final && (<div className="animate-fade-in"><ul className="space-y-3 mb-8">{current.instructions.map((inst, i) => (<li key={i} className="flex items-start gap-3 text-gray-700"><div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${current.finalType==='success'?'bg-green-500':'bg-orange-500'}`}></div><span>{inst}</span></li>))}</ul><button onClick={() => setStep('START')} className="w-full py-3 border-2 border-gray-200 text-gray-600 font-semibold rounded-lg hover:bg-gray-50 transition">Reiniciar Guía</button></div>)}
+                        {current.type === 'question' && (<div className="space-y-4"><div className="grid grid-cols-2 gap-4"><button onClick={current.yesAction} className="bg-green-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-green-700 transition shadow-sm flex justify-center items-center gap-2"><IconCheck size={18} /> {current.yesText || "SÍ"}</button><button onClick={current.noAction} className="bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition shadow-sm">{current.noText || "NO"}</button></div></div>)}
+                        {current.type === 'selection' && (<div className="grid gap-4">{current.customButtons.map((btn, idx) => (<button key={idx} onClick={btn.action} className="flex items-center justify-between p-4 border-2 border-blue-100 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition group"><span className="font-bold text-gray-700 group-hover:text-blue-700">{btn.label}</span><span className="text-2xl">{btn.icon}</span></button>))}</div>)}
+                    </div></div>
+                </div>
+            );
+        };
+
+        // --- Migration Guide (FULL IMPLEMENTATION) ---
+        const MigrationGuide = ({ onBack }) => {
+            const [step, setStep] = useState('START');
+            const content = {
+                START: { 
+                    title: "Sistema Operativo", 
+                    desc: "Seleccione el servidor DESTINO.", 
+                    customButtons: [
+                        { label: "Windows", action: () => setStep('WIN_CHECK_TERMINALS'), icon: "🪟" }, 
+                        { label: "Mac / Linux", action: () => setStep('MAC_LINUX_MIGRATION'), icon: "🍎/🐧" } 
+                    ], 
+                    type: 'selection' 
+                },
+                
+                // --- WINDOWS FLOW ---
+                WIN_CHECK_TERMINALS: { 
+                    title: "Infraestructura", 
+                    desc: "¿Servidor actual con terminales?", 
+                    question: "¿Hay terminales?", 
+                    yesAction: () => setStep('WIN_ACCESS_CHECK'), 
+                    noAction: () => setStep('WIN_SIMPLE'), 
+                    yesText: "Sí", 
+                    noText: "No", 
+                    type: 'question' 
+                },
+                WIN_SIMPLE: { 
+                    title: "Migración Simple", 
+                    desc: "Sin terminales.", 
+                    instructions: [
+                        "Respaldo servidor anterior.", 
+                        "Pasar a nuevo.", 
+                        "Instalar SICAR estándar.", 
+                        "Restaurar.", 
+                        "IMPORTANTE: Activar licencia.",
+                        "PRO TIP: Copiar 'caja.properties', 'cbb.properties', 'printer.properties', 'print.settings' del antiguo al nuevo (Reemplazar).",
+                        "Nota: Las impresoras en Windows deben tener EL MISMO NOMBRE para que funcione.",
+                        "Configurar respaldos/impresoras."
+                    ], 
+                    final: true, 
+                    finalType: 'success' 
+                },
+                WIN_ACCESS_CHECK: { 
+                    title: "Tipo de Acceso", 
+                    desc: "¿Acceso simultáneo a ambos equipos?", 
+                    question: "¿Tiene acceso a ambos servidores AL MISMO TIEMPO?", 
+                    yesAction: () => setStep('WIN_CLONE_SIMULTANEOUS'), 
+                    noAction: () => setStep('WIN_CLONE_ASYNC'), 
+                    yesText: "Sí", 
+                    noText: "No (USB)", 
+                    type: 'question' 
+                },
+                WIN_CLONE_SIMULTANEOUS: { 
+                    title: "Clonación Simultánea", 
+                    desc: "Evita reconfigurar terminales.", 
+                    instructions: [
+                        "NUEVO: Instalar SICAR (Mismo Puerto/Pass).", 
+                        "Cerrar terminales.", 
+                        "Respaldo ANTIGUO -> NUEVO (Red).", 
+                        "NUEVO: Restaurar.", 
+                        "PRO TIP: Copiar 'caja.properties', 'cbb.properties', 'printer.properties', 'print.settings' del antiguo al nuevo (Reemplazar).",
+                        "Nota: Las impresoras en Windows deben tener EL MISMO NOMBRE para que funcione.",
+                        "NUEVO: Desactivar Firewall.", 
+                        "Copiar Hostname ANTIGUO -> Renombrar ANTIGUO -> Poner Hostname original al NUEVO.", 
+                        "ANTIGUO: Quitar servicio MySQL.", 
+                        "Activar NUEVO y validar terminales.", 
+                        "Configurar finales."
+                    ], 
+                    final: true, 
+                    finalType: 'success' 
+                },
+                WIN_CLONE_ASYNC: { 
+                    title: "Clonación Asíncrona (USB)", 
+                    desc: "Sin acceso simultáneo.", 
+                    instructions: [
+                        "Cerrar terminales.", 
+                        "Respaldo ANTIGUO -> USB.", 
+                        "Respaldar en USB: 'caja.properties', 'cbb.properties', 'printer.properties', 'print.settings'.",
+                        "Anotar Hostname/Puerto/Pass.", 
+                        "Apagar ANTIGUO.", 
+                        "NUEVO: Instalar (Mismo Puerto/Pass).", 
+                        "NUEVO: Restaurar USB y pegar archivos de configuración (Reemplazar).", 
+                        "Nota: Las impresoras en Windows deben tener EL MISMO NOMBRE para que funcione.",
+                        "Renombrar NUEVO a Hostname original.", 
+                        "Desactivar Firewall.", 
+                        "Validar terminales.", 
+                        "Configurar finales."
+                    ], 
+                    final: true, 
+                    finalType: 'warning' 
+                },
+
+                // --- MAC / LINUX FLOW ---
+                MAC_LINUX_MIGRATION: { 
+                    title: "Migración Mac / Linux", 
+                    desc: "Protocolo estándar Unix.", 
+                    instructions: [
+                        "Generar respaldo en el servidor origen.",
+                        "Respaldar archivos clave: 'caja.properties', 'cbb.properties', 'printer.properties', 'print.settings'.",
+                        "Transferir todo al nuevo equipo (USB/PC Asesor).",
+                        "Realizar instalación en blanco en el nuevo equipo.",
+                        "Montar respaldo (DBeaver/SicarTool).",
+                        "Pegar y reemplazar archivos de configuración en la nueva instalación.",
+                        "Nota: Las impresoras deben llamarse IGUAL en el sistema operativo.",
+                        "CRÍTICO: Si origen es Windows -> 'Win to Mac'.",
+                        "IMPORTANTE: Activar licencia.",
+                        "Redireccionar terminales (IP) y configurar finales."
+                    ], 
+                    final: true, 
+                    finalType: 'info' 
+                }
+            };
+            const current = content[step];
+            return (
+                <div className="flex flex-col h-full bg-gray-50 fade-in">
+                    <div className="bg-indigo-600 p-4 text-white flex items-center shadow-md"><button onClick={onBack} className="mr-4 hover:bg-indigo-700 p-2 rounded-full transition"><IconArrowLeft /></button><h2 className="text-xl font-bold flex items-center gap-2"><IconServer /> Guía de Migraciones</h2></div>
+                    <div className="flex-grow flex flex-col items-center justify-center p-8"><div className="max-w-xl w-full bg-white p-8 rounded-xl shadow-lg border-t-4 border-indigo-500">
+                        <h3 className="text-2xl font-bold text-gray-800 mb-4">{current.title}</h3><p className="text-gray-600 mb-6 text-lg leading-relaxed">{current.desc}</p>
+                        {current.final && (<div className="animate-fade-in"><ul className="space-y-3 mb-8">{current.instructions.map((inst, i) => (<li key={i} className="flex items-start gap-3 text-gray-700"><div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${current.finalType==='success'?'bg-green-500': current.finalType==='info'?'bg-blue-500':'bg-orange-500'}`}></div><span className={inst.includes("CRÍTICO") || inst.includes("PRO TIP")?"font-bold text-indigo-700":""}>{inst}</span></li>))}</ul><button onClick={() => setStep('START')} className="w-full py-3 border-2 border-gray-200 text-gray-600 font-semibold rounded-lg hover:bg-gray-50 transition">Reiniciar Guía</button></div>)}
+                        {current.type === 'question' && (<div className="space-y-4"><div className="grid grid-cols-2 gap-4"><button onClick={current.yesAction} className="bg-indigo-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-sm flex justify-center items-center gap-2"><IconCheck size={18} /> {current.yesText}</button><button onClick={current.noAction} className="bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition shadow-sm">{current.noText}</button></div></div>)}
+                        {current.type === 'selection' && (<div className="grid gap-4">{current.customButtons.map((btn, idx) => (<button key={idx} onClick={btn.action} className="flex items-center justify-between p-4 border-2 border-indigo-100 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition group"><span className="font-bold text-gray-700 group-hover:text-indigo-700">{btn.label}</span><span className="text-2xl">{btn.icon}</span></button>))}</div>)}
+                    </div></div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
