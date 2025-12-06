@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>F1 Retro Vertical Ultimate</title>
+    <title>F1 SUPER SEX</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
@@ -113,7 +113,7 @@
     <!-- LOBBY -->
     <div id="lobby-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gray-900 p-4">
         <div class="w-full max-w-lg bg-gray-800 p-6 rounded border-4 border-gray-600 shadow-xl overflow-y-auto max-h-screen">
-            <h1 class="text-3xl md:text-4xl text-center text-yellow-400 mb-8 pixel-text-shadow leading-tight">F1 RETRO<br>VERTICAL</h1>
+            <h1 class="text-3xl md:text-4xl text-center text-yellow-400 mb-8 pixel-text-shadow leading-tight">F1 SUPER<br>SEX</h1>
             
             <div id="auth-panel">
                 <input type="text" id="nickname-input" class="w-full bg-gray-700 text-white p-4 mb-6 border-4 border-gray-600 outline-none text-center uppercase" placeholder="TU NOMBRE">
@@ -227,15 +227,12 @@
         const db = getFirestore(app);
 
         // --- SISTEMA DE AUDIO ---
-        // Se asume que estos archivos existen localmente
         const audioLobby = new Audio('lobby.mp3'); audioLobby.loop = true;
         const audioCountdown = new Audio('countdown.mp3');
         const audioRacing = new Audio('racing.mp3'); audioRacing.loop = true;
-        // Ajustar volúmenes
         audioLobby.volume = 0.5;
         audioRacing.volume = 0.4;
         
-        // Helper para reproducir sin error de interacción
         const playAudio = (audio) => {
             audio.play().catch(e => console.log("Audio autoplay bloqueado hasta interacción user"));
         };
@@ -262,7 +259,7 @@
         
         // Pista
         const TRACK_WIDTH = 500; 
-        const SEGMENT_HEIGHT = 50; // Más pequeños para curvas más suaves
+        const SEGMENT_HEIGHT = 50; 
         const RUMBLE_WIDTH = 25;
         const TOTAL_DISTANCE = 30000; 
         const LAPS_TOTAL = 2;
@@ -320,19 +317,22 @@
             myCar.y += moveDist;
             const currentCurve = getCurveAt(myCar.y);
 
+            // MANEJO MEJORADO (Drifting Asistido)
             let steerForce = 0;
             if (myCar.speed > 10) { 
-                if (keys.left) steerForce = -1.5;
-                if (keys.right) steerForce = 1.5;
+                if (keys.left) steerForce = -2.5;
+                if (keys.right) steerForce = 2.5;
             }
-            const centrifugalForce = -currentCurve * (myCar.speed / myCar.maxSpeed) * 2.2;
+            
+            // REDUCCIÓN DE FUERZA CENTRÍFUGA (Menos castigo en curvas)
+            const centrifugalForce = -currentCurve * (myCar.speed / myCar.maxSpeed) * 1.0;
             myCar.x += (steerForce + centrifugalForce) * dt;
 
             const targetRotation = keys.left ? -25 : (keys.right ? 25 : 0);
             myCar.steer += (targetRotation - myCar.steer) * 10 * dt;
 
-            // Pasto
-            if (myCar.x < -1.1 || myCar.x > 1.1) myCar.speed *= 0.92; 
+            // Pasto (Penalización ligera)
+            if (myCar.x < -1.1 || myCar.x > 1.1) myCar.speed *= 0.95; 
 
             if (myCar.y >= TOTAL_DISTANCE * myCar.lap) {
                 if (myCar.lap >= LAPS_TOTAL) { myCar.finished = true; finishRace(); } 
@@ -341,12 +341,11 @@
             syncMyData();
         }
 
-        // RENDERIZADO MEJORADO CON POLÍGONOS SUAVES
+        // RENDERIZADO
         function drawScene() {
             const cx = canvas.width / 2;
             const cy = canvas.height;
 
-            // Fondo Pasto
             ctx.fillStyle = '#276725';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -355,83 +354,79 @@
             const offsetY = viewY % SEGMENT_HEIGHT;
             const segmentsOnScreen = Math.ceil(canvas.height / SEGMENT_HEIGHT) + 2;
             
-            // Arrays para guardar los puntos del borde de la carretera
             let leftPoints = [];
             let rightPoints = [];
-            
             let curveAccumulator = 0;
 
-            // 1. CALCULAR GEOMETRÍA
             for (let i = 0; i < segmentsOnScreen; i++) {
                 const sy = canvas.height - (i * SEGMENT_HEIGHT) + offsetY;
                 const distFuture = viewY + (i * SEGMENT_HEIGHT);
                 const c = getCurveAt(distFuture);
                 curveAccumulator += c;
                 
-                const segmentXOffset = curveAccumulator * 10; // Suavidad de curva
-                
-                // Centro visual de este segmento
-                // (myCar.x * 150) mueve la cámara opuestamente al coche para centrarlo
+                const segmentXOffset = curveAccumulator * 10;
                 const visualCenterX = cx + segmentXOffset - (myCar.x * 150); 
                 
                 leftPoints.push({ x: visualCenterX - roadW/2, y: sy });
                 rightPoints.push({ x: visualCenterX + roadW/2, y: sy });
             }
 
-            // 2. DIBUJAR CARRETERA (Polígono único)
+            // DIBUJAR PISTA BASE (Asfalto)
             ctx.beginPath();
             ctx.moveTo(leftPoints[0].x, leftPoints[0].y);
-            // Lado izquierdo hacia arriba
             for (let i = 1; i < leftPoints.length; i++) ctx.lineTo(leftPoints[i].x, leftPoints[i].y);
-            // Lado derecho hacia abajo
             for (let i = rightPoints.length - 1; i >= 0; i--) ctx.lineTo(rightPoints[i].x, rightPoints[i].y);
             ctx.closePath();
-            ctx.fillStyle = '#555'; // Asfalto base
+            ctx.fillStyle = '#555';
             ctx.fill();
 
-            // 3. DIBUJAR BORDES Y DETALLES (Segmento a Segmento para colores alternos)
+            // DIBUJAR DETALLES (Segmentos)
             for (let i = 0; i < segmentsOnScreen - 1; i++) {
-                const p1l = leftPoints[i];
-                const p1r = rightPoints[i];
-                const p2l = leftPoints[i+1];
-                const p2r = rightPoints[i+1];
-
-                const segmentIndex = Math.floor((viewY + (i * SEGMENT_HEIGHT)) / SEGMENT_HEIGHT);
+                const p1l = leftPoints[i]; const p1r = rightPoints[i];
+                const p2l = leftPoints[i+1]; const p2r = rightPoints[i+1];
+                const distSegment = viewY + (i * SEGMENT_HEIGHT);
+                const segmentIndex = Math.floor(distSegment / SEGMENT_HEIGHT);
                 const isDark = segmentIndex % 2 === 0;
 
-                // Rumble Strips (Bordes)
-                ctx.fillStyle = isDark ? '#fff' : '#c00';
-                
-                // Borde Izq
-                ctx.beginPath();
-                ctx.moveTo(p1l.x - RUMBLE_WIDTH, p1l.y); ctx.lineTo(p1l.x, p1l.y);
-                ctx.lineTo(p2l.x, p2l.y); ctx.lineTo(p2l.x - RUMBLE_WIDTH, p2l.y);
-                ctx.fill();
+                // LÍNEA DE META (Checkerboard)
+                // Chequear si el segmento actual corresponde a un múltiplo de la distancia total (30000)
+                // Lo hacemos visible si está dentro de un rango de 3 segmentos (150px)
+                if (distSegment % TOTAL_DISTANCE < SEGMENT_HEIGHT * 3) {
+                    const cols = 6;
+                    for(let c=0; c<cols; c++) {
+                        ctx.fillStyle = ((c + i)%2 === 0) ? '#fff' : '#111';
+                        
+                        // Interpolar X
+                        const x1_bl = p1l.x + (p1r.x - p1l.x) * (c/cols);
+                        const x1_br = p1l.x + (p1r.x - p1l.x) * ((c+1)/cols);
+                        const x2_tl = p2l.x + (p2r.x - p2l.x) * (c/cols);
+                        const x2_tr = p2l.x + (p2r.x - p2l.x) * ((c+1)/cols);
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(x1_bl, p1l.y); ctx.lineTo(x1_br, p1l.y);
+                        ctx.lineTo(x2_tr, p2l.y); ctx.lineTo(x2_tl, p2l.y);
+                        ctx.fill();
+                    }
+                } else {
+                    // SI NO ES META, DIBUJAR BORDES NORMALES
+                    ctx.fillStyle = isDark ? '#fff' : '#c00';
+                    
+                    ctx.beginPath(); ctx.moveTo(p1l.x - RUMBLE_WIDTH, p1l.y); ctx.lineTo(p1l.x, p1l.y); ctx.lineTo(p2l.x, p2l.y); ctx.lineTo(p2l.x - RUMBLE_WIDTH, p2l.y); ctx.fill();
+                    ctx.beginPath(); ctx.moveTo(p1r.x, p1r.y); ctx.lineTo(p1r.x + RUMBLE_WIDTH, p1r.y); ctx.lineTo(p2r.x + RUMBLE_WIDTH, p2r.y); ctx.lineTo(p2r.x, p2r.y); ctx.fill();
 
-                // Borde Der
-                ctx.beginPath();
-                ctx.moveTo(p1r.x, p1r.y); ctx.lineTo(p1r.x + RUMBLE_WIDTH, p1r.y);
-                ctx.lineTo(p2r.x + RUMBLE_WIDTH, p2r.y); ctx.lineTo(p2r.x, p2r.y);
-                ctx.fill();
-
-                // Asfalto alterno (opcional para velocidad)
-                ctx.fillStyle = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
-                ctx.beginPath();
-                ctx.moveTo(p1l.x, p1l.y); ctx.lineTo(p1r.x, p1r.y);
-                ctx.lineTo(p2r.x, p2r.y); ctx.lineTo(p2l.x, p2l.y);
-                ctx.fill();
-                
-                // Línea Central
-                if (isDark) {
-                    const cx1 = (p1l.x + p1r.x) / 2;
-                    const cx2 = (p2l.x + p2r.x) / 2;
-                    ctx.strokeStyle = '#fff';
-                    ctx.lineWidth = 4;
-                    ctx.beginPath(); ctx.moveTo(cx1, p1l.y); ctx.lineTo(cx2, p2l.y); ctx.stroke();
+                    // Sombra asfalto
+                    ctx.fillStyle = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+                    ctx.beginPath(); ctx.moveTo(p1l.x, p1l.y); ctx.lineTo(p1r.x, p1r.y); ctx.lineTo(p2r.x, p2r.y); ctx.lineTo(p2l.x, p2l.y); ctx.fill();
+                    
+                    // Línea central
+                    if (isDark) {
+                        const cx1 = (p1l.x + p1r.x) / 2; const cx2 = (p2l.x + p2r.x) / 2;
+                        ctx.strokeStyle = '#fff'; ctx.lineWidth = 4;
+                        ctx.beginPath(); ctx.moveTo(cx1, p1l.y); ctx.lineTo(cx2, p2l.y); ctx.stroke();
+                    }
                 }
             }
 
-            // DIBUJAR ENTIDADES
             if (gameData && gameData.players) {
                 const sortedPlayers = [...gameData.players].sort((a, b) => a.y - b.y);
                 sortedPlayers.forEach(p => {
@@ -455,7 +450,6 @@
             
             const w = 48; const h = 84;
             
-            // Sombra
             ctx.fillStyle = 'rgba(0,0,0,0.5)';
             ctx.beginPath(); ctx.ellipse(5, 5, w/2, h/2, 0, 0, Math.PI*2); ctx.fill();
 
@@ -472,10 +466,8 @@
             if (img && img.complete && img.naturalHeight !== 0) {
                 ctx.drawImage(img, -w/2, -h/2, w, h);
             } else {
-                // Fallback solo si no carga la imagen
                 ctx.fillStyle = 'purple'; ctx.fillRect(-w/2, -h/2, w, h);
             }
-            
             ctx.restore();
         }
 
@@ -488,8 +480,6 @@
                 const roadW = TRACK_WIDTH;
                 let visualX = (canvas.width / 2) - (myCar.x * 150);
                 const oppOffsetX = (p.x || 0) * (roadW / 2); 
-                
-                // Estimación de curva para el oponente (para que siga la carretera visualmente)
                 const curveFactor = getCurveAt(p.y || 0) * relY * 0.05;
                 const finalX = visualX + oppOffsetX + curveFactor;
                 
@@ -499,7 +489,6 @@
                 const w = 48; const h = 84;
                 const safeCarId = (p.carId >= 0 && p.carId < CAR_CONFIG.length) ? p.carId : 0;
                 
-                // Sombra
                 ctx.fillStyle = 'rgba(0,0,0,0.3)';
                 ctx.beginPath(); ctx.ellipse(5, 5, w/2, h/2, 0, 0, Math.PI*2); ctx.fill();
 
@@ -510,7 +499,6 @@
                     ctx.fillStyle = '#666'; ctx.fillRect(-w/2, -h/2, w, h);
                 }
                 
-                // Nombre
                 ctx.fillStyle = "white"; ctx.font = "bold 10px sans-serif"; 
                 ctx.textAlign = "center"; ctx.shadowColor="black"; ctx.shadowBlur=4;
                 ctx.fillText(p.name, 0, -50);
@@ -519,7 +507,6 @@
             }
         }
 
-        // --- INPUTS ---
         window.addEventListener('keydown', e => {
             if(e.key === 'ArrowUp') keys.up = true;
             if(e.key === 'ArrowLeft') keys.left = true;
@@ -542,7 +529,6 @@
         }
         bindT(btnGas, 'up'); bindT(btnLeft, 'left'); bindT(btnRight, 'right');
 
-        // --- FIREBASE LOGIC ---
         async function initAuth() {
             try {
                 await signInAnonymously(auth);
@@ -571,7 +557,7 @@
             waitingRoom.classList.remove('hidden');
             document.getElementById('display-room-code').textContent = id;
             
-            playAudio(audioLobby); // Música de lobby
+            playAudio(audioLobby); 
 
             const grid = document.getElementById('car-selection-grid');
             grid.innerHTML = '';
@@ -630,10 +616,8 @@
         };
 
         document.getElementById('btn-start-race').onclick = async () => {
-            // Asignar posiciones horizontales (Grid de Salida)
             const players = [...gameData.players];
             const total = players.length;
-            // Distribuir de -0.8 a 0.8
             players.forEach((p, i) => {
                 if (total === 1) p.x = 0;
                 else p.x = -0.6 + (i * (1.2 / (total - 1)));
@@ -641,7 +625,7 @@
 
             await updateDoc(getGameRef(gameId), { 
                 status: 'counting', 
-                startTime: Date.now() + 3500, // 3.5 seg para semáforo
+                startTime: Date.now() + 3500,
                 players: players 
             });
         };
@@ -672,10 +656,9 @@
                 document.getElementById('game-container').classList.remove('hidden');
                 document.querySelector('.traffic-light').classList.remove('hidden');
                 
-                audioLobby.pause(); // Parar música lobby
-                playAudio(audioCountdown); // Sonido semáforo
+                audioLobby.pause(); 
+                playAudio(audioCountdown); 
 
-                // Actualizar posición inicial si me acaban de asignar X
                 const me = data.players.find(p => p.uid === currentUser.uid);
                 if (me) myCar.x = me.x;
 
@@ -692,27 +675,20 @@
 
             } else if (data.status === 'racing') {
                 document.querySelector('.traffic-light').classList.add('hidden');
-                
-                if (audioRacing.paused) playAudio(audioRacing); // Loop carrera
-
+                if (audioRacing.paused) playAudio(audioRacing);
                 updateRanking();
             } else if (data.status === 'finished') {
-                 audioRacing.pause(); // Parar motor
+                 audioRacing.pause(); 
                  document.getElementById('result-overlay').classList.remove('hidden');
                  showPodium(data.players);
             }
         }
 
         function showPodium(players) {
-            // Ordenar por quién terminó primero (usamos finishedTime o simplemente orden de llegada)
-            // Como no guardamos tiempo exacto, usamos el estado actual:
-            // Filtramos los que terminaron y luego ordenamos por Y (distancia)
             const sorted = [...players].sort((a, b) => b.y - a.y);
-            
             const p1 = sorted[0];
             const p2 = sorted[1];
             const p3 = sorted[2];
-
             if(p1) {
                 document.getElementById('podium-1').classList.remove('hidden');
                 document.getElementById('name-1').textContent = p1.name;
@@ -729,7 +705,7 @@
 
         let lastSync = 0;
         async function syncMyData() {
-            if(Date.now() - lastSync < 100) return; // Más rápido para fluidez
+            if(Date.now() - lastSync < 100) return; 
             lastSync = Date.now();
             const idx = gameData.players.findIndex(p=>p.uid===currentUser.uid);
             if(idx===-1) return;
@@ -743,9 +719,6 @@
             const idx = gameData.players.findIndex(p=>p.uid===currentUser.uid);
             const players = [...gameData.players];
             players[idx].finished = true;
-            
-            // Check if all finished (opcional, por ahora gana el primero que llega para simplificar lógica de fin)
-            // Si nadie ha ganado aún, yo soy el ganador
             const payload = { players };
             if(!gameData.winner) {
                 payload.winner = currentUser.uid;
