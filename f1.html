@@ -41,6 +41,24 @@
             text-align: center;
         }
 
+        /* Botón Force Finish (Solo Host) */
+        #host-controls {
+            position: absolute; top: 60px; right: 10px;
+            z-index: 25; pointer-events: auto;
+        }
+        .force-btn {
+            background: #ef4444; border: 2px solid #fff;
+            color: white; padding: 8px 12px; font-size: 10px;
+            font-family: 'Press Start 2P', cursive;
+            cursor: pointer; box-shadow: 2px 2px 0 #000;
+            animation: pulse-red 2s infinite;
+        }
+        @keyframes pulse-red {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
         /* Semáforo */
         .traffic-light {
             display: flex; gap: 15px;
@@ -152,6 +170,10 @@
     <div id="game-container" class="hidden">
         <canvas id="gameCanvas"></canvas>
         
+        <div id="host-controls" class="hidden">
+            <button id="btn-force-finish" class="force-btn">🏁 FINALIZAR YA</button>
+        </div>
+
         <div id="hud">
             <div class="hud-panel">
                 <div class="text-[10px] text-gray-400">POS</div>
@@ -250,9 +272,9 @@
         let gameId = null;
         let gameData = null;
         let raceStartTimeout = null;
-        const opponentVisuals = {}; // Stores smoothed positions for opponents
+        const opponentVisuals = {}; 
 
-        function getGameRef(id) { return doc(db, 'f1-races-v3', id); } // Nueva versión de DB (Mapa)
+        function getGameRef(id) { return doc(db, 'f1-races-v3', id); }
 
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -366,7 +388,6 @@
                 rightPoints.push({ x: visualCenterX + roadW/2, y: sy });
             }
 
-            // PISTA
             ctx.beginPath();
             ctx.moveTo(leftPoints[0].x, leftPoints[0].y);
             for (let i = 1; i < leftPoints.length; i++) ctx.lineTo(leftPoints[i].x, leftPoints[i].y);
@@ -375,7 +396,6 @@
             ctx.fillStyle = '#555';
             ctx.fill();
 
-            // DETALLES
             for (let i = 0; i < segmentsOnScreen - 1; i++) {
                 const p1l = leftPoints[i]; const p1r = rightPoints[i];
                 const p2l = leftPoints[i+1]; const p2r = rightPoints[i+1];
@@ -383,7 +403,6 @@
                 const segmentIndex = Math.floor(distSegment / SEGMENT_HEIGHT);
                 const isDark = segmentIndex % 2 === 0;
 
-                // META
                 if (distSegment % TOTAL_DISTANCE < SEGMENT_HEIGHT * 3) {
                     const cols = 6;
                     for(let c=0; c<cols; c++) {
@@ -414,9 +433,7 @@
             }
 
             if (gameData && gameData.players) {
-                // Convert Map to Array for drawing
                 const playersArray = Object.values(gameData.players);
-                // Sort by distance (furthest first)
                 const sortedPlayers = playersArray.sort((a, b) => a.y - b.y);
                 sortedPlayers.forEach(p => {
                     if (p.uid === currentUser.uid) return;
@@ -432,16 +449,12 @@
         function drawCar(isMe, rotation) {
             const screenX = canvas.width / 2; 
             const screenY = canvas.height - 150;
-            
             ctx.save();
             ctx.translate(screenX, screenY);
             ctx.rotate(rotation * Math.PI / 180);
-            
             const w = 48; const h = 84;
-            
             ctx.fillStyle = 'rgba(0,0,0,0.5)';
             ctx.beginPath(); ctx.ellipse(5, 5, w/2, h/2, 0, 0, Math.PI*2); ctx.fill();
-
             let imgId = "img-red";
             if (isMe) {
                 if (gameData && gameData.players && gameData.players[currentUser.uid]) {
@@ -450,7 +463,6 @@
                     imgId = CAR_CONFIG[safeCarId].imgId;
                 }
             }
-
             const img = document.getElementById(imgId);
             if (img && img.complete && img.naturalHeight !== 0) {
                 ctx.drawImage(img, -w/2, -h/2, w, h);
@@ -462,21 +474,14 @@
 
         function drawOpponent(p, dt) {
             if (p.carId === undefined || p.carId === -1) return;
-
-            // INTERPOLACIÓN SUAVE (LERP)
-            // Si es la primera vez que vemos a este jugador, inicializamos su posición visual
             if (!opponentVisuals[p.uid]) {
                 opponentVisuals[p.uid] = { x: p.x, y: p.y };
             }
-
             const visual = opponentVisuals[p.uid];
-            // Acercar la posición visual a la posición real (target p.x, p.y)
-            const lerpFactor = 5.0 * dt; // Ajusta este valor para más suavidad vs respuesta
+            const lerpFactor = 5.0 * dt; 
             visual.x += (p.x - visual.x) * lerpFactor;
             visual.y += (p.y - visual.y) * lerpFactor;
-
             const relY = visual.y - myCar.y;
-
             if (relY > -200 && relY < 1500) {
                 const screenY = (canvas.height - 150) - relY;
                 const roadW = TRACK_WIDTH;
@@ -484,27 +489,21 @@
                 const oppOffsetX = (visual.x || 0) * (roadW / 2); 
                 const curveFactor = getCurveAt(visual.y || 0) * relY * 0.05;
                 const finalX = visualX + oppOffsetX + curveFactor;
-                
                 ctx.save();
                 ctx.translate(finalX, screenY);
-                
                 const w = 48; const h = 84;
                 const safeCarId = (p.carId >= 0 && p.carId < CAR_CONFIG.length) ? p.carId : 0;
-                
                 ctx.fillStyle = 'rgba(0,0,0,0.3)';
                 ctx.beginPath(); ctx.ellipse(5, 5, w/2, h/2, 0, 0, Math.PI*2); ctx.fill();
-
                 const img = document.getElementById(CAR_CONFIG[safeCarId].imgId);
                 if (img && img.complete && img.naturalHeight !== 0) {
                     ctx.drawImage(img, -w/2, -h/2, w, h);
                 } else {
                     ctx.fillStyle = '#666'; ctx.fillRect(-w/2, -h/2, w, h);
                 }
-                
                 ctx.fillStyle = "white"; ctx.font = "bold 10px sans-serif"; 
                 ctx.textAlign = "center"; ctx.shadowColor="black"; ctx.shadowBlur=4;
                 ctx.fillText(p.name, 0, -50);
-                
                 ctx.restore();
             }
         }
@@ -549,6 +548,7 @@
         const btnBack = document.getElementById('btn-back');
         const waitingRoom = document.getElementById('waiting-room');
         const errorMsg = document.getElementById('error-msg');
+        const hostControls = document.getElementById('host-controls');
 
         btnJoinMenu.onclick = () => { document.querySelector('#auth-panel .flex').classList.add('hidden'); joinArea.classList.remove('hidden'); errorMsg.textContent=""; };
         btnBack.onclick = () => { document.querySelector('#auth-panel .flex').classList.remove('hidden'); joinArea.classList.add('hidden'); errorMsg.textContent=""; };
@@ -580,13 +580,9 @@
 
         async function selectCar(cid) {
             if (!gameData) return;
-            // ACTUALIZACIÓN SEGURA: Usamos dot notation para actualizar SOLO nuestro jugador
-            // "players.UID"
             const fieldPath = `players.${currentUser.uid}`;
-            // Primero aseguramos que tenemos los datos del jugador actual
             const currentPlayerData = gameData.players[currentUser.uid] || {};
             const updatedPlayer = { ...currentPlayerData, carId: cid };
-            
             await updateDoc(getGameRef(gameId), { [fieldPath]: updatedPlayer });
         }
 
@@ -594,10 +590,8 @@
             const name = document.getElementById('nickname-input').value.toUpperCase() || "PILOTO";
             const rid = Math.floor(1000 + Math.random()*9000).toString();
             try {
-                // ESTRUCTURA NUEVA: Players es un Mapa (Objeto), no un Array
                 const initialPlayers = {};
                 initialPlayers[currentUser.uid] = { uid: currentUser.uid, name, carId: -1, x: 0, y: 0, finished: false };
-                
                 await setDoc(getGameRef(rid), {
                     roomId: rid, hostId: currentUser.uid, status: 'waiting',
                     players: initialPlayers
@@ -617,9 +611,7 @@
                     if (!docSnap.exists()) throw "Sala no existe";
                     const d = docSnap.data();
                     const numPlayers = Object.keys(d.players || {}).length;
-                    
                     if(d.status==='waiting' && numPlayers < 5) {
-                         // Agregar al mapa sin sobrescribir
                          if (!d.players[currentUser.uid]) {
                             const fieldPath = `players.${currentUser.uid}`;
                             t.update(ref, { [fieldPath]: { uid: currentUser.uid, name, carId: -1, x: 0, y: 0, finished: false } });
@@ -631,21 +623,21 @@
         };
 
         document.getElementById('btn-start-race').onclick = async () => {
-            // Asignar grid positions
             const playersArray = Object.values(gameData.players);
             const updates = {};
             const total = playersArray.length;
-            
             playersArray.forEach((p, i) => {
                 let startX = 0;
                 if (total > 1) startX = -0.6 + (i * (1.2 / (total - 1)));
                 updates[`players.${p.uid}.x`] = startX;
             });
-            
             updates['status'] = 'counting';
             updates['startTime'] = Date.now() + 3500;
-
             await updateDoc(getGameRef(gameId), updates);
+        };
+
+        document.getElementById('btn-force-finish').onclick = async () => {
+            await updateDoc(getGameRef(gameId), { status: 'finished' });
         };
 
         function handleServerUpdate(data) {
@@ -656,7 +648,6 @@
                 const list = document.getElementById('players-list');
                 list.innerHTML = '';
                 playersArray.forEach(p => list.innerHTML += `<li>${p.name} ${p.carId>=0 ? '('+CAR_CONFIG[p.carId].name+')':''}</li>`);
-                
                 if(data.hostId === currentUser.uid) {
                     const btn = document.getElementById('btn-start-race');
                     const ready = playersArray.every(p=>p.carId!==-1);
@@ -676,13 +667,10 @@
                 lobby.classList.add('hidden');
                 document.getElementById('game-container').classList.remove('hidden');
                 document.querySelector('.traffic-light').classList.remove('hidden');
-                
                 audioLobby.pause(); 
                 playAudio(audioCountdown); 
-
                 const me = data.players[currentUser.uid];
                 if (me) myCar.x = me.x;
-
                 setTimeout(()=>document.getElementById('light-1').classList.add('active'), 500);
                 setTimeout(()=>document.getElementById('light-2').classList.add('active'), 1500);
                 setTimeout(()=>document.getElementById('light-3').classList.add('active'), 2500);
@@ -698,9 +686,17 @@
                 document.querySelector('.traffic-light').classList.add('hidden');
                 if (audioRacing.paused) playAudio(audioRacing);
                 updateRanking();
+                // Show Host Controls if I am the host
+                if (data.hostId === currentUser.uid) {
+                    hostControls.classList.remove('hidden');
+                } else {
+                    hostControls.classList.add('hidden');
+                }
+
             } else if (data.status === 'finished') {
                  audioRacing.pause(); 
                  document.getElementById('result-overlay').classList.remove('hidden');
+                 hostControls.classList.add('hidden');
                  showPodium(playersArray);
             }
         }
@@ -728,11 +724,8 @@
         async function syncMyData() {
             if(Date.now() - lastSync < 100) return; 
             lastSync = Date.now();
-            
-            // ACTUALIZACIÓN ATÓMICA: Solo actualizamos NUESTROS campos X e Y
             const fieldX = `players.${currentUser.uid}.x`;
             const fieldY = `players.${currentUser.uid}.y`;
-            
             await updateDoc(getGameRef(gameId), { 
                 [fieldX]: parseFloat(myCar.x.toFixed(3)),
                 [fieldY]: Math.floor(myCar.y)
@@ -741,15 +734,26 @@
 
         async function finishRace() {
             const playersArray = Object.values(gameData.players);
-            // Marcar como finalizado localmente y enviar
             const fieldFinished = `players.${currentUser.uid}.finished`;
             const updates = { [fieldFinished]: true };
+            
+            // Check if ALL players are finished
+            const allFinished = playersArray.every(p => {
+                // If it's me, I am finished now.
+                if (p.uid === currentUser.uid) return true;
+                return p.finished;
+            });
 
+            if (allFinished) {
+                updates['status'] = 'finished';
+            }
+            
+            // Still set winner if first (optional, for record)
             if(!gameData.winner) {
                 updates['winner'] = currentUser.uid;
                 updates['winnerName'] = gameData.players[currentUser.uid].name;
-                updates['status'] = 'finished';
             }
+
             await updateDoc(getGameRef(gameId), updates);
         }
 
