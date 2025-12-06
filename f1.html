@@ -108,22 +108,41 @@
         /* Podio */
         .podium-step {
             display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
-            width: 80px; background: linear-gradient(to bottom, #fbbf24, #b45309);
+            width: 90px; background: linear-gradient(to bottom, #fbbf24, #b45309);
             border: 2px solid #fff; position: relative;
         }
         .podium-rank { font-size: 24px; font-weight: bold; margin-bottom: 10px; text-shadow: 2px 2px 0 #000; }
-        .podium-name { position: absolute; top: -30px; width: 150%; text-align: center; font-size: 10px; white-space: nowrap; text-shadow: 1px 1px 0 #000; }
+        .podium-name { position: absolute; bottom: -30px; width: 150%; text-align: center; font-size: 10px; white-space: nowrap; text-shadow: 1px 1px 0 #000; color: white; }
+        
+        .pilot-img {
+            width: 70px; height: 70px; object-fit: contain;
+            margin-bottom: 10px;
+            filter: drop-shadow(4px 4px 0px rgba(0,0,0,0.5));
+        }
+        
+        #podium-1 .pilot-img { width: 100px; height: 100px; }
+        #podium-2 { background: linear-gradient(to bottom, #9ca3af, #4b5563); }
+        #podium-3 { background: linear-gradient(to bottom, #d97706, #92400e); }
+
     </style>
 </head>
 <body>
 
-    <!-- ASSETS (MP3s deben estar en la misma carpeta) -->
+    <!-- ASSETS (MP3s y PNGs deben estar en la carpeta raíz) -->
     <div id="assets">
+        <!-- COCHES -->
         <img id="img-red" src="red_car.png" onerror="this.src='https://placehold.co/32x64/red/white?text=R'">
         <img id="img-blue" src="blue_car.png" onerror="this.src='https://placehold.co/32x64/blue/white?text=B'">
         <img id="img-green" src="green_car.png" onerror="this.src='https://placehold.co/32x64/green/white?text=G'">
         <img id="img-white" src="white_car.png" onerror="this.src='https://placehold.co/32x64/white/black?text=W'">
         <img id="img-black" src="black_car.png" onerror="this.src='https://placehold.co/32x64/333/white?text=K'">
+        
+        <!-- PILOTOS -->
+        <img id="pilot-red" src="red_pilot.png" onerror="this.src='https://placehold.co/64x64/red/white?text=P-R'">
+        <img id="pilot-blue" src="blue_pilot.png" onerror="this.src='https://placehold.co/64x64/blue/white?text=P-B'">
+        <img id="pilot-green" src="green_pilot.png" onerror="this.src='https://placehold.co/64x64/green/white?text=P-G'">
+        <img id="pilot-white" src="white_pilot.png" onerror="this.src='https://placehold.co/64x64/white/black?text=P-W'">
+        <img id="pilot-black" src="black_pilot.png" onerror="this.src='https://placehold.co/64x64/333/white?text=P-K'">
     </div>
     
     <div id="fatal-error" class="hidden"></div>
@@ -207,22 +226,25 @@
         <div id="result-overlay" class="absolute inset-0 bg-black bg-opacity-95 flex flex-col items-center justify-center hidden z-50">
             <h2 id="result-title" class="text-4xl text-yellow-400 mb-8 pixel-text-shadow text-center">¡FINALIZADO!</h2>
             
-            <div id="podium-container" class="flex items-end justify-center gap-2 mb-12 h-64">
+            <div id="podium-container" class="flex items-end justify-center gap-4 mb-16 h-80">
                 <!-- 2nd Place -->
-                <div id="podium-2" class="podium-step h-32 bg-gray-400 hidden">
-                    <span class="podium-name" id="name-2">P2</span>
+                <div id="podium-2" class="podium-step h-40 hidden">
+                    <img id="img-pilot-2" class="pilot-img" src="" alt="">
                     <span class="podium-rank">2</span>
+                    <span class="podium-name" id="name-2">P2</span>
                 </div>
                 <!-- 1st Place -->
-                <div id="podium-1" class="podium-step h-48 bg-yellow-400 hidden z-10">
-                    <span class="podium-name text-yellow-400" id="name-1" style="top:-40px; font-size:14px;">WINNER</span>
+                <div id="podium-1" class="podium-step h-60 hidden z-10 bg-yellow-400">
+                    <div class="text-4xl absolute -top-16">👑</div>
+                    <img id="img-pilot-1" class="pilot-img" src="" alt="">
                     <span class="podium-rank">1</span>
-                    <div class="text-4xl mt-2">🏆</div>
+                    <span class="podium-name text-yellow-400 font-bold" id="name-1">WINNER</span>
                 </div>
                 <!-- 3rd Place -->
-                <div id="podium-3" class="podium-step h-24 bg-orange-700 hidden">
-                    <span class="podium-name" id="name-3">P3</span>
+                <div id="podium-3" class="podium-step h-24 hidden">
+                    <img id="img-pilot-3" class="pilot-img" src="" alt="">
                     <span class="podium-rank">3</span>
+                    <span class="podium-name" id="name-3">P3</span>
                 </div>
             </div>
 
@@ -259,13 +281,13 @@
             audio.play().catch(e => console.log("Audio autoplay bloqueado hasta interacción user"));
         };
 
-        // CONFIG AUTOS
+        // CONFIG AUTOS & PILOTOS
         const CAR_CONFIG = [
-            { id: 0, name: "Rojo", imgId: "img-red", color: "#ef4444" },
-            { id: 1, name: "Azul", imgId: "img-blue", color: "#3b82f6" },
-            { id: 2, name: "Verde", imgId: "img-green", color: "#10b981" },
-            { id: 3, name: "Blanco", imgId: "img-white", color: "#e2e8f0" },
-            { id: 4, name: "Negro", imgId: "img-black", color: "#1f2937" }
+            { id: 0, name: "Rojo", imgId: "img-red", pilotImgId: "pilot-red", color: "#ef4444" },
+            { id: 1, name: "Azul", imgId: "img-blue", pilotImgId: "pilot-blue", color: "#3b82f6" },
+            { id: 2, name: "Verde", imgId: "img-green", pilotImgId: "pilot-green", color: "#10b981" },
+            { id: 3, name: "Blanco", imgId: "img-white", pilotImgId: "pilot-white", color: "#e2e8f0" },
+            { id: 4, name: "Negro", imgId: "img-black", pilotImgId: "pilot-black", color: "#1f2937" }
         ];
 
         let currentUser = null;
@@ -703,21 +725,28 @@
 
         function showPodium(players) {
             const sorted = [...players].sort((a, b) => b.y - a.y);
-            const p1 = sorted[0];
-            const p2 = sorted[1];
-            const p3 = sorted[2];
-            if(p1) {
-                document.getElementById('podium-1').classList.remove('hidden');
-                document.getElementById('name-1').textContent = p1.name;
-            }
-            if(p2) {
-                document.getElementById('podium-2').classList.remove('hidden');
-                document.getElementById('name-2').textContent = p2.name;
-            }
-            if(p3) {
-                document.getElementById('podium-3').classList.remove('hidden');
-                document.getElementById('name-3').textContent = p3.name;
-            }
+            
+            const updatePodiumStep = (id, player) => {
+                const el = document.getElementById(id);
+                if (player) {
+                    el.classList.remove('hidden');
+                    el.querySelector('.podium-name').textContent = player.name;
+                    
+                    const safeCarId = (player.carId >= 0 && player.carId < CAR_CONFIG.length) ? player.carId : 0;
+                    const pilotImgId = CAR_CONFIG[safeCarId].pilotImgId;
+                    const imgEl = el.querySelector('.pilot-img');
+                    
+                    // Asignar src desde el elemento de assets
+                    const assetImg = document.getElementById(pilotImgId);
+                    if (assetImg) imgEl.src = assetImg.src;
+                } else {
+                    el.classList.add('hidden');
+                }
+            };
+
+            updatePodiumStep('podium-1', sorted[0]);
+            updatePodiumStep('podium-2', sorted[1]);
+            updatePodiumStep('podium-3', sorted[2]);
         }
 
         let lastSync = 0;
