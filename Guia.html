@@ -19,21 +19,67 @@
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* Animación de carga para el chat */
+        .typing-dot {
+            animation: typing 1.4s infinite ease-in-out both;
+        }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
+
+        // ==========================================
+        // CONFIGURACIÓN API GEMINI
+        // ==========================================
+        const GEMINI_API_KEY = "AIzaSyAdUr952gKSiXkM1OlB5wZZGurc2kiOvyg"; // <--- ¡COLOCA TU API KEY AQUÍ! (Dentro de las comillas)
+
+        // Contexto para la IA con toda la información de la guía
+        const KNOWLEDGE_BASE = `
+        Actúa como un experto técnico de soporte para bases de datos SICAR. Responde preguntas basándote ESTRICTAMENTE en los siguientes protocolos:
+
+        1. MIGRACIONES:
+           - Windows a Windows (Con Terminales): Se recomienda "Clonación Simultánea". Instalar nuevo SICAR con mismo Puerto y Contraseña. Cerrar terminales, desasociar nube. Respaldar y restaurar. Copiar Hostname del antiguo al nuevo para evitar reconfigurar terminales. Copiar archivos de configuración (caja, cbb, printer.properties, print.settings).
+           - Windows (Sin Terminales): Instalación limpia, desasociar nube, respaldo/restauración, activar nube, copiar configuraciones.
+           - Mac/Linux: No aplica clonación de Hostname. Pasos: Cerrar terminales, desasociar nube, respaldar origen, transferir, instalación limpia en nuevo, montar respaldo con DBeaver/SicarTool. CRÍTICO: Si viene de Windows aplicar "Win to Mac". Redireccionar terminales manualmente (IP).
+
+        2. REPOSICIONES (Restauración de respaldos):
+           - Siempre verificar si el cliente tiene respaldo y si la fecha es correcta.
+           - Herramientas Windows: GuiTools (Recomendado) o SicarTool.
+           - Herramientas Mac/Linux: DBeaver o SicarTool.
+           - Sin Respaldo: Verificar si tiene disco esclavo. Si sí -> Buscar .sr/.zip o usar método "ibdata" (extracción cruda).
+           - Sin Respaldo ni Disco: Si tiene Nube -> Descargar artículos (se pierde historial). Si no -> Instalación desde cero.
+
+        3. BORRADO DE BD:
+           - Siempre verificar si hay terminales. Si hay -> Actualizar binarios (limpieza de carpetas lib, bundle, etc.).
+           - Conservar Datos: Exportar catálogos, borrar BD, reinstalar/limpiar, reimportar.
+           - Borrado Total: Respaldo previo crítico, desactivar licencia, borrar todo.
+
+        4. CONSEJOS CLAVE:
+           - Archivos de configuración a preservar: caja.properties, cbb.properties, printer.properties, print.settings.
+           - Impresoras en Windows: Deben tener el MISMO NOMBRE.
+           - Linux: Ruta /usr/bin/SICAR, instalar con dpkg -i.
+           - SQL: drop database sicar (si falla GUI).
         
+        Sé conciso, técnico y directo. Si la pregunta no está en estos protocolos, di que no tienes información al respecto.
+        `;
+
         // --- Icon Components ---
         const IconServer = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>;
         const IconTrash = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
         const IconRefresh = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>;
         const IconArrowLeft = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>;
         const IconCheck = ({size}) => <svg xmlns="http://www.w3.org/2000/svg" width={size || 24} height={size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>;
-        const IconAlert = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>;
+        const IconAlert = () => <svg xmlns="http://www.w3.org/2000/svg" width={size || 24} height={size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>;
         const IconHardDrive = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" x2="2" y1="12" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" x2="6.01" y1="16" y2="16"/><line x1="10" x2="10.01" y1="16" y2="16"/></svg>;
         const IconDatabase = ({size}) => <svg xmlns="http://www.w3.org/2000/svg" width={size || 24} height={size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>;
         const IconCloud = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19c0-3.037-2.463-5.5-5.5-5.5S6.5 15.963 6.5 19"/><path d="M20.6 16c.4.6.6 1.3.6 2 0 2.2-1.8 4-4 4h-11c-2.2 0-4-1.8-4-4 0-1.5.8-2.8 2-3.5"/><path d="M16.6 13a6 6 0 0 0-11.2 0"/><path d="M12 3a9 9 0 0 1 9 9"/></svg>;
@@ -46,11 +92,15 @@
         const IconLightbulb = ({size}) => <svg xmlns="http://www.w3.org/2000/svg" width={size || 24} height={size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-1 1.5-2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>;
         const IconX = ({size}) => <svg xmlns="http://www.w3.org/2000/svg" width={size || 24} height={size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>;
         const IconImage = ({size}) => <svg xmlns="http://www.w3.org/2000/svg" width={size || 24} height={size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>;
+        // Nuevo icono para el Chat
+        const IconRobot = ({size}) => <svg xmlns="http://www.w3.org/2000/svg" width={size || 24} height={size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>;
+        const IconSend = ({size}) => <svg xmlns="http://www.w3.org/2000/svg" width={size || 24} height={size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" x2="11" y1="2" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>;
 
         // --- Main App Component ---
         const App = () => {
             const [currentView, setCurrentView] = useState('HOME');
             const [showTips, setShowTips] = useState(false);
+            const [showChat, setShowChat] = useState(false); // Estado para el chat
 
             const renderView = () => {
                 switch(currentView) {
@@ -72,20 +122,184 @@
                         {renderView()}
                     </div>
                     <footer className="mt-8 text-gray-400 text-sm text-center">
-                        Sistema de Guía Interactiva v2.3
+                        Sistema de Guía Interactiva v2.6
                     </footer>
 
-                    {/* Botón Flotante de Consejos */}
+                    {/* Botón Flotante de Consejos (Izquierda del Chat) */}
                     <button 
                         onClick={() => setShowTips(true)} 
-                        className="fixed bottom-6 right-6 bg-yellow-400 text-yellow-900 p-4 rounded-full shadow-lg hover:bg-yellow-300 transition-transform hover:scale-110 z-50 flex items-center justify-center border-4 border-white"
+                        className="fixed bottom-6 right-24 bg-yellow-400 text-yellow-900 p-4 rounded-full shadow-lg hover:bg-yellow-300 transition-transform hover:scale-110 z-40 flex items-center justify-center border-4 border-white"
                         title="Consejos Rápidos"
                     >
                         <IconLightbulb size={32} />
                     </button>
 
+                    {/* Botón Flotante de Chat AI (Esquina) */}
+                    <button 
+                        onClick={() => setShowChat(true)} 
+                        className="fixed bottom-6 right-6 bg-violet-600 text-white p-4 rounded-full shadow-lg hover:bg-violet-500 transition-transform hover:scale-110 z-40 flex items-center justify-center border-4 border-white"
+                        title="Asistente IA"
+                    >
+                        <IconRobot size={32} />
+                    </button>
+
                     {/* Modal de Consejos */}
                     {showTips && <TipsModal onClose={() => setShowTips(false)} />}
+                    
+                    {/* Modal de Chat AI */}
+                    {showChat && <GeminiChatModal onClose={() => setShowChat(false)} />}
+                </div>
+            );
+        };
+
+        // --- Gemini Chat Component ---
+        const GeminiChatModal = ({ onClose }) => {
+            const [messages, setMessages] = useState([
+                { role: 'model', text: '¡Hola! Soy tu asistente técnico de SICAR. ¿Tienes dudas sobre algún procedimiento de la guía?' }
+            ]);
+            const [input, setInput] = useState('');
+            const [loading, setLoading] = useState(false);
+            const messagesEndRef = useRef(null);
+
+            const scrollToBottom = () => {
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            };
+
+            useEffect(() => {
+                scrollToBottom();
+            }, [messages]);
+
+            const handleSend = async () => {
+                if (!input.trim()) return;
+                
+                const userMessage = { role: 'user', text: input };
+                setMessages(prev => [...prev, userMessage]);
+                setInput('');
+                setLoading(true);
+
+                try {
+                    // Validamos que exista una key, pero quitamos la validación del texto exacto
+                    // para evitar el error si el usuario reemplazó el texto.
+                    if (!GEMINI_API_KEY || GEMINI_API_KEY.includes("PON_TU_API_KEY")) {
+                         throw new Error("API Key no configurada. Por favor, edita el código fuente y coloca tu API Key de Gemini.");
+                    }
+
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            contents: [
+                                {
+                                    role: "user",
+                                    parts: [
+                                        { text: KNOWLEDGE_BASE }, // Contexto del sistema
+                                        ...messages.map(m => ({ text: `${m.role === 'user' ? 'Usuario' : 'Modelo'}: ${m.text}` })), // Historial
+                                        { text: `Usuario: ${input}` } // Pregunta actual
+                                    ]
+                                }
+                            ]
+                        })
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        throw new Error(data.error.message);
+                    }
+
+                    const aiResponseText = data.candidates?.[0]?.content?.parts?.[0]?.text || "Lo siento, no pude procesar tu solicitud.";
+                    
+                    setMessages(prev => [...prev, { role: 'model', text: aiResponseText }]);
+
+                } catch (error) {
+                    console.error("Error Gemini:", error);
+                    setMessages(prev => [...prev, { role: 'model', text: `Error: ${error.message}` }]);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleKeyPress = (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                }
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-4 fade-in">
+                    <div className="bg-white w-full sm:max-w-md h-[80vh] sm:h-[600px] sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+                        
+                        {/* Header */}
+                        <div className="bg-violet-600 p-4 flex justify-between items-center text-white shadow-md">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-white/20 p-2 rounded-full"><IconRobot size={24} /></div>
+                                <div>
+                                    <h2 className="font-bold text-lg leading-none">Asistente IA</h2>
+                                    <span className="text-xs text-violet-200">Powered by Gemini Flash</span>
+                                </div>
+                            </div>
+                            <button onClick={onClose} className="p-1 hover:bg-violet-700 rounded-full transition">
+                                <IconX size={24} />
+                            </button>
+                        </div>
+
+                        {/* Messages Area */}
+                        <div className="flex-grow p-4 overflow-y-auto bg-gray-50 custom-scrollbar space-y-4">
+                            {messages.map((msg, idx) => (
+                                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`max-w-[80%] p-3 rounded-2xl text-sm ${
+                                        msg.role === 'user' 
+                                        ? 'bg-violet-600 text-white rounded-br-none' 
+                                        : 'bg-white text-gray-800 border border-gray-200 shadow-sm rounded-bl-none'
+                                    }`}>
+                                        <p className="whitespace-pre-wrap">{msg.text}</p>
+                                    </div>
+                                </div>
+                            ))}
+                            {loading && (
+                                <div className="flex justify-start">
+                                    <div className="bg-white border border-gray-200 p-3 rounded-2xl rounded-bl-none shadow-sm flex gap-1 items-center">
+                                        <div className="w-2 h-2 bg-violet-400 rounded-full typing-dot"></div>
+                                        <div className="w-2 h-2 bg-violet-400 rounded-full typing-dot"></div>
+                                        <div className="w-2 h-2 bg-violet-400 rounded-full typing-dot"></div>
+                                    </div>
+                                </div>
+                            )}
+                            <div ref={messagesEndRef} />
+                        </div>
+
+                        {/* Input Area */}
+                        <div className="p-4 bg-white border-t border-gray-100">
+                            <div className="flex items-center gap-2">
+                                <input 
+                                    type="text" 
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    onKeyDown={handleKeyPress}
+                                    placeholder="Pregunta sobre la guía..."
+                                    className="flex-grow p-3 bg-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm"
+                                    disabled={loading}
+                                />
+                                <button 
+                                    onClick={handleSend}
+                                    disabled={loading || !input.trim()}
+                                    className={`p-3 rounded-xl transition ${
+                                        loading || !input.trim() 
+                                        ? 'bg-gray-200 text-gray-400' 
+                                        : 'bg-violet-600 text-white hover:bg-violet-700 shadow-md'
+                                    }`}
+                                >
+                                    <IconSend size={20} />
+                                </button>
+                            </div>
+                            <div className="text-center mt-2">
+                                <p className="text-[10px] text-gray-400">La IA puede cometer errores. Verifica la información importante.</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             );
         };
