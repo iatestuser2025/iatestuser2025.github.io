@@ -12,6 +12,14 @@
             .print-only { display: flex !important; }
             body { background: white; }
             @page { margin: 0; }
+            
+            /* --- CORRECCIÓN MÁGICA PARA IMPRESIÓN --- */
+            /* Esto obliga al navegador (Chrome/Safari/Edge) a imprimir fondos y colores exactos */
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
         }
         /* Ocultar barra de scroll en tabs para estética móvil */
         .hide-scrollbar::-webkit-scrollbar { display: none; }
