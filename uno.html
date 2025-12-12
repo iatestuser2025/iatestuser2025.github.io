@@ -596,6 +596,13 @@
 
         async function onCardClick(card) {
             if (!isMyTurn() || !amIActive()) return;
+            
+            // CORRECCIÓN 1: Bloquear cualquier carta si estás en Sad Face (roulette-draw)
+            if (currentGameData.gamePhase === 'roulette-draw') {
+                messageEl.textContent = "¡Estás en castigo Sad Face! Debes robar hasta encontrar el color.";
+                return; // Impide jugar la carta
+            }
+
             if (!isCardPlayable(card)) { messageEl.textContent = "Carta inválida."; return; }
             
             if (card.color === 'black') {
@@ -638,9 +645,9 @@
                     data.message = `${player.name} encontró ${colorToFind}.`;
                     advanceTurn(data);
                 } else {
-                    const vIdx = getNextPlayerIndex(data, true); // Obtener índice del jugador que está buscando
-                    const vName = data.players[vIdx].name;
-                    data.message = `${vName} busca ${colorToFind}...`;
+                    // CORRECCIÓN 2: Mensaje correcto indicando que el jugador ACTUAL sigue buscando
+                    // No usamos getNextPlayerIndex aquí porque el turno es de la víctima
+                    data.message = `${player.name} busca ${colorToFind}...`;
                 }
                 await updateDoc(gameRef, data); return;
             }
@@ -776,12 +783,25 @@
             switch (card.type) {
                 case 'number':
                     if (card.value === '0') {
-                        const hands = data.players.map(p => p.hand);
-                        const counts = data.players.map(p => p.cardCount);
-                        const lastH = hands.pop(); hands.unshift(lastH);
-                        const lastC = counts.pop(); counts.unshift(lastC);
-                        data.players.forEach((p, i) => { p.hand = hands[i]; p.cardCount = counts[i]; p.isSafe = false; });
-                        data.message = "¡CARTA 0! Rotación de manos."; // Mensaje para carta 0
+                        // CORRECCIÓN 3: Rotación de cartas ignorando jugadores perdidos
+                        const activePlayers = data.players.filter(p => p.status === 'playing');
+                        const activeHands = activePlayers.map(p => p.hand);
+                        
+                        // Rotamos las manos extraídas
+                        // Pop/Unshift mueve hacia la derecha en el array (A->B->C->A)
+                        const lastH = activeHands.pop(); 
+                        activeHands.unshift(lastH);
+                        
+                        // Reasignamos SOLO a los jugadores activos
+                        activePlayers.forEach((p, i) => { 
+                            p.hand = activeHands[i]; 
+                            p.cardCount = p.hand.length; 
+                            p.isSafe = false; 
+                        });
+                        
+                        // Nota: Al modificar los objetos en activePlayers, se modifican en data.players 
+                        // porque son referencias al mismo objeto en memoria.
+                        data.message = "¡CARTA 0! Rotación de manos (solo activos).";
                     }
                     if (card.value === '7') {
                         data.gamePhase = 'swap-hand-choice';
