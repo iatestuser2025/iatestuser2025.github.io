@@ -198,12 +198,8 @@
                 e.preventDefault();
                 setError('');
                 try {
-                    if(formData.username === 'soloramonsexlosabe' && formData.password === 'Ap0coS1P@Dr1n0') {
-                        const superAdmin = { username: 'SuperAdmin', fullName: 'Administrador Maestro', role: 'admin' };
-                        setDbUser(superAdmin);
-                        setView('admin');
-                        return;
-                    }
+                    // --- SEGURIDAD: SE ELIMINÓ EL ACCESO HARDCODEADO ---
+                    // Ahora la única forma de ser admin es teniendo role: 'admin' en la base de datos de Firebase.
 
                     const docSnap = await getDocs(query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), where('username', '==', formData.username), where('password', '==', formData.password)));
                     
