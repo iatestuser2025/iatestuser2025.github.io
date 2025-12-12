@@ -29,7 +29,7 @@
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
         import { getFirestore, collection, addDoc, query, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp, setDoc, getDocs, where } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
-        import { Trophy, Users, PlusCircle, CheckCircle, Clock, Search, FileText, LogOut, Shield, User, Printer, XCircle, Menu, X, Lock, RefreshCw, KeyRound, Calendar, Trash2, AlertTriangle, Banknote, ChevronDown, ChevronUp } from 'https://esm.sh/lucide-react@0.263.1';
+        import { Trophy, Users, PlusCircle, CheckCircle, Clock, Search, FileText, LogOut, Shield, User, Printer, XCircle, Menu, X, Lock, RefreshCw, KeyRound, Calendar, Trash2, AlertTriangle, Banknote, ChevronDown, ChevronUp, Gamepad2 } from 'https://esm.sh/lucide-react@0.263.1';
 
         // --- CONFIGURACIÓN FIREBASE (PROYECTO EXISTENTE) ---
         const localConfig = {
@@ -140,7 +140,8 @@
 
                     <main className="container mx-auto p-3 md:p-6 mb-20 flex-grow w-full max-w-5xl">
                         {view === 'auth' && <AuthView setDbUser={setDbUser} setView={setView} appId={appId} db={db} />}
-                        {view === 'admin' && <AdminView teams={teams} matchdays={matchdays} bets={bets} appId={appId} db={db} />}
+                        {/* AHORA PASAMOS EL USER AL ADMINVIEW TAMBIÉN PARA QUE PUEDA JUGAR */}
+                        {view === 'admin' && <AdminView teams={teams} matchdays={matchdays} bets={bets} user={dbUser} appId={appId} db={db} />}
                         {view === 'user' && <UserView teams={teams} matchdays={matchdays} bets={bets} user={dbUser} appId={appId} db={db} />}
                     </main>
 
@@ -287,7 +288,7 @@
             );
         }
 
-        function AdminView({ teams, matchdays, bets, appId, db }) {
+        function AdminView({ teams, matchdays, bets, user, appId, db }) {
             const [tab, setTab] = useState('matchdays');
             const tabs = [
                 { id: 'matchdays', icon: PlusCircle, label: 'Jornadas' },
@@ -295,6 +296,7 @@
                 { id: 'users', icon: Users, label: 'Usuarios' },
                 { id: 'results', icon: Trophy, label: 'Resultados' },
                 { id: 'teams', icon: Shield, label: 'Equipos' },
+                { id: 'player_mode', icon: Gamepad2, label: 'Modo Jugador' }, // NUEVO TAB
             ];
 
             return (
@@ -313,6 +315,16 @@
                         {tab === 'users' && <AdminUsers appId={appId} db={db} />}
                         {tab === 'results' && <AdminResults matchdays={matchdays} bets={bets} appId={appId} db={db} />}
                         {tab === 'teams' && <AdminTeams teams={teams} appId={appId} db={db} />}
+                        
+                        {/* AQUI RENDERIZAMOS LA VISTA DE JUGADOR DENTRO DEL ADMIN */}
+                        {tab === 'player_mode' && (
+                            <div className="border-t-4 border-green-500 rounded-lg overflow-hidden">
+                                <div className="bg-green-100 p-2 text-center text-green-800 font-bold text-xs uppercase tracking-wide">
+                                    Vista de Jugador (Modo Administrador)
+                                </div>
+                                <UserView teams={teams} matchdays={matchdays} bets={bets} user={user} appId={appId} db={db} />
+                            </div>
+                        )}
                     </div>
                 </div>
             );
