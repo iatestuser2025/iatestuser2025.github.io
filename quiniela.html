@@ -347,6 +347,7 @@
 
         function AdminApprovals({ matchdays, bets, appId, db }) {
             const [filter, setFilter] = useState('active'); // 'active', 'all', or specific ID
+            const [printBet, setPrintBet] = useState(null); // Nuevo estado para ticket
 
             const getMatchdayName = (id) => matchdays.find(m => m.id === id)?.name || '???';
 
@@ -363,6 +364,57 @@
 
             const togglePay = async (b) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bets', b.id), { status: b.status === 'pending' ? 'paid' : 'pending' });
             const delBet = async (b) => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bets', b.id)); };
+
+            // --- VISTA TICKET (REUTILIZADA) ---
+            if (printBet) {
+                const m = matchdays.find(md => md.id === printBet.matchdayId);
+                return (
+                    <div className="fixed inset-0 bg-black/80 z-[9999] flex justify-center items-center p-4 print:p-0 print:bg-white print:items-start print:static">
+                        <div className="bg-white w-full max-w-md rounded-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] print:shadow-none print:max-h-none print:w-full print:overflow-visible">
+                            <div className="bg-gray-900 text-white p-4 flex justify-between items-center no-print shrink-0">
+                                <h3 className="font-bold text-lg flex items-center gap-2"><Trophy size={20} className="text-yellow-400"/> Ticket Admin</h3>
+                                <div className="flex gap-2">
+                                    <button onClick={() => window.print()} className="bg-green-600 px-4 py-2 rounded font-bold text-sm flex gap-2"><Printer size={18}/> Imprimir</button>
+                                    <button onClick={() => setPrintBet(null)} className="bg-gray-700 p-2 rounded"><X size={20}/></button>
+                                </div>
+                            </div>
+                            <div className="overflow-y-auto bg-gray-100 flex-1 w-full print:overflow-visible">
+                                <div className="min-h-full flex justify-center p-8 print:p-0">
+                                    <div id="printable-ticket" className="w-[350px] h-fit bg-white border-2 border-dashed border-gray-800 p-6 text-black shadow-sm print:shadow-none print:border-gray-800 print:w-full print:max-w-[400px] print:mx-auto relative">
+                                        <div className="text-center border-b-2 border-black pb-4 mb-4"><div className="flex justify-center mb-2"><Trophy size={32} className="text-black"/></div><h1 className="text-xl font-black uppercase tracking-wider">Quiniela SICAR</h1><p className="text-xs font-mono mt-1 text-gray-500">{new Date().toLocaleString()}</p></div>
+                                        <div className="mb-6 text-sm space-y-2 font-mono">
+                                            <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">Jornada:</span><span className="font-bold truncate max-w-[150px]">{m?.name}</span></div>
+                                            <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">Jugador:</span><span className="font-bold uppercase truncate max-w-[150px]">{printBet.userFullName || printBet.userName}</span></div>
+                                            <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">Ref. Pago:</span><span className="font-bold">{printBet.paymentRef}</span></div>
+                                            <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">Total:</span><span className="font-bold text-lg">${printBet.cost || m?.price}</span></div>
+                                        </div>
+                                        <div className="mb-6">
+                                            <div className="flex text-[10px] font-bold text-gray-400 mb-2 border-b-2 border-gray-800 pb-1"><span className="flex-1">PARTIDO</span><span className="w-6 text-center">L</span><span className="w-6 text-center">E</span><span className="w-6 text-center">V</span></div>
+                                            {printBet.predictions.map((p, i) => {
+                                                const match = m?.matches.find(ma => ma.id === p.matchId);
+                                                if (!match) return null;
+                                                const picks = normalizePred(p.prediction);
+                                                return (
+                                                    <div key={i} className="flex items-center text-xs py-2 border-b border-gray-100">
+                                                        <div className="flex-1 pr-2 leading-tight"><div className="font-bold">{match.home}</div><div className="text-[10px] text-gray-500">vs {match.away}</div></div>
+                                                        <div className="flex gap-0">
+                                                            {['local', 'tie', 'visit'].map(opt => {
+                                                                const isSelected = picks.includes(opt);
+                                                                return <div key={opt} className="w-6 flex justify-center items-center">{isSelected ? <div className="w-5 h-5 bg-black text-white rounded-full flex items-center justify-center print:bg-black print:text-white"><Check size={12} strokeWidth={4} /></div> : <div className="w-5 h-5 rounded-full border border-gray-300"></div>}</div>
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="text-center border-t-2 border-black pt-4"><div className="inline-block border-2 border-black px-4 py-1 rounded font-black text-lg uppercase tracking-widest">{printBet.status === 'paid' ? 'PAGADO' : 'PENDIENTE'}</div><p className="text-[10px] text-gray-400 mt-2">¡Mucha Suerte!</p></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
 
             return (
                 <div>
@@ -422,6 +474,7 @@
                                                 </span>
                                             </td>
                                             <td className="p-3 flex gap-2 items-center">
+                                                <button onClick={() => setPrintBet(b)} className="text-blue-600 hover:text-blue-800 p-1.5 hover:bg-blue-50 rounded transition" title="Ver Ticket"><Printer size={16}/></button>
                                                 <button onClick={() => togglePay(b)} className={`text-xs border px-3 py-1.5 rounded font-bold transition flex items-center gap-1 ${b.status === 'paid' ? 'text-gray-500 hover:bg-gray-100' : 'bg-green-600 text-white hover:bg-green-700 border-transparent shadow-sm'}`}>
                                                     {b.status === 'paid' ? 'Revocar' : 'Aprobar'}
                                                 </button>
