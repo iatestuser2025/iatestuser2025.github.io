@@ -8,23 +8,19 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
         @media print {
-            .no-print { display: none !important; }
-            .print-only { display: flex !important; }
-            body { background: white; }
-            @page { margin: 0; }
-            
-            /* --- CORRECCIÓN MÁGICA PARA IMPRESIÓN --- */
-            /* Esto obliga al navegador (Chrome/Safari/Edge) a imprimir fondos y colores exactos */
-            * {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-                color-adjust: exact !important;
+            body * { visibility: hidden; }
+            #printable-ticket, #printable-ticket * { visibility: visible; }
+            #printable-ticket {
+                position: absolute;
+                left: 0; top: 0; width: 100%; margin: 0; padding: 20px;
+                background: white; border: 2px dashed black !important; box-shadow: none !important;
             }
+            @page { margin: 0; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+            .no-print { display: none !important; }
         }
-        /* Ocultar barra de scroll en tabs para estética móvil */
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        
         .animate-fade-in { animation: fadeIn 0.5s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
@@ -38,9 +34,9 @@
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
         import { getFirestore, collection, addDoc, query, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp, setDoc, getDocs, where } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
-        import { Trophy, Users, PlusCircle, CheckCircle, Clock, Search, FileText, LogOut, Shield, User, Printer, XCircle, Menu, X, Lock, RefreshCw, KeyRound, Calendar, Trash2, AlertTriangle, Banknote, ChevronDown, ChevronUp, Gamepad2, Check } from 'https://esm.sh/lucide-react@0.263.1';
+        import { Trophy, Users, PlusCircle, CheckCircle, Clock, Search, FileText, LogOut, Shield, User, Printer, XCircle, Menu, X, Lock, RefreshCw, KeyRound, Calendar, Trash2, AlertTriangle, Banknote, ChevronDown, ChevronUp, Gamepad2, Check, Filter, Medal, Info } from 'https://esm.sh/lucide-react@0.263.1';
 
-        // --- CONFIGURACIÓN FIREBASE (PROYECTO EXISTENTE) ---
+        // --- CONFIGURACIÓN FIREBASE ---
         const localConfig = {
           apiKey: "AIzaSyA6uydlodXo1vnyqoocwzHytwt5W0riIDQ",
           authDomain: "blackjack-d6b7b.firebaseapp.com",
@@ -65,19 +61,20 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // --- UTILERIAS DE TIEMPO ---
         const getTrustedTime = async () => {
             try {
                 const response = await fetch('https://worldtimeapi.org/api/timezone/Etc/UTC');
                 const data = await response.json();
                 return new Date(data.utc_datetime); 
             } catch (error) {
-                console.warn("Fallo al consultar hora online, usando fallback local:", error);
+                console.warn("Fallo hora online:", error);
                 return new Date(); 
             }
         };
 
-        // --- COMPONENTE PRINCIPAL ---
+        // Helper para normalizar predicciones
+        const normalizePred = (val) => Array.isArray(val) ? val : [val];
+
         function App() {
             const [authUser, setAuthUser] = useState(null); 
             const [dbUser, setDbUser] = useState(null);     
@@ -96,33 +93,19 @@
                     }
                 };
                 initAuth();
-                const unsubscribe = onAuthStateChanged(auth, (u) => {
-                    setAuthUser(u);
-                    setLoading(false);
-                });
+                const unsubscribe = onAuthStateChanged(auth, (u) => { setAuthUser(u); setLoading(false); });
                 return () => unsubscribe();
             }, []);
 
             useEffect(() => {
                 if (!authUser) return;
-                
-                const unsubTeams = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'teams')), (s) => {
-                    setTeams(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => a.name.localeCompare(b.name)));
-                });
-                const unsubMatchdays = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'matchdays')), (s) => {
-                    setMatchdays(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
-                });
-                const unsubBets = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'bets')), (s) => {
-                    setBets(s.docs.map(d => ({ id: d.id, ...d.data() })));
-                });
-
+                const unsubTeams = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'teams')), (s) => setTeams(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => a.name.localeCompare(b.name))));
+                const unsubMatchdays = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'matchdays')), (s) => setMatchdays(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))));
+                const unsubBets = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'bets')), (s) => setBets(s.docs.map(d => ({ id: d.id, ...d.data() }))));
                 return () => { unsubTeams(); unsubMatchdays(); unsubBets(); };
             }, [authUser]);
 
-            const handleLogout = () => {
-                setDbUser(null);
-                setView('auth');
-            };
+            const handleLogout = () => { setDbUser(null); setView('auth'); };
 
             if (loading) return <div className="flex h-screen items-center justify-center text-green-700 font-bold">Cargando...</div>;
 
@@ -136,12 +119,8 @@
                             </div>
                             {dbUser && (
                                 <div className="flex items-center gap-3 md:gap-4 shrink-0">
-                                    <span className="hidden md:inline text-sm opacity-90 font-medium capitalize">
-                                        {dbUser.fullName || dbUser.username}
-                                    </span>
-                                    <button onClick={handleLogout} className="hover:bg-green-600 p-2 rounded-full transition" title="Cerrar Sesión">
-                                        <LogOut size={20} />
-                                    </button>
+                                    <span className="hidden md:inline text-sm opacity-90 font-medium capitalize">{dbUser.fullName || dbUser.username}</span>
+                                    <button onClick={handleLogout} className="hover:bg-green-600 p-2 rounded-full transition"><LogOut size={20} /></button>
                                 </div>
                             )}
                         </div>
@@ -149,7 +128,6 @@
 
                     <main className="container mx-auto p-3 md:p-6 mb-20 flex-grow w-full max-w-5xl">
                         {view === 'auth' && <AuthView setDbUser={setDbUser} setView={setView} appId={appId} db={db} />}
-                        {/* AHORA PASAMOS EL USER AL ADMINVIEW TAMBIÉN PARA QUE PUEDA JUGAR */}
                         {view === 'admin' && <AdminView teams={teams} matchdays={matchdays} bets={bets} user={dbUser} appId={appId} db={db} />}
                         {view === 'user' && <UserView teams={teams} matchdays={matchdays} bets={bets} user={dbUser} appId={appId} db={db} />}
                     </main>
@@ -161,6 +139,7 @@
             );
         }
 
+        // --- AUTH & ADMIN COMPONENTS ---
         function AuthView({ setDbUser, setView, appId, db }) {
             const [mode, setMode] = useState('login'); 
             const [formData, setFormData] = useState({ fullName: '', username: '', password: '', dob: '', newPassword: '' });
@@ -168,10 +147,8 @@
 
             const isValidUsername = (u) => /^[a-zA-Z0-9_]+$/.test(u);
             const isValidName = (n) => /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(n);
-            
-            const isAdult = (dateString) => {
-                const today = new Date();
-                const birthDate = new Date(dateString);
+            const isAdult = (d) => {
+                const today = new Date(); const birthDate = new Date(d);
                 let age = today.getFullYear() - birthDate.getFullYear();
                 const m = today.getMonth() - birthDate.getMonth();
                 if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
@@ -179,61 +156,40 @@
             };
 
             const handleRegister = async (e) => {
-                e.preventDefault();
-                setError('');
+                e.preventDefault(); setError('');
                 if (!formData.fullName.trim()) return setError('Ingresa tu nombre completo.');
                 if (!isValidName(formData.fullName)) return setError('El nombre solo debe contener letras.');
-                if (!isValidUsername(formData.username)) return setError('Usuario inválido (solo letras, números y guión bajo).');
-                if (formData.password.length < 5) return setError('La contraseña debe tener al menos 5 caracteres.');
-                if (!isAdult(formData.dob)) return setError('Debes ser mayor de 18 años para registrarte.');
+                if (!isValidUsername(formData.username)) return setError('Usuario inválido.');
+                if (formData.password.length < 5) return setError('Contraseña muy corta.');
+                if (!isAdult(formData.dob)) return setError('Debes ser mayor de 18 años.');
 
                 try {
                     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), where('username', '==', formData.username));
-                    const snapshot = await getDocs(q);
-                    if (!snapshot.empty) return setError('El usuario ya existe.');
-
-                    const newUser = {
-                        fullName: formData.fullName.trim(),
-                        username: formData.username,
-                        password: formData.password, 
-                        dob: formData.dob,
-                        role: 'player', 
-                        createdAt: serverTimestamp()
-                    };
-                    
+                    if (!(await getDocs(q)).empty) return setError('Usuario ya existe.');
+                    const newUser = { fullName: formData.fullName.trim(), username: formData.username, password: formData.password, dob: formData.dob, role: 'player', createdAt: serverTimestamp() };
                     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', formData.username), newUser);
-                    alert("Registro exitoso. Por favor inicia sesión.");
-                    setMode('login');
-                } catch (err) { setError("Error al registrar: " + err.message); }
+                    alert("Registro exitoso."); setMode('login');
+                } catch (err) { setError("Error al registrar."); }
             };
 
             const handleLogin = async (e) => {
-                e.preventDefault();
-                setError('');
+                e.preventDefault(); setError('');
                 try {
                     const docSnap = await getDocs(query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), where('username', '==', formData.username), where('password', '==', formData.password)));
                     if (docSnap.empty) return setError('Credenciales incorrectas.');
-                    
                     const userData = docSnap.docs[0].data();
-                    setDbUser(userData);
-                    setView(userData.role === 'admin' ? 'admin' : 'user');
-                } catch (err) { setError("Error de conexión."); console.error(err); }
+                    setDbUser(userData); setView(userData.role === 'admin' ? 'admin' : 'user');
+                } catch (err) { setError("Error de conexión."); }
             };
 
             const handleRecover = async (e) => {
-                e.preventDefault();
-                setError('');
-                if (formData.newPassword.length < 5) return setError('Nueva contraseña muy corta.');
+                e.preventDefault(); setError('');
+                if (formData.newPassword.length < 5) return setError('Contraseña muy corta.');
                 try {
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', formData.username);
                     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), where('username', '==', formData.username), where('dob', '==', formData.dob));
-                    const snapshot = await getDocs(q);
-                    
-                    if (snapshot.empty) return setError('Datos no coinciden.');
-
-                    await updateDoc(docRef, { password: formData.newPassword });
-                    alert("Contraseña restablecida.");
-                    setMode('login');
+                    if ((await getDocs(q)).empty) return setError('Datos no coinciden.');
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', formData.username), { password: formData.newPassword });
+                    alert("Contraseña restablecida."); setMode('login');
                 } catch (err) { setError("Error al restablecer."); }
             };
 
@@ -241,63 +197,28 @@
                 <div className="flex justify-center items-center min-h-[70vh] animate-fade-in p-4">
                     <div className="bg-white p-6 md:p-8 rounded-xl shadow-xl w-full max-w-md border">
                         <div className="text-center mb-6">
-                            <h2 className="text-2xl font-bold text-gray-800">
-                                {mode === 'login' ? 'Iniciar Sesión' : mode === 'register' ? 'Registro Nuevo' : 'Restablecer Clave'}
-                            </h2>
-                            <p className="text-gray-500 text-sm mt-1">Acceso a Quiniela Amigos SICAR</p>
+                            <h2 className="text-2xl font-bold text-gray-800">{mode === 'login' ? 'Iniciar Sesión' : mode === 'register' ? 'Registro' : 'Recuperar'}</h2>
+                            <p className="text-gray-500 text-sm mt-1">Quiniela Amigos SICAR</p>
                         </div>
-
                         <form onSubmit={mode === 'login' ? handleLogin : mode === 'register' ? handleRegister : handleRecover} className="space-y-4">
-                            {mode === 'register' && (
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Nombre Completo</label>
-                                    <input type="text" required value={formData.fullName} onChange={e => setFormData({...formData, fullName: e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '')})} className="w-full p-3 border rounded-lg" placeholder="Tu nombre real (Solo letras)" />
-                                </div>
-                            )}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Usuario</label>
-                                <input type="text" required value={formData.username} onChange={e => setFormData({...formData, username: e.target.value.replace(/[^a-zA-Z0-9_]/g, '')})} className="w-full p-3 border rounded-lg" placeholder="Solo letras y números" />
-                            </div>
-                            {mode !== 'recover' && (
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Contraseña</label>
-                                    <input type="password" required value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full p-3 border rounded-lg" placeholder="Mínimo 5 caracteres" />
-                                </div>
-                            )}
-                            {(mode === 'register' || mode === 'recover') && (
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Fecha de Nacimiento {mode === 'register' && '(+18)'}</label>
-                                    <input type="date" required value={formData.dob} onChange={e => setFormData({...formData, dob: e.target.value})} className="w-full p-3 border rounded-lg" />
-                                </div>
-                            )}
-                            {mode === 'recover' && (
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Nueva Contraseña</label>
-                                    <input type="password" required value={formData.newPassword} onChange={e => setFormData({...formData, newPassword: e.target.value})} className="w-full p-3 border rounded-lg" />
-                                </div>
-                            )}
+                            {mode === 'register' && <div><label className="text-sm font-medium">Nombre</label><input type="text" required value={formData.fullName} onChange={e => setFormData({...formData, fullName: e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '')})} className="w-full p-3 border rounded-lg" /></div>}
+                            <div><label className="text-sm font-medium">Usuario</label><input type="text" required value={formData.username} onChange={e => setFormData({...formData, username: e.target.value.replace(/[^a-zA-Z0-9_]/g, '')})} className="w-full p-3 border rounded-lg" /></div>
+                            {mode !== 'recover' && <div><label className="text-sm font-medium">Contraseña</label><input type="password" required value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full p-3 border rounded-lg" /></div>}
+                            {(mode === 'register' || mode === 'recover') && <div><label className="text-sm font-medium">F. Nacimiento</label><input type="date" required value={formData.dob} onChange={e => setFormData({...formData, dob: e.target.value})} className="w-full p-3 border rounded-lg" /></div>}
+                            {mode === 'recover' && <div><label className="text-sm font-medium">Nueva Pass</label><input type="password" required value={formData.newPassword} onChange={e => setFormData({...formData, newPassword: e.target.value})} className="w-full p-3 border rounded-lg" /></div>}
                             {error && <div className="bg-red-50 text-red-600 text-sm p-3 rounded flex items-center gap-2"><XCircle size={16}/> {error}</div>}
-                            <button type="submit" className="w-full bg-green-700 text-white py-3 rounded-lg font-bold hover:bg-green-800 transition shadow-md active:scale-95">
-                                {mode === 'login' ? 'Entrar' : mode === 'register' ? 'Registrarse' : 'Cambiar Contraseña'}
-                            </button>
+                            <button type="submit" className="w-full bg-green-700 text-white py-3 rounded-lg font-bold hover:bg-green-800 transition">{mode === 'login' ? 'Entrar' : 'Enviar'}</button>
                         </form>
                         <div className="mt-6 text-center space-y-3 text-sm">
-                            {mode === 'login' && (
-                                <>
-                                    <p><button onClick={() => setMode('register')} className="text-blue-600 hover:underline py-1">¿No tienes cuenta? Regístrate</button></p>
-                                    <p><button onClick={() => setMode('recover')} className="text-gray-500 hover:underline py-1">Olvidé mi contraseña</button></p>
-                                </>
-                            )}
-                            {(mode === 'register' || mode === 'recover') && (
-                                <button onClick={() => setMode('login')} className="text-gray-600 hover:underline py-2">Volver al inicio</button>
-                            )}
+                            {mode === 'login' && <><button onClick={() => setMode('register')} className="text-blue-600 hover:underline block w-full">Regístrate</button><button onClick={() => setMode('recover')} className="text-gray-500 hover:underline block w-full">Olvidé contraseña</button></>}
+                            {(mode === 'register' || mode === 'recover') && <button onClick={() => setMode('login')} className="text-gray-600 hover:underline">Volver</button>}
                         </div>
                     </div>
                 </div>
             );
         }
 
-        function AdminView({ teams, matchdays, bets, user, appId, db }) {
+        function AdminView(props) {
             const [tab, setTab] = useState('matchdays');
             const tabs = [
                 { id: 'matchdays', icon: PlusCircle, label: 'Jornadas' },
@@ -305,129 +226,90 @@
                 { id: 'users', icon: Users, label: 'Usuarios' },
                 { id: 'results', icon: Trophy, label: 'Resultados' },
                 { id: 'teams', icon: Shield, label: 'Equipos' },
-                { id: 'player_mode', icon: Gamepad2, label: 'Modo Jugador' }, // NUEVO TAB
+                { id: 'player_mode', icon: Gamepad2, label: 'Modo Jugador' },
             ];
-
             return (
                 <div className="bg-white rounded-xl shadow-lg min-h-[80vh] overflow-hidden flex flex-col">
-                    {/* Tabs con scroll horizontal suave para móviles */}
                     <div className="flex border-b overflow-x-auto hide-scrollbar">
-                        {tabs.map(t => (
-                            <button key={t.id} onClick={() => setTab(t.id)} className={`flex-1 min-w-[90px] py-4 px-2 font-medium flex flex-col md:flex-row justify-center items-center gap-1 md:gap-2 border-b-2 transition whitespace-nowrap ${tab === t.id ? 'border-green-700 text-green-700 bg-green-50' : 'border-transparent text-gray-500'}`}>
-                                <t.icon size={20} /> <span className="text-xs md:text-sm">{t.label}</span>
-                            </button>
-                        ))}
+                        {tabs.map(t => <button key={t.id} onClick={() => setTab(t.id)} className={`flex-1 min-w-[90px] py-4 px-2 font-medium flex flex-col md:flex-row justify-center items-center gap-1 md:gap-2 border-b-2 transition whitespace-nowrap ${tab === t.id ? 'border-green-700 text-green-700 bg-green-50' : 'border-transparent text-gray-500'}`}><t.icon size={20} /> <span className="text-xs md:text-sm">{t.label}</span></button>)}
                     </div>
                     <div className="p-4 md:p-6 flex-grow">
-                        {tab === 'matchdays' && <AdminMatchdays teams={teams} matchdays={matchdays} appId={appId} db={db} />}
-                        {tab === 'approvals' && <AdminApprovals matchdays={matchdays} bets={bets} appId={appId} db={db} />}
-                        {tab === 'users' && <AdminUsers appId={appId} db={db} />}
-                        {tab === 'results' && <AdminResults matchdays={matchdays} bets={bets} appId={appId} db={db} />}
-                        {tab === 'teams' && <AdminTeams teams={teams} appId={appId} db={db} />}
-                        
-                        {/* AQUI RENDERIZAMOS LA VISTA DE JUGADOR DENTRO DEL ADMIN */}
-                        {tab === 'player_mode' && (
-                            <div className="border-t-4 border-green-500 rounded-lg overflow-hidden">
-                                <div className="bg-green-100 p-2 text-center text-green-800 font-bold text-xs uppercase tracking-wide">
-                                    Vista de Jugador (Modo Administrador)
-                                </div>
-                                <UserView teams={teams} matchdays={matchdays} bets={bets} user={user} appId={appId} db={db} />
-                            </div>
-                        )}
+                        {tab === 'matchdays' && <AdminMatchdays {...props} />}
+                        {tab === 'approvals' && <AdminApprovals {...props} />}
+                        {tab === 'users' && <AdminUsers {...props} />}
+                        {tab === 'results' && <AdminResults {...props} />}
+                        {tab === 'teams' && <AdminTeams {...props} />}
+                        {tab === 'player_mode' && <div className="border-t-4 border-green-500 rounded-lg overflow-hidden"><div className="bg-green-100 p-2 text-center text-green-800 font-bold text-xs uppercase tracking-wide">Vista de Jugador (Modo Administrador)</div><UserView {...props} /></div>}
                     </div>
                 </div>
             );
         }
-
+        
+        // --- ADMIN SUB-COMPONENTS ---
         function AdminMatchdays({ teams, matchdays, appId, db }) {
-            const [name, setName] = useState('');
-            const [price, setPrice] = useState('');
-            const [deadline, setDeadline] = useState('');
-            const [matches, setMatches] = useState([{ home: '', away: '' }]);
-
-            const getAvailableTeams = (currentRowIdx, currentSide) => {
-                const usedInOtherRows = matches.flatMap((m, idx) => idx !== currentRowIdx ? [m.home, m.away] : []).filter(Boolean);
-                const currentOpponent = currentSide === 'home' ? matches[currentRowIdx].away : matches[currentRowIdx].home;
-                const blocked = [...usedInOtherRows];
-                if (currentOpponent) blocked.push(currentOpponent);
-                return teams.filter(t => !blocked.includes(t.name));
+            const [name, setName] = useState(''); const [price, setPrice] = useState(''); const [deadline, setDeadline] = useState(''); const [matches, setMatches] = useState([{ home: '', away: '' }]);
+            const getAvailableTeams = (rowIdx, side) => {
+                const used = matches.flatMap((m, i) => i !== rowIdx ? [m.home, m.away] : []).filter(Boolean);
+                const opp = side === 'home' ? matches[rowIdx].away : matches[rowIdx].home;
+                if (opp) used.push(opp);
+                return teams.filter(t => !used.includes(t.name));
             };
-
-            const updateMatch = (idx, field, val) => {
-                const newMatches = [...matches];
-                newMatches[idx][field] = val;
-                setMatches(newMatches);
-            };
-
+            const updateMatch = (i, f, v) => { const n = [...matches]; n[i][f] = v; setMatches(n); };
             const handleCreate = async () => {
-                if (!name || !price || !deadline || matches.some(m => !m.home || !m.away)) return alert("Completa todos los campos, incluyendo la fecha límite.");
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'matchdays'), {
-                    name, price: Number(price), deadline: deadline, matches: matches.map((m, i) => ({ ...m, id: i, result: null })), status: 'active', createdAt: serverTimestamp()
-                });
-                setName(''); setPrice(''); setDeadline(''); setMatches([{ home: '', away: '' }]);
-                alert("Jornada Publicada");
+                if (!name || !price || !deadline || matches.some(m => !m.home || !m.away)) return alert("Faltan datos.");
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'matchdays'), { name, price: Number(price), deadline, matches: matches.map((m, i) => ({ ...m, id: i, result: null })), status: 'active', createdAt: serverTimestamp() });
+                setName(''); setPrice(''); setDeadline(''); setMatches([{ home: '', away: '' }]); alert("Jornada creada.");
             };
+            return (
+                <div className="grid lg:grid-cols-2 gap-8">
+                    <div>
+                        <h3 className="font-bold mb-4">Nueva Jornada</h3>
+                        <div className="space-y-4">
+                            <input value={name} onChange={e => setName(e.target.value)} placeholder="Nombre" className="w-full p-3 border rounded-lg" />
+                            <div className="grid grid-cols-2 gap-4"><input type="number" value={price} onChange={e => setPrice(e.target.value)} placeholder="Costo ($)" className="w-full p-3 border rounded-lg" /><input type="datetime-local" value={deadline} onChange={e => setDeadline(e.target.value)} className="w-full p-3 border rounded-lg text-sm" /></div>
+                            <div className="bg-gray-50 p-4 rounded-lg border space-y-2">{matches.map((m, i) => <div key={i} className="flex gap-2"><select className="flex-1 p-2 border rounded" value={m.home} onChange={e => updateMatch(i, 'home', e.target.value)}><option value="">Local</option>{getAvailableTeams(i, 'home').map(t => <option key={t.id} value={t.name}>{t.name}</option>)}</select><select className="flex-1 p-2 border rounded" value={m.away} onChange={e => updateMatch(i, 'away', e.target.value)}><option value="">Visit.</option>{getAvailableTeams(i, 'away').map(t => <option key={t.id} value={t.name}>{t.name}</option>)}</select><button onClick={() => setMatches(matches.filter((_, idx) => idx !== i))} className="text-red-500"><X size={16}/></button></div>)}<button onClick={() => setMatches([...matches, { home: '', away: '' }])} className="text-green-600 text-sm font-bold flex items-center gap-1 mt-2"><PlusCircle size={14}/> Partido</button></div>
+                            <button onClick={handleCreate} className="w-full bg-green-700 text-white py-3 rounded-lg font-bold">Publicar</button>
+                        </div>
+                    </div>
+                    <div><h3 className="font-bold mb-4">Activas</h3><div className="space-y-3">{matchdays.map(m => <div key={m.id} className="p-4 border rounded shadow-sm flex justify-between"><div><h4 className="font-bold">{m.name}</h4><p className="text-xs text-gray-500">${m.price} - {m.matches.length} juegos</p></div><button onClick={() => confirm("¿Borrar?") && deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matchdays', m.id))} className="text-red-500 text-xs">Borrar</button></div>)}</div></div>
+                </div>
+            );
+        }
+
+        function AdminResults({ matchdays, bets, appId, db }) {
+            const [selId, setSelId] = useState(''); const [res, setRes] = useState({});
+            const m = matchdays.find(x => x.id === selId);
+            
+            const leaderboard = useMemo(() => {
+                if (!m) return [];
+                return bets.filter(b => b.matchdayId === m.id).map(bet => {
+                    let points = 0;
+                    bet.predictions.forEach(pred => {
+                        const match = m.matches.find(ma => ma.id === pred.matchId);
+                        const officialRes = res[pred.matchId] || match?.result;
+                        const userPicks = normalizePred(pred.prediction);
+                        if (officialRes && userPicks.includes(officialRes)) points++;
+                    });
+                    return { ...bet, points };
+                }).sort((a, b) => b.points - a.points);
+            }, [m, bets, res]);
+
+            const save = async () => {
+                if(!m || !confirm("¿Finalizar?")) return;
+                const updated = m.matches.map(match => ({ ...match, result: res[match.id] || null }));
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matchdays', m.id), { matches: updated, status: 'finalized' });
+                alert("Guardado");
+            };
+            useEffect(() => { if(m && m.matches) { const l = {}; m.matches.forEach(ma => { if(ma.result) l[ma.id] = ma.result; }); setRes(l); } else setRes({}); }, [m]);
 
             return (
                 <div className="grid lg:grid-cols-2 gap-8">
                     <div>
-                        <h3 className="text-xl font-bold mb-4">Nueva Jornada</h3>
-                        <div className="space-y-4">
-                            <input value={name} onChange={e => setName(e.target.value)} placeholder="Nombre (ej. Jornada 5)" className="w-full p-3 border rounded-lg" />
-                            <div className="grid grid-cols-2 gap-4">
-                                <input type="number" value={price} onChange={e => setPrice(e.target.value)} placeholder="Costo ($)" className="w-full p-3 border rounded-lg" />
-                                <div>
-                                    <label className="block text-xs text-gray-500 mb-1 ml-1">Fecha Límite</label>
-                                    <input type="datetime-local" value={deadline} onChange={e => setDeadline(e.target.value)} className="w-full p-3 border rounded-lg text-sm" />
-                                </div>
-                            </div>
-                            
-                            <div className="bg-gray-50 p-4 rounded-lg border space-y-4">
-                                <label className="font-bold text-sm text-gray-700 block mb-2">Encuentros</label>
-                                {matches.map((m, i) => (
-                                    // MOBILE TWEAK: flex-col en móvil para inputs grandes, row en desktop
-                                    <div key={i} className="flex flex-col md:flex-row gap-2 items-center bg-white p-2 rounded shadow-sm md:shadow-none md:bg-transparent border md:border-0">
-                                        <select className="w-full md:flex-1 p-2 border rounded text-sm bg-white" value={m.home} onChange={e => updateMatch(i, 'home', e.target.value)}>
-                                            <option value="">Local</option>
-                                            {getAvailableTeams(i, 'home').map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
-                                            {m.home && !getAvailableTeams(i, 'home').find(t=>t.name===m.home) && <option value={m.home}>{m.home}</option>}
-                                        </select>
-                                        
-                                        <span className="font-bold text-gray-400 text-xs md:text-base">VS</span>
-                                        
-                                        <select className="w-full md:flex-1 p-2 border rounded text-sm bg-white" value={m.away} onChange={e => updateMatch(i, 'away', e.target.value)}>
-                                            <option value="">Visitante</option>
-                                            {getAvailableTeams(i, 'away').map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
-                                            {m.away && !getAvailableTeams(i, 'away').find(t=>t.name===m.away) && <option value={m.away}>{m.away}</option>}
-                                        </select>
-                                        
-                                        <button onClick={() => setMatches(matches.filter((_, idx) => idx !== i))} className="w-full md:w-auto text-red-500 hover:bg-red-50 p-2 rounded border md:border-0 flex justify-center"><X size={16}/></button>
-                                    </div>
-                                ))}
-                                <button onClick={() => setMatches([...matches, { home: '', away: '' }])} className="text-green-600 text-sm font-bold flex items-center gap-1 mt-2 p-2 hover:bg-green-50 rounded w-full md:w-auto"><PlusCircle size={14}/> Agregar Encuentro</button>
-                            </div>
-                            
-                            <button onClick={handleCreate} className="w-full bg-green-700 text-white py-3 rounded-lg font-bold hover:bg-green-800 shadow-lg active:scale-95 transition">Publicar Jornada</button>
-                        </div>
+                        <h3 className="font-bold mb-4">Captura Resultados</h3>
+                        <select className="w-full p-2 border rounded mb-6" value={selId} onChange={e => setSelId(e.target.value)}><option value="">Selecciona Jornada</option>{matchdays.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select>
+                        {m && <div className="bg-gray-50 p-4 rounded border space-y-3">{m.matches.map(ma => <div key={ma.id} className="flex justify-between items-center text-sm bg-white p-2 rounded"><span className="w-1/3 text-right font-bold">{ma.home}</span><div className="flex gap-1">{['local','tie','visit'].map(o => <button key={o} onClick={() => setRes({...res, [ma.id]: o === 'local' ? 'local' : o === 'tie' ? 'tie' : 'visit'})} className={`w-8 h-8 rounded text-xs font-bold ${res[ma.id] === (o==='local'?'local':o==='tie'?'tie':'visit') ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>{o[0].toUpperCase()}</button>)}</div><span className="w-1/3 font-bold">{ma.away}</span></div>)}<button onClick={save} className="w-full bg-blue-600 text-white py-3 rounded mt-4">Guardar</button></div>}
                     </div>
-                    
-                    <div className="border-l-0 border-t pt-6 lg:pt-0 lg:border-t-0 lg:border-l pl-0 lg:pl-8">
-                        <h3 className="text-xl font-bold mb-4">Jornadas Activas</h3>
-                        <div className="space-y-3 max-h-[500px] overflow-y-auto">
-                            {matchdays.map(m => (
-                                <div key={m.id} className="p-4 border rounded bg-white shadow-sm">
-                                    <div className="flex justify-between items-start">
-                                        <div className="overflow-hidden">
-                                            <h4 className="font-bold truncate">{m.name}</h4>
-                                            {m.deadline && <p className="text-xs text-red-500 flex items-center gap-1 mt-1"><Clock size={12}/> {new Date(m.deadline).toLocaleString()}</p>}
-                                        </div>
-                                        <button onClick={async () => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matchdays', m.id)); }} className="text-red-400 text-xs hover:text-red-600 ml-2">Eliminar</button>
-                                    </div>
-                                    <p className="text-sm text-gray-500 mt-2">{m.matches.length} partidos - ${m.price}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                    <div><h3 className="font-bold mb-4">Ranking Preliminar</h3><div className="border rounded bg-white">{leaderboard.map((b,i)=><div key={b.id} className="p-3 border-b flex justify-between text-sm"><span>{i+1}. {b.userName}</span><span className="font-bold text-blue-600">{b.points} pts</span></div>)}</div></div>
                 </div>
             );
         }
@@ -451,8 +333,8 @@
                                         <td className="p-3 text-gray-600">{u.username}</td>
                                         <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-bold ${u.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>{u.role === 'admin' ? 'ADMIN' : 'JUGADOR'}</span></td>
                                         <td className="p-3 flex gap-2">
-                                            <button onClick={() => toggleRole(u)} className="p-1 border rounded"><RefreshCw size={14}/></button>
-                                            <button onClick={() => handleDeleteUser(u)} className="p-1 border border-red-200 text-red-600 rounded"><Trash2 size={14}/></button>
+                                            <button onClick={() => toggleRole(u)} className="p-1 border rounded hover:bg-gray-100"><RefreshCw size={14}/></button>
+                                            <button onClick={() => handleDeleteUser(u)} className="p-1 border border-red-200 text-red-600 rounded hover:bg-red-50"><Trash2 size={14}/></button>
                                         </td>
                                     </tr>
                                 ))}
@@ -464,27 +346,92 @@
         }
 
         function AdminApprovals({ matchdays, bets, appId, db }) {
+            const [filter, setFilter] = useState('active'); // 'active', 'all', or specific ID
+
+            const getMatchdayName = (id) => matchdays.find(m => m.id === id)?.name || '???';
+
+            const filteredBets = useMemo(() => {
+                return bets.filter(b => {
+                    if (filter === 'all') return true;
+                    if (filter === 'active') {
+                         const m = matchdays.find(md => md.id === b.matchdayId);
+                         return m && m.status === 'active';
+                    }
+                    return b.matchdayId === filter;
+                }).sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0)); // Sort by newest
+            }, [bets, matchdays, filter]);
+
             const togglePay = async (b) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bets', b.id), { status: b.status === 'pending' ? 'paid' : 'pending' });
             const delBet = async (b) => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bets', b.id)); };
+
             return (
                 <div>
-                    <h3 className="text-xl font-bold mb-4">Pagos</h3>
-                    <div className="overflow-x-auto bg-white rounded border">
+                    <h3 className="text-xl font-bold mb-4">Gestión de Pagos</h3>
+                    
+                    {/* Filtros */}
+                    <div className="flex flex-col md:flex-row gap-4 mb-6">
+                        <div className="flex items-center gap-2">
+                            <Filter size={20} className="text-gray-500"/>
+                            <select 
+                                value={filter} 
+                                onChange={(e) => setFilter(e.target.value)} 
+                                className="p-2 border rounded-lg bg-white shadow-sm font-medium text-gray-700 min-w-[200px]"
+                            >
+                                <option value="active">🟢 Solo Jornadas Activas</option>
+                                <option value="all">📂 Todo el Historial</option>
+                                <optgroup label="Por Jornada Específica">
+                                    {matchdays.map(m => (
+                                        <option key={m.id} value={m.id}>{m.name} ({m.status === 'active' ? 'Activa' : 'Cerrada'})</option>
+                                    ))}
+                                </optgroup>
+                            </select>
+                        </div>
+                        
+                        <div className="ml-auto text-sm text-gray-500 flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-full border">
+                            <span className="font-bold text-gray-700">{filteredBets.length}</span> quinielas encontradas
+                        </div>
+                    </div>
+
+                    <div className="overflow-x-auto bg-white rounded border shadow-sm">
                         <table className="w-full text-left text-sm whitespace-nowrap">
                             <thead className="bg-gray-100 text-gray-600"><tr><th className="p-3">Usuario</th><th className="p-3">Jornada</th><th className="p-3">Ref</th><th className="p-3">Estado</th><th className="p-3">Acción</th></tr></thead>
                             <tbody className="divide-y">
-                                {bets.map(b => {
+                                {filteredBets.length > 0 ? filteredBets.map(b => {
                                     const m = matchdays.find(md => md.id === b.matchdayId);
                                     return (
-                                        <tr key={b.id}>
-                                            <td className="p-3 font-medium">{b.userName}</td>
-                                            <td className="p-3">{m ? m.name : '???'}</td>
-                                            <td className="p-3 font-mono text-xs">{b.paymentRef}</td>
-                                            <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-bold ${b.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{b.status === 'paid'?'OK':'PEND'}</span></td>
-                                            <td className="p-3 flex gap-2"><button onClick={() => togglePay(b)} className="text-xs border px-2 py-1 rounded">Cambiar</button><button onClick={() => delBet(b)} className="text-red-500"><Trash2 size={14}/></button></td>
+                                        <tr key={b.id} className="hover:bg-gray-50 transition">
+                                            <td className="p-3">
+                                                <div className="font-medium">{b.userName}</div>
+                                                <div className="text-xs text-gray-400">{b.userFullName}</div>
+                                            </td>
+                                            <td className="p-3">
+                                                <span className={`text-xs px-2 py-1 rounded border ${m?.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-100 text-gray-500'}`}>
+                                                    {m ? m.name : '???'}
+                                                </span>
+                                            </td>
+                                            <td className="p-3">
+                                                <div className="font-mono text-xs bg-yellow-50 px-2 py-1 rounded inline-block text-yellow-800 border border-yellow-100">
+                                                    {b.paymentRef}
+                                                </div>
+                                                {b.cost && <div className="text-[10px] text-gray-400 mt-0.5 font-bold">Total: ${b.cost}</div>}
+                                            </td>
+                                            <td className="p-3">
+                                                <span className={`px-2 py-1 rounded text-xs font-bold flex w-fit items-center gap-1 ${b.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                                                    {b.status === 'paid' ? <CheckCircle size={12}/> : <Clock size={12}/>}
+                                                    {b.status === 'paid'?'PAGADO':'PENDIENTE'}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 flex gap-2 items-center">
+                                                <button onClick={() => togglePay(b)} className={`text-xs border px-3 py-1.5 rounded font-bold transition flex items-center gap-1 ${b.status === 'paid' ? 'text-gray-500 hover:bg-gray-100' : 'bg-green-600 text-white hover:bg-green-700 border-transparent shadow-sm'}`}>
+                                                    {b.status === 'paid' ? 'Revocar' : 'Aprobar'}
+                                                </button>
+                                                <button onClick={() => delBet(b)} className="text-gray-400 hover:text-red-500 p-1.5 hover:bg-red-50 rounded transition"><Trash2 size={16}/></button>
+                                            </td>
                                         </tr>
                                     );
-                                })}
+                                }) : (
+                                    <tr><td colSpan="5" className="p-8 text-center text-gray-400 italic">No hay pagos que coincidan con el filtro.</td></tr>
+                                )}
                             </tbody>
                         </table>
                     </div>
@@ -492,129 +439,83 @@
             );
         }
 
-        function AdminTeams({ teams, appId, db }) {
-            const [newTeam, setNewTeam] = useState('');
-            const handleAdd = async (e) => { e.preventDefault(); if(!newTeam.trim()) return; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'teams'), { name: newTeam.trim() }); setNewTeam(''); };
-            const handleDelete = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'teams', id)); };
-            return (
-                <div className="max-w-xl mx-auto">
-                    <h3 className="text-xl font-bold mb-4">Equipos</h3>
-                    <form onSubmit={handleAdd} className="flex gap-2 mb-4"><input value={newTeam} onChange={e => setNewTeam(e.target.value)} placeholder="Nombre" className="flex-1 p-2 border rounded" /><button className="bg-green-600 text-white px-4 rounded">Add</button></form>
-                    <ul className="border rounded divide-y max-h-80 overflow-y-auto">{teams.map(t => <li key={t.id} className="p-3 flex justify-between"><span>{t.name}</span><button onClick={() => handleDelete(t.id)} className="text-red-500"><Trash2 size={14}/></button></li>)}</ul>
-                </div>
-            );
-        }
+        function AdminTeams({teams,appId,db}){ const [n,setN]=useState(''); return <div><div className="flex gap-2 mb-4"><input value={n} onChange={e=>setN(e.target.value)} className="border p-2 flex-1"/><button onClick={()=>{if(n)addDoc(collection(db,'artifacts',appId,'public','data','teams'),{name:n});setN('')}} className="bg-green-600 text-white px-4 rounded">Add</button></div><div className="h-64 overflow-y-auto border rounded">{teams.map(t=><div key={t.id} className="p-2 border-b">{t.name}</div>)}</div></div>; }
 
-        function AdminResults({ matchdays, bets, appId, db }) {
-            const [selId, setSelId] = useState('');
-            const [res, setRes] = useState({});
-            const m = matchdays.find(x => x.id === selId);
-            const leaderboard = useMemo(() => {
-                if (!m) return [];
-                const matchdayBets = bets.filter(b => b.matchdayId === m.id);
-                return matchdayBets.map(bet => {
-                    let points = 0;
-                    bet.predictions.forEach(pred => {
-                        const match = m.matches.find(match => match.id === pred.matchId);
-                        const currentResult = res[pred.matchId] || match?.result;
-                        if (currentResult && currentResult === pred.prediction) points++;
-                    });
-                    return { ...bet, points };
-                }).sort((a, b) => b.points - a.points);
-            }, [m, bets, res]);
-            
-            const save = async () => { if(!m || !confirm("¿Finalizar?")) return; const updated = m.matches.map(match => ({ ...match, result: res[match.id] || null })); await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matchdays', m.id), { matches: updated, status: 'finalized' }); alert("Guardado"); };
-            useEffect(() => { if(m && m.matches) { const loadedRes = {}; m.matches.forEach(match => { if(match.result) loadedRes[match.id] = match.result; }); setRes(loadedRes); } else { setRes({}); } }, [m]);
-
-            return (
-                <div className="grid lg:grid-cols-2 gap-8">
-                    <div>
-                        <h3 className="text-xl font-bold mb-4">Captura</h3>
-                        <select className="w-full p-2 border rounded mb-6" value={selId} onChange={e => setSelId(e.target.value)}><option value="">Selecciona Jornada</option>{matchdays.filter(x => x.status !== 'deleted').map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select>
-                        {m && (
-                            <div className="bg-gray-50 p-4 rounded border">
-                                <h4 className="font-bold text-center mb-4">{m.name}</h4>
-                                <div className="space-y-3 mb-6">
-                                    {m.matches.map(match => (
-                                        <div key={match.id} className="flex flex-col md:flex-row justify-between items-center bg-white p-2 rounded border gap-2">
-                                            <span className="w-full md:w-1/3 text-center md:text-right text-sm font-medium">{match.home}</span>
-                                            <div className="flex gap-1 justify-center">
-                                                {['L','E','V'].map(opt => {
-                                                    const val = opt === 'L' ? 'local' : opt === 'E' ? 'tie' : 'visit';
-                                                    return <button key={opt} onClick={() => setRes({...res, [match.id]: val})} className={`w-8 h-8 rounded text-xs font-bold transition ${res[match.id] === val ? 'bg-green-600 text-white' : 'bg-gray-100'}`}>{opt}</button>
-                                                })}
-                                            </div>
-                                            <span className="w-full md:w-1/3 text-center md:text-left text-sm font-medium">{match.away}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                                <button onClick={save} className="w-full bg-blue-600 text-white py-3 rounded font-bold shadow">Guardar Resultados</button>
-                            </div>
-                        )}
-                    </div>
-                    <div className="border-t pt-6 lg:pt-0 lg:border-t-0 lg:border-l pl-0 lg:pl-8">
-                        <h3 className="text-xl font-bold mb-4">Ranking</h3>
-                        {leaderboard.length > 0 ? (
-                            <div className="bg-white rounded border overflow-hidden">
-                                {leaderboard.map((bet, idx) => (
-                                    <div key={bet.id} className={`flex justify-between items-center p-3 text-sm border-b ${idx===0?'bg-yellow-50':''}`}>
-                                        <span className={`w-8 font-bold text-center ${idx===0?'text-yellow-600':''}`}>{idx+1}</span>
-                                        <span className="flex-1 px-2 truncate">{bet.userName}</span>
-                                        <span className="font-bold text-blue-700">{bet.points} pts</span>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : <p className="text-gray-400 text-center">Sin datos</p>}
-                    </div>
-                </div>
-            );
-        }
-
-        function UserView({ teams, matchdays, bets, user, appId, db }) {
+        function UserView(props) {
             const [tab, setTab] = useState('play');
             return (
                 <div className="max-w-4xl mx-auto bg-white rounded-xl shadow overflow-hidden flex flex-col h-full md:h-auto">
-                    <div className="flex border-b">
-                        <button onClick={() => setTab('play')} className={`flex-1 py-4 font-bold ${tab === 'play' ? 'text-green-700 bg-green-50' : 'text-gray-500'}`}>Jugar</button>
-                        <button onClick={() => setTab('history')} className={`flex-1 py-4 font-bold ${tab === 'history' ? 'text-green-700 bg-green-50' : 'text-gray-500'}`}>Mis Quinielas</button>
+                    <div className="flex border-b overflow-x-auto hide-scrollbar">
+                        {['play','history','results'].map(t => <button key={t} onClick={() => setTab(t)} className={`flex-1 py-4 px-4 font-bold capitalize whitespace-nowrap ${tab === t ? 'text-green-700 bg-green-50 border-b-2 border-green-700' : 'text-gray-500'}`}>{t === 'play' ? 'Jugar' : t === 'history' ? 'Mis Quinielas' : 'Resultados'}</button>)}
                     </div>
                     <div className="p-4 md:p-6 flex-grow">
-                        {tab === 'play' && <UserPlay matchdays={matchdays} user={user} bets={bets} appId={appId} db={db} />}
-                        {tab === 'history' && <UserHistory matchdays={matchdays} user={user} bets={bets} />}
+                        {tab === 'play' && <UserPlay {...props} />}
+                        {tab === 'history' && <UserHistory {...props} />}
+                        {tab === 'results' && <UserResults {...props} />}
                     </div>
                 </div>
             );
         }
 
+        // --- USER PLAY (DISEÑO RESTAURADO A SU FORMA ORIGINAL) ---
         function UserPlay({ matchdays, user, bets, appId, db }) {
             const [selM, setSelM] = useState(null);
-            const [preds, setPreds] = useState({});
+            const [preds, setPreds] = useState({}); 
             const [paymentRef, setPaymentRef] = useState('');
             const [submitting, setSubmitting] = useState(false);
-            const [viewParticipantsId, setViewParticipantsId] = useState(null);
             const active = matchdays.filter(m => m.status === 'active');
+            
+            const MAX_DOUBLES = 2;
+            const DOUBLE_COST = 10;
+            const MAX_BETS_PER_MATCHDAY = 2;
+
+            const doublesCount = Object.values(preds).filter(p => p.length === 2).length;
+            const totalCost = selM ? selM.price + (doublesCount * DOUBLE_COST) : 0;
+
+            const togglePrediction = (matchId, value) => {
+                const current = preds[matchId] || [];
+                let next = [...current];
+                if (next.includes(value)) next = next.filter(v => v !== value);
+                else {
+                    if (next.length === 0) next.push(value); 
+                    else if (next.length === 1) {
+                        if (doublesCount < MAX_DOUBLES) next.push(value);
+                        else { alert(`Máximo ${MAX_DOUBLES} dobles.`); return; }
+                    } else return;
+                }
+                setPreds({ ...preds, [matchId]: next });
+            };
 
             const submit = async () => {
-                if(!selM.matches.every(m => preds[m.id])) return alert("Completa todos los partidos");
-                if(!paymentRef.trim()) return alert("Ingresa referencia de pago");
+                if(!selM.matches.every(m => preds[m.id] && preds[m.id].length > 0)) return alert("Selecciona al menos una opción por partido.");
+                if(!paymentRef.trim()) return alert("Falta referencia.");
                 setSubmitting(true);
                 try {
                     const onlineTime = await getTrustedTime();
-                    if (onlineTime > new Date(selM.deadline)) { alert("Tiempo agotado"); setSubmitting(false); return; }
+                    if (onlineTime > new Date(selM.deadline)) { alert("Tiempo agotado."); setSubmitting(false); return; }
+                    const myBetsCount = bets.filter(b => b.matchdayId === selM.id && b.userName === user.username).length;
+                    if (myBetsCount >= MAX_BETS_PER_MATCHDAY) { alert("Has alcanzado el límite de jugadas."); setSubmitting(false); return; }
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'bets'), {
-                        matchdayId: selM.id, userName: user.username, userFullName: user.fullName || user.username, predictions: Object.entries(preds).map(([k,v]) => ({ matchId: parseInt(k), prediction: v })), paymentRef: paymentRef.trim(), status: 'pending', createdAt: serverTimestamp()
+                        matchdayId: selM.id, userName: user.username, userFullName: user.fullName || user.username, 
+                        predictions: Object.entries(preds).map(([k,v]) => ({ matchId: parseInt(k), prediction: v })), 
+                        paymentRef: paymentRef.trim(), cost: totalCost, status: 'pending', createdAt: serverTimestamp()
                     });
-                    alert("Enviado!"); setSelM(null); setPreds({}); setPaymentRef('');
-                } catch (e) { alert("Error"); } finally { setSubmitting(false); }
+                    alert("¡Enviado!"); setSelM(null); setPreds({}); setPaymentRef('');
+                } catch (e) { alert("Error."); } finally { setSubmitting(false); }
             };
 
             if (selM) return (
                 <div>
                     <button onClick={() => setSelM(null)} className="text-sm font-bold text-gray-500 mb-4 flex items-center gap-1"><ChevronDown className="rotate-90" size={16}/> Volver</button>
+                    {/* ENCABEZADO SIMPLE (Restaurado) */}
                     <div className="text-center mb-6">
                         <h3 className="text-2xl font-bold mb-1">{selM.name}</h3>
-                        <p className="text-green-700 font-bold">Costo: ${selM.price}</p>
+                        <p className="text-green-700 font-bold">
+                            Costo: ${totalCost} {doublesCount > 0 && <span className="text-xs text-gray-500 font-normal">(Base ${selM.price} + ${doublesCount * DOUBLE_COST} dobles)</span>}
+                        </p>
                     </div>
+                    
+                    {/* LISTA DE PARTIDOS (Estilo original rectangular) */}
                     <div className="space-y-4 max-w-2xl mx-auto mb-6">
                         {selM.matches.map(m => (
                             <div key={m.id} className="bg-gray-50 p-3 rounded flex flex-col md:flex-row justify-between items-center border gap-3 md:gap-0">
@@ -622,16 +523,29 @@
                                 <div className="flex gap-2 mx-4 justify-center">
                                     {['L','E','V'].map(opt => {
                                         const val = opt === 'L' ? 'local' : opt === 'E' ? 'tie' : 'visit';
-                                        return <button key={opt} onClick={() => setPreds({...preds, [m.id]: val})} className={`w-12 h-10 md:w-10 md:h-10 rounded-lg md:rounded-full font-bold border transition ${preds[m.id] === val ? 'bg-green-600 text-white scale-110' : 'bg-white text-gray-400'}`}>{opt}</button>
+                                        const isSelected = preds[m.id]?.includes(val);
+                                        return (
+                                            <button 
+                                                key={opt} 
+                                                onClick={() => togglePrediction(m.id, val)} 
+                                                className={`w-12 h-10 md:w-10 md:h-10 rounded-lg md:rounded-full font-bold border transition ${isSelected ? 'bg-green-600 text-white scale-110 shadow-md' : 'bg-white text-gray-400'}`}
+                                            >
+                                                {opt}
+                                            </button>
+                                        )
                                     })}
                                 </div>
                                 <span className="w-full md:flex-1 text-center md:text-left font-bold text-sm md:text-base">{m.away}</span>
                             </div>
                         ))}
                     </div>
+
+                    {/* SECCIÓN DE PAGO (Diseño original limpio) */}
                     <div className="max-w-2xl mx-auto">
                         <input type="text" value={paymentRef} onChange={e => setPaymentRef(e.target.value)} placeholder="Ref. Pago / Folio" className="w-full p-3 border rounded-lg bg-yellow-50 mb-4" />
-                        <button onClick={submit} disabled={submitting} className={`w-full text-white py-3 rounded-lg font-bold shadow ${submitting?'bg-gray-400':'bg-green-600 hover:bg-green-700'}`}>{submitting?'Enviando...':'Enviar Quiniela'}</button>
+                        <button onClick={submit} disabled={submitting} className={`w-full text-white py-3 rounded-lg font-bold shadow ${submitting?'bg-gray-400':'bg-green-600 hover:bg-green-700'}`}>
+                            {submitting ? 'Enviando...' : 'Enviar Quiniela'}
+                        </button>
                     </div>
                 </div>
             );
@@ -639,125 +553,93 @@
             return (
                 <div className="grid gap-4 md:grid-cols-2">
                     {active.map(m => {
-                        const played = bets.some(b => b.userName === user.username && b.matchdayId === m.id);
+                        const myBetsCount = bets.filter(b => b.userName === user.username && b.matchdayId === m.id).length;
+                        const isMaxed = myBetsCount >= MAX_BETS_PER_MATCHDAY;
                         const isExpired = m.deadline && new Date() > new Date(m.deadline);
                         const paidBets = bets.filter(b => b.matchdayId === m.id && b.status === 'paid');
                         return (
-                            <div key={m.id} className={`border p-5 rounded-lg relative overflow-hidden flex flex-col ${isExpired ? 'bg-gray-50' : 'bg-white shadow-sm'}`}>
+                            <div key={m.id} className={`border p-5 rounded-lg relative overflow-hidden flex flex-col ${isExpired ? 'bg-gray-50' : 'bg-white shadow-sm hover:shadow-md transition'}`}>
                                 {isExpired && <div className="absolute top-0 right-0 bg-red-500 text-white text-[10px] px-2 py-1 font-bold rounded-bl">CERRADA</div>}
-                                <h3 className="font-bold text-xl text-green-800 mb-1">{m.name}</h3>
-                                <div className="flex items-center gap-2 mb-3"><span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1"><Banknote size={12}/> Bolsa: ${paidBets.length * m.price}</span></div>
+                                <div className="flex justify-between items-start mb-2">
+                                    <h3 className="font-bold text-xl text-green-800">{m.name}</h3>
+                                    <span className="text-xs bg-gray-100 px-2 py-1 rounded border">Jugadas: {myBetsCount}/{MAX_BETS_PER_MATCHDAY}</span>
+                                </div>
+                                <div className="flex items-center gap-2 mb-3"><span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1"><Banknote size={12}/> Bolsa aprox: ${paidBets.reduce((acc, b) => acc + (b.cost || m.price), 0)}</span></div>
                                 <div className="text-sm text-gray-500 mb-4 space-y-1">
-                                    <p>{m.matches.length} partidos - ${m.price}</p>
+                                    <p>{m.matches.length} partidos - Base ${m.price}</p>
                                     {m.deadline && <p className={`flex items-center gap-1 ${isExpired?'text-red-500':'text-orange-500'}`}><Clock size={12}/> {new Date(m.deadline).toLocaleString()}</p>}
                                 </div>
-                                <div className="mt-auto space-y-3">
-                                    <button onClick={() => setViewParticipantsId(viewParticipantsId === m.id ? null : m.id)} className="w-full text-blue-600 text-xs font-bold flex items-center justify-center gap-1 py-2 border rounded border-blue-100"><Users size={14}/> {paidBets.length} Participantes {viewParticipantsId===m.id?<ChevronUp size={12}/>:<ChevronDown size={12}/>}</button>
-                                    {viewParticipantsId === m.id && <ul className="bg-blue-50 p-2 rounded text-xs text-gray-700 max-h-32 overflow-y-auto">{paidBets.map(b=><li key={b.id} className="truncate">• {b.userFullName||b.userName}</li>)}</ul>}
-                                    <button onClick={() => !played && !isExpired && setSelM(m)} disabled={played || isExpired} className={`w-full py-2 rounded font-bold ${played||isExpired?'bg-gray-200 text-gray-400':'bg-green-600 text-white'}`}>{played?'Jugado':isExpired?'Cerrada':'Jugar'}</button>
-                                </div>
+                                <button onClick={() => !isMaxed && !isExpired && setSelM(m)} disabled={isMaxed || isExpired} className={`mt-auto w-full py-2 rounded font-bold transition ${isMaxed||isExpired?'bg-gray-200 text-gray-400 cursor-not-allowed':'bg-green-600 text-white hover:bg-green-700 shadow'}`}>
+                                    {isMaxed ? 'Máx 2 jugadas' : isExpired ? 'Cerrada' : 'Jugar Ahora'}
+                                </button>
                             </div>
                         );
                     })}
-                    {active.length === 0 && <p className="text-center text-gray-400 col-span-2 py-10">Sin jornadas</p>}
+                    {active.length === 0 && <div className="col-span-2 text-center py-10 bg-gray-50 rounded border border-dashed"><Gamepad2 className="mx-auto text-gray-300 mb-2" size={48}/><p className="text-gray-400">No hay jornadas disponibles para jugar.</p></div>}
                 </div>
             );
         }
 
         function UserHistory({ matchdays, user, bets }) {
-            const myBets = bets.filter(b => b.userName === user.username);
             const [printBet, setPrintBet] = useState(null);
+            const [filter, setFilter] = useState('all');
 
-            // --- DISEÑO DE VISTA PREVIA Y MODAL DE IMPRESIÓN ---
+            const filteredBets = useMemo(() => {
+                const myBets = bets.filter(b => b.userName === user.username);
+                const now = new Date();
+                return myBets.filter(b => {
+                    const m = matchdays.find(md => md.id === b.matchdayId);
+                    if (!m) return false;
+                    const isExpired = m.deadline && now > new Date(m.deadline);
+                    const isFinalized = m.status === 'finalized';
+                    const isPaid = b.status === 'paid';
+                    if (filter === 'active') return !isExpired && !isFinalized;
+                    if (filter === 'finished') return isExpired || isFinalized;
+                    if (filter === 'unpaid') return !isPaid;
+                    return true;
+                }).sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
+            }, [bets, matchdays, user, filter]);
+
+            // --- TICKET VISTA PREVIA (ACTUALIZADO PARA DOBLES) ---
             if (printBet) {
                 const m = matchdays.find(md => md.id === printBet.matchdayId);
                 return (
                     <div className="fixed inset-0 bg-black/80 z-[9999] flex justify-center items-center p-4 print:p-0 print:bg-white print:items-start print:static">
                         <div className="bg-white w-full max-w-md rounded-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] print:shadow-none print:max-h-none print:w-full print:overflow-visible">
-                            
-                            {/* Toolbar de Acciones (No Imprimible) */}
-                            <div className="bg-gray-900 text-white p-4 flex justify-between items-center no-print">
+                            <div className="bg-gray-900 text-white p-4 flex justify-between items-center no-print shrink-0">
                                 <h3 className="font-bold text-lg flex items-center gap-2"><Trophy size={20} className="text-yellow-400"/> Ticket</h3>
-                                <div className="flex gap-2">
-                                    <button onClick={() => window.print()} className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition shadow-lg">
-                                        <Printer size={18}/> Descargar / Imprimir
-                                    </button>
-                                    <button onClick={() => setPrintBet(null)} className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-lg transition" title="Cerrar">
-                                        <X size={20}/>
-                                    </button>
-                                </div>
+                                <div className="flex gap-2"><button onClick={() => window.print()} className="bg-green-600 px-4 py-2 rounded font-bold text-sm flex gap-2"><Printer size={18}/> Imprimir</button><button onClick={() => setPrintBet(null)} className="bg-gray-700 p-2 rounded"><X size={20}/></button></div>
                             </div>
-
-                            {/* Área del Ticket (Scrollable en pantalla) */}
-                            <div className="overflow-y-auto p-6 bg-gray-100 flex justify-center print:p-0 print:bg-white print:overflow-visible print:block">
-                                <div className="w-[350px] bg-white border-2 border-dashed border-gray-800 p-6 text-black shadow-sm print:shadow-none print:border-gray-800 print:w-full print:max-w-[400px] print:mx-auto">
-                                    {/* Header */}
-                                    <div className="text-center border-b-2 border-black pb-4 mb-4">
-                                        <div className="flex justify-center mb-2"><Trophy size={32} className="text-black"/></div>
-                                        <h1 className="text-xl font-black uppercase tracking-wider">Quiniela SICAR</h1>
-                                        <p className="text-xs font-mono mt-1 text-gray-500">{new Date().toLocaleString()}</p>
-                                    </div>
-                                    
-                                    {/* Details */}
-                                    <div className="mb-6 text-sm space-y-2 font-mono">
-                                        <div className="flex justify-between border-b border-gray-100 pb-1">
-                                            <span className="text-gray-500">Jornada:</span>
-                                            <span className="font-bold truncate max-w-[150px]">{m?.name}</span>
+                            <div className="overflow-y-auto bg-gray-100 flex-1 w-full print:overflow-visible">
+                                <div className="min-h-full flex justify-center p-8 print:p-0">
+                                    <div id="printable-ticket" className="w-[350px] h-fit bg-white border-2 border-dashed border-gray-800 p-6 text-black shadow-sm print:shadow-none print:border-gray-800 print:w-full print:max-w-[400px] print:mx-auto relative">
+                                        <div className="text-center border-b-2 border-black pb-4 mb-4"><div className="flex justify-center mb-2"><Trophy size={32} className="text-black"/></div><h1 className="text-xl font-black uppercase tracking-wider">Quiniela SICAR</h1><p className="text-xs font-mono mt-1 text-gray-500">{new Date().toLocaleString()}</p></div>
+                                        <div className="mb-6 text-sm space-y-2 font-mono">
+                                            <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">Jornada:</span><span className="font-bold truncate max-w-[150px]">{m?.name}</span></div>
+                                            <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">Jugador:</span><span className="font-bold uppercase truncate max-w-[150px]">{printBet.userFullName || printBet.userName}</span></div>
+                                            <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">Ref. Pago:</span><span className="font-bold">{printBet.paymentRef}</span></div>
+                                            <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">Total:</span><span className="font-bold text-lg">${printBet.cost || m?.price}</span></div>
                                         </div>
-                                        <div className="flex justify-between border-b border-gray-100 pb-1">
-                                            <span className="text-gray-500">Jugador:</span>
-                                            <span className="font-bold uppercase truncate max-w-[150px]">{printBet.userFullName || printBet.userName}</span>
-                                        </div>
-                                        <div className="flex justify-between border-b border-gray-100 pb-1">
-                                            <span className="text-gray-500">Ref. Pago:</span>
-                                            <span className="font-bold">{printBet.paymentRef}</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Matrix */}
-                                    <div className="mb-6">
-                                        <div className="flex text-[10px] font-bold text-gray-400 mb-2 border-b-2 border-gray-800 pb-1">
-                                            <span className="flex-1">PARTIDO</span>
-                                            <span className="w-6 text-center">L</span>
-                                            <span className="w-6 text-center">E</span>
-                                            <span className="w-6 text-center">V</span>
-                                        </div>
-                                        {printBet.predictions.map((p, i) => {
-                                            const match = m?.matches.find(ma => ma.id === p.matchId);
-                                            if (!match) return null;
-                                            return (
-                                                <div key={i} className="flex items-center text-xs py-2 border-b border-gray-100">
-                                                    <div className="flex-1 pr-2 leading-tight">
-                                                        <div className="font-bold">{match.home}</div>
-                                                        <div className="text-[10px] text-gray-500">vs {match.away}</div>
+                                        <div className="mb-6">
+                                            <div className="flex text-[10px] font-bold text-gray-400 mb-2 border-b-2 border-gray-800 pb-1"><span className="flex-1">PARTIDO</span><span className="w-6 text-center">L</span><span className="w-6 text-center">E</span><span className="w-6 text-center">V</span></div>
+                                            {printBet.predictions.map((p, i) => {
+                                                const match = m?.matches.find(ma => ma.id === p.matchId);
+                                                if (!match) return null;
+                                                const picks = normalizePred(p.prediction);
+                                                return (
+                                                    <div key={i} className="flex items-center text-xs py-2 border-b border-gray-100">
+                                                        <div className="flex-1 pr-2 leading-tight"><div className="font-bold">{match.home}</div><div className="text-[10px] text-gray-500">vs {match.away}</div></div>
+                                                        <div className="flex gap-0">
+                                                            {['local', 'tie', 'visit'].map(opt => {
+                                                                const isSelected = picks.includes(opt);
+                                                                return <div key={opt} className="w-6 flex justify-center items-center">{isSelected ? <div className="w-5 h-5 bg-black text-white rounded-full flex items-center justify-center print:bg-black print:text-white"><Check size={12} strokeWidth={4} /></div> : <div className="w-5 h-5 rounded-full border border-gray-300"></div>}</div>
+                                                            })}
+                                                        </div>
                                                     </div>
-                                                    <div className="flex gap-0">
-                                                        {['local', 'tie', 'visit'].map(opt => {
-                                                            const isSelected = p.prediction === opt;
-                                                            return (
-                                                                <div key={opt} className="w-6 flex justify-center items-center">
-                                                                    {isSelected ? (
-                                                                        <div className="w-5 h-5 bg-black text-white rounded-full flex items-center justify-center print:bg-black print:text-white">
-                                                                            <Check size={12} strokeWidth={4} />
-                                                                        </div>
-                                                                    ) : (
-                                                                        <div className="w-5 h-5 rounded-full border border-gray-300"></div>
-                                                                    )}
-                                                                </div>
-                                                            )
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-
-                                    {/* Footer Status */}
-                                    <div className="text-center border-t-2 border-black pt-4">
-                                        <div className="inline-block border-2 border-black px-4 py-1 rounded font-black text-lg uppercase tracking-widest">
-                                            {printBet.status === 'paid' ? 'PAGADO' : 'PENDIENTE'}
+                                                );
+                                            })}
                                         </div>
-                                        <p className="text-[10px] text-gray-400 mt-2">¡Mucha Suerte!</p>
+                                        <div className="text-center border-t-2 border-black pt-4"><div className="inline-block border-2 border-black px-4 py-1 rounded font-black text-lg uppercase tracking-widest">{printBet.status === 'paid' ? 'PAGADO' : 'PENDIENTE'}</div><p className="text-[10px] text-gray-400 mt-2">¡Mucha Suerte!</p></div>
                                     </div>
                                 </div>
                             </div>
@@ -767,24 +649,78 @@
             }
 
             return (
-                <div className="space-y-4">
-                    {myBets.map(b => {
-                        const m = matchdays.find(md => md.id === b.matchdayId);
-                        const points = m?.status === 'finalized' ? b.predictions.filter(p => m.matches.find(ma => ma.id === p.matchId)?.result === p.prediction).length : null;
-                        return (
-                            <div key={b.id} className="border p-4 rounded flex justify-between items-center bg-gray-50">
-                                <div>
-                                    <h4 className="font-bold">{m?.name}</h4>
-                                    <div className="flex gap-2 mt-1">
-                                        <span className={`text-xs px-2 py-1 rounded font-bold ${b.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>{b.status === 'paid' ? 'PAGADO' : 'PENDIENTE'}</span>
-                                        {points !== null && <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded font-bold">Aciertos: {points}</span>}
+                <div>
+                    <div className="flex gap-2 mb-4 overflow-x-auto pb-2 hide-scrollbar">
+                        {[{id:'all',l:'Todas'},{id:'active',l:'Activas'},{id:'finished',l:'Vencidas'},{id:'unpaid',l:'Falta Pago'}].map(f=><button key={f.id} onClick={()=>setFilter(f.id)} className={`px-3 py-1 rounded-full text-xs font-bold border ${filter===f.id?'bg-green-700 text-white':'bg-white text-gray-500'}`}>{f.l}</button>)}
+                    </div>
+                    <div className="space-y-4">
+                        {filteredBets.map(b => {
+                            const m = matchdays.find(md => md.id === b.matchdayId);
+                            // Cálculo de aciertos para historial (usando normalizePred para soporte dobles)
+                            const points = m?.status === 'finalized' ? b.predictions.filter(p => {
+                                const match = m.matches.find(ma => ma.id === p.matchId);
+                                const userPicks = normalizePred(p.prediction);
+                                return match?.result && userPicks.includes(match.result);
+                            }).length : null;
+
+                            return (
+                                <div key={b.id} className="border p-4 rounded-lg flex justify-between items-center bg-gray-50 hover:bg-white transition hover:shadow-sm">
+                                    <div>
+                                        <h4 className="font-bold text-gray-800">{m?.name}</h4>
+                                        <div className="flex flex-wrap gap-2 mt-2">
+                                            <span className={`text-[10px] px-2 py-0.5 rounded border font-bold ${b.status === 'paid' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'}`}>{b.status === 'paid' ? 'PAGO OK' : 'PENDIENTE'}</span>
+                                            {points !== null && <span className="text-[10px] px-2 py-0.5 rounded border font-bold bg-purple-50 text-purple-700 border-purple-200">{points} Aciertos</span>}
+                                        </div>
+                                        <p className="text-[10px] text-gray-400 mt-1 font-mono">Costo: ${b.cost || m?.price}</p>
                                     </div>
-                                    <p className="text-xs text-gray-500 mt-1">Ref: {b.paymentRef}</p>
+                                    <button onClick={() => setPrintBet(b)} className="text-gray-500 hover:text-green-600 flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-100 transition"><Printer size={20}/><span className="text-[10px] font-bold">Ticket</span></button>
                                 </div>
-                                <button onClick={() => setPrintBet(b)} className="text-gray-600 hover:text-green-700 flex items-center gap-1 border px-3 py-1 rounded bg-white"><Printer size={16}/> Ticket</button>
-                            </div>
-                        );
-                    })}
+                            );
+                        })}
+                        {filteredBets.length === 0 && <p className="text-center text-gray-400 text-sm py-10 italic">Sin quinielas.</p>}
+                    </div>
+                </div>
+            );
+        }
+
+        // --- USER RESULTS (Actualizado para dobles) ---
+        function UserResults({ matchdays, bets, user }) {
+            const [filterDateStart, setFilterDateStart] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 10); return d.toISOString().split('T')[0]; });
+            const [filterDateEnd, setFilterDateEnd] = useState(new Date().toISOString().split('T')[0]);
+            const finalized = useMemo(() => matchdays.filter(m => m.status === 'finalized' && (!m.deadline || (new Date(m.deadline) >= new Date(filterDateStart) && new Date(m.deadline) <= new Date(filterDateEnd+'T23:59:59')))), [matchdays, filterDateStart, filterDateEnd]);
+            const [selId, setSelId] = useState('');
+            useEffect(() => { if (finalized.length > 0 && (!selId || !finalized.find(f => f.id === selId))) setSelId(finalized[0].id); else if (finalized.length===0) setSelId(''); }, [finalized, selId]);
+            const m = matchdays.find(x => x.id === selId);
+            
+            const leaderboard = useMemo(() => {
+                if (!m) return [];
+                return bets.filter(b => b.matchdayId === m.id && b.status === 'paid').map(bet => {
+                    let points = 0;
+                    bet.predictions.forEach(pred => {
+                        const match = m.matches.find(ma => ma.id === pred.matchId);
+                        const userPicks = normalizePred(pred.prediction);
+                        if (match?.result && userPicks.includes(match.result)) points++;
+                    });
+                    return { ...bet, points };
+                }).sort((a, b) => b.points - a.points);
+            }, [m, bets]);
+
+            return (
+                <div className="space-y-6">
+                    <div className="bg-white p-4 rounded-lg border shadow-sm">
+                        <div className="flex gap-4 mb-4"><input type="date" value={filterDateStart} onChange={e=>setFilterDateStart(e.target.value)} className="w-full border p-2 rounded text-xs"/><input type="date" value={filterDateEnd} onChange={e=>setFilterDateEnd(e.target.value)} className="w-full border p-2 rounded text-xs"/></div>
+                        <select className="w-full p-2 border rounded bg-gray-50" value={selId} onChange={e => setSelId(e.target.value)} disabled={finalized.length === 0}>{finalized.length > 0 ? finalized.map(f => <option key={f.id} value={f.id}>{f.name}</option>) : <option>Sin resultados recientes</option>}</select>
+                    </div>
+                    {m && <div className="grid md:grid-cols-2 gap-4">
+                        <div className="bg-white rounded border overflow-hidden">
+                            <div className="bg-gray-100 p-3 border-b font-bold text-gray-700 flex items-center gap-2"><CheckCircle size={18}/> Oficiales</div>
+                            <div className="p-4 space-y-2">{m.matches.map(ma => <div key={ma.id} className="flex text-sm border-b pb-2"><span className={`flex-1 text-right ${ma.result==='local'?'font-bold text-green-700':''}`}>{ma.home}</span><div className="mx-3 flex gap-1">{['L','E','V'].map((o,i)=><span key={o} className={`w-6 h-6 flex items-center justify-center rounded text-xs font-bold ${ma.result===(i===0?'local':i===1?'tie':'visit')?'bg-green-600 text-white':'bg-gray-100'}`}>{o}</span>)}</div><span className={`flex-1 text-left ${ma.result==='visit'?'font-bold text-green-700':''}`}>{ma.away}</span></div>)}</div>
+                        </div>
+                        <div className="bg-white rounded border overflow-hidden">
+                            <div className="bg-yellow-50 p-3 border-b font-bold text-yellow-800 flex items-center gap-2"><Trophy size={18}/> Ganadores</div>
+                            <div className="max-h-[400px] overflow-y-auto"><table className="w-full text-sm"><thead><tr><th className="p-2 w-10">#</th><th>Jugador</th><th className="text-right p-2">Pts</th></tr></thead><tbody>{leaderboard.map((b,i)=><tr key={b.id} className={b.userName===user.username?'bg-green-50':''}><td className="p-2 text-center font-bold">{i+1}</td><td className="p-2">{b.userFullName}</td><td className="p-2 text-right font-bold text-blue-600">{b.points}</td></tr>)}</tbody></table></div>
+                        </div>
+                    </div>}
                 </div>
             );
         }
