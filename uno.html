@@ -492,7 +492,7 @@
             return div;
         }
 
-        // MAZO (Con nombres corregidos y nuevas cartas)
+        // MAZO (MODIFICADO: MÁS CARTAS DE ATAQUE)
         function createSingleDeck() {
             let deck = [];
             const colors = ['red', 'green', 'blue', 'yellow'];
@@ -514,49 +514,50 @@
                 const rev = { type: 'reverse', color, value: 'R', image: `reversa ${cName}.png` };
                 deck.push({ ...rev, id: id++ }); deck.push({ ...rev, id: id++ });
 
-                // Repite (MODIFICADO: Ahora es jugar de nuevo)
+                // Repite
                 const rep = { type: 'repeat', color, value: 'REP', image: `repite ${cName}.png` };
                 deck.push({ ...rep, id: id++ }); deck.push({ ...rep, id: id++ });
 
-                // Bajar Color (NUEVO - "discard-all")
-                const baj = { type: 'discard-all', color, value: 'BAJ', image: `bajar color ${cName}.png` }; // Nombre ajustado para coincidir con patrón
-                // NOTA: Tu lista dice "bajar color amarillo.png" y "baja color rojo.png" (sin r al final).
-                // Voy a normalizar según tu lista específica:
+                // Bajar Color
+                const baj = { type: 'discard-all', color, value: 'BAJ', image: `bajar color ${cName}.png` };
                 let imgName = `bajar color ${cName}.png`;
-                if(color === 'red') imgName = "baja color rojo.png"; // Excepción según tu lista
+                if(color === 'red') imgName = "baja color rojo.png";
                 
                 deck.push({ ...baj, image: imgName, id: id++ }); 
                 deck.push({ ...baj, image: imgName, id: id++ });
 
-                // Draw 2
+                // Draw 2 (AUMENTADO: 4 copias por color)
                 let d2Img = `mas 2 ${cName}.png`;
                 if(color==='yellow') d2Img = "mas2 amarillo.png";
                 if(color==='blue') d2Img = "mas2 azul.png";
-                if(color==='red') d2Img = "mas 2 rojo.png"; // cuidado con espacios
+                if(color==='red') d2Img = "mas 2 rojo.png";
                 if(color==='green') d2Img = "mas 2 verde.png";
                 
-                deck.push({ id: id++, type: 'draw2', color, value: '+2', image: d2Img });
-                deck.push({ id: id++, type: 'draw2', color, value: '+2', image: d2Img });
+                // Antes: 2 copias. Ahora: 4 copias.
+                for(let k=0; k<4; k++) deck.push({ id: id++, type: 'draw2', color, value: '+2', image: d2Img });
 
-                // Draw 4
-                deck.push({ id: id++, type: 'draw4', color, value: '+4', image: `mas4 ${cName}.png` });
-                deck.push({ id: id++, type: 'draw4', color, value: '+4', image: `mas4 ${cName}.png` });
+                // Draw 4 (AUMENTADO: 4 copias por color)
+                // Antes: 2 copias. Ahora: 4 copias.
+                for(let k=0; k<4; k++) deck.push({ id: id++, type: 'draw4', color, value: '+4', image: `mas4 ${cName}.png` });
             }
 
-            // Cartas Negras
+            // Cartas Negras (AUMENTADAS SIGNIFICATIVAMENTE)
             const d6 = { type: 'wild-draw6', color: 'black', value: '+6' };
             ['mas 6.png', 'mas 6 dos .png', 'mas 6 3.png'].forEach(img => {
-                deck.push({ ...d6, id: id++, image: img }); deck.push({ ...d6, id: id++, image: img });
+                // Antes: 2 copias. Ahora: 4 copias de cada una.
+                for(let k=0; k<4; k++) deck.push({ ...d6, id: id++, image: img });
             });
 
             const d10 = { type: 'wild-draw10', color: 'black', value: '+10' };
             ['mas10.png', 'mas10 dos.png', 'mas10  tres.png'].forEach(img => {
-                deck.push({ ...d10, id: id++, image: img }); deck.push({ ...d10, id: id++, image: img });
+                // Antes: 2 copias. Ahora: 4 copias de cada una.
+                for(let k=0; k<4; k++) deck.push({ ...d10, id: id++, image: img });
             });
 
             const rev4 = { type: 'wild-reverse-draw4', color: 'black', value: 'R+4' };
             ['reversa mas4 uno.png', 'reversa mas4 dos.png', 'reversa mas4  tres.png', 'reversa mas4 - cuatro.png'].forEach(img => {
-                deck.push({ ...rev4, id: id++, image: img }); deck.push({ ...rev4, id: id++, image: img });
+                // Antes: 2 copias. Ahora: 4 copias de cada una.
+                for(let k=0; k<4; k++) deck.push({ ...rev4, id: id++, image: img });
             });
 
             const roulette = { type: 'wild-color-roulette', color: 'black', value: 'C' };
@@ -597,10 +598,9 @@
         async function onCardClick(card) {
             if (!isMyTurn() || !amIActive()) return;
             
-            // CORRECCIÓN 1: Bloquear cualquier carta si estás en Sad Face (roulette-draw)
             if (currentGameData.gamePhase === 'roulette-draw') {
                 messageEl.textContent = "¡Estás en castigo Sad Face! Debes robar hasta encontrar el color.";
-                return; // Impide jugar la carta
+                return; 
             }
 
             if (!isCardPlayable(card)) { messageEl.textContent = "Carta inválida."; return; }
@@ -613,7 +613,6 @@
             }
         }
 
-        // Listener del Mazo (Lógica de Robo y Sad Face corregida)
         deckPile.addEventListener('click', async () => {
             if (!isMyTurn() || !amIActive()) return;
             let data = { ...currentGameData };
@@ -624,7 +623,7 @@
                 const colorToFind = data.lastColorCalled;
                 if (data.deck.length === 0) refillDeck(data);
                 
-                if (data.deck.length === 0) { // Si aún no hay cartas
+                if (data.deck.length === 0) { 
                     data.gamePhase = 'playing';
                     data.message = "¡Mazo vacío! Fin del castigo.";
                     advanceTurn(data);
@@ -638,15 +637,12 @@
                     player.status = 'lost';
                     data.message = `¡${player.name} PERDIÓ (>25 cartas)!`;
                     data.gamePhase = 'playing';
-                    // IMPORTANTE: NO borramos data.lastColorCalled para que el siguiente sepa el color
                     if (!checkEndGame(data)) advanceTurn(data);
                 } else if (drawn.color === colorToFind) {
                     data.gamePhase = 'playing';
                     data.message = `${player.name} encontró ${colorToFind}.`;
                     advanceTurn(data);
                 } else {
-                    // CORRECCIÓN 2: Mensaje correcto indicando que el jugador ACTUAL sigue buscando
-                    // No usamos getNextPlayerIndex aquí porque el turno es de la víctima
                     data.message = `${player.name} busca ${colorToFind}...`;
                 }
                 await updateDoc(gameRef, data); return;
@@ -654,18 +650,15 @@
 
             // 2. Robo Normal o Robo por Repite
             let newCards = [];
-            // Si estamos en 'repeat-play', robamos 1 del mazo
             if (data.gamePhase === 'repeat-play') {
                  if (data.deck.length === 0) refillDeck(data);
                  if (data.deck.length > 0) {
                      let c = data.deck.pop();
                      player.hand.push(c); player.cardCount++;
-                     // Si la carta sirve (es del color del repite o es otro repite), el jugador puede jugarla
-                     // Si no, pasa el turno.
                      if (c.color === data.mustPlayColor || c.type === 'repeat') {
                          data.message = `Robó 1. Puede jugarla si es ${data.mustPlayColor}.`;
                      } else {
-                         data.gamePhase = 'playing'; // Se acaba la fase repite
+                         data.gamePhase = 'playing'; 
                          data.mustPlayColor = null;
                          data.message = `Robó carta equivocada. Pasa turno.`;
                          advanceTurn(data);
@@ -688,15 +681,13 @@
                     newCards = data.deck.splice(0, 1);
                     player.hand.push(...newCards); player.cardCount++;
                     data.message = `${player.name} robó 1 carta.`;
-                    // En UNO oficial, si robas y es jugable la juegas, si no pasa turno.
-                    // Aquí simplificamos: Robas y sigues jugando (puedes tirar la que robaste u otra).
                 }
             }
 
             if (player.cardCount > 25) {
                 player.status = 'lost';
                 data.message = `¡${player.name} PERDIÓ!`;
-                if (!checkEndGame(data) && data.gamePhase !== 'repeat-play') advanceTurn(data); // Si perdió en repeat, checkEndGame manejará o el if de arriba
+                if (!checkEndGame(data) && data.gamePhase !== 'repeat-play') advanceTurn(data);
             }
 
             await updateDoc(gameRef, data);
@@ -734,9 +725,7 @@
             const data = currentGameData;
             const top = data.discardPile[data.discardPile.length - 1];
 
-            // Fase "Repite"
             if (data.gamePhase === 'repeat-play') {
-                // Solo cartas del mismo color O otro Repite (que ya será del mismo color)
                 return card.color === data.mustPlayColor || (card.type === 'repeat' && card.color === data.mustPlayColor);
             }
 
@@ -750,7 +739,6 @@
             if (card.color === 'black') return true;
             if (data.lastColorCalled) return card.color === data.lastColorCalled;
             
-            // Regla No Mercy: Apilar cartas de robo de color
             const isTopDraw = ['draw2', 'draw4'].includes(top.type);
             const isCardDraw = ['draw2', 'draw4'].includes(card.type);
             if (isTopDraw && isCardDraw) return true;
@@ -762,7 +750,6 @@
             let data = { ...currentGameData };
             let player = data.players[data.currentPlayerIndex];
             
-            // Quitar de mano
             const idx = player.hand.findIndex(c => c.id === card.id);
             if (idx === -1) return;
             player.hand.splice(idx, 1);
@@ -771,37 +758,26 @@
 
             data.lastColorCalled = null;
             let turnAdvances = true;
+            let specialEventMsg = ""; // Para guardar mensajes especiales que no se borren
 
-            // Resetear fase Repite si jugamos exitosamente
             if (data.gamePhase === 'repeat-play') {
                 data.gamePhase = 'playing';
                 data.mustPlayColor = null;
-                // Si jugó un número, el turno avanza. 
-                // Si jugó OTRO repite, se procesará abajo.
             }
 
             switch (card.type) {
                 case 'number':
                     if (card.value === '0') {
-                        // CORRECCIÓN 3: Rotación de cartas ignorando jugadores perdidos
                         const activePlayers = data.players.filter(p => p.status === 'playing');
                         const activeHands = activePlayers.map(p => p.hand);
-                        
-                        // Rotamos las manos extraídas
-                        // Pop/Unshift mueve hacia la derecha en el array (A->B->C->A)
                         const lastH = activeHands.pop(); 
                         activeHands.unshift(lastH);
-                        
-                        // Reasignamos SOLO a los jugadores activos
                         activePlayers.forEach((p, i) => { 
                             p.hand = activeHands[i]; 
                             p.cardCount = p.hand.length; 
                             p.isSafe = false; 
                         });
-                        
-                        // Nota: Al modificar los objetos en activePlayers, se modifican en data.players 
-                        // porque son referencias al mismo objeto en memoria.
-                        data.message = "¡CARTA 0! Rotación de manos (solo activos).";
+                        specialEventMsg = "¡CARTA 0! Rotación de manos.";
                     }
                     if (card.value === '7') {
                         data.gamePhase = 'swap-hand-choice';
@@ -811,22 +787,20 @@
                     break;
                 case 'reverse':
                     data.playDirection *= -1;
-                    data.message = "¡Reversa!";
+                    specialEventMsg = "¡Reversa!";
                     break;
                 case 'skip':
                     data.currentPlayerIndex = getNextPlayerIndex(data);
-                    data.message = "¡Bloqueo!";
+                    specialEventMsg = "¡Bloqueo!";
                     break;
-                
-                // CORREGIDO: Repite = Jugar otra vez
                 case 'repeat':
                     data.gamePhase = 'repeat-play';
                     data.mustPlayColor = card.color;
                     data.message = `¡REPITE! ${player.name} juega otra ${card.color}.`;
-                    turnAdvances = false; // El turno NO avanza
+                    turnAdvances = false;
                     break;
 
-                // NUEVO: Bajar Color = Descartar todas las de ese color
+                // CORRECCIÓN: MENSAJE VISIBLE DE "BAJAR TODO"
                 case 'discard-all':
                     const cColor = card.color;
                     let count = 0;
@@ -837,8 +811,7 @@
                         }
                     }
                     player.cardCount = player.hand.length;
-                    data.message = `¡${player.name} bajó ${count} cartas ${cColor} extras!`; // Mensaje para bajar color
-                    // Turno avanza normal
+                    specialEventMsg = `¡${player.name} BAJÓ TODO ${cColor.toUpperCase()}!`;
                     break;
 
                 case 'draw2': data.stackType = 'draw2/4'; data.drawStack += 2; break;
@@ -849,20 +822,17 @@
                     data.stackType = 'draw4Reverse'; data.drawStack += 4; 
                     data.playDirection *= -1; data.lastColorCalled = chosenColor; 
                     break;
-                // CORREGIDO: Nombrar explícitamente a la víctima
                 case 'wild-color-roulette':
                     data.gamePhase = 'roulette-draw';
                     data.lastColorCalled = chosenColor;
-                    // El turno avanza al siguiente.
                     const nextPlayerIndex = getNextPlayerIndex(data);
                     const vName = data.players[nextPlayerIndex].name;
                     data.message = `¡Sad Face! ${vName} debe buscar ${chosenColor}.`;
-                    data.currentPlayerIndex = nextPlayerIndex; // Asigna el castigo al siguiente
-                    turnAdvances = false; // El turno ya fue avanzado manualmente
+                    data.currentPlayerIndex = nextPlayerIndex; 
+                    turnAdvances = false; 
                     break;
             }
 
-            // Notificación de chat
             const cardName = card.type === 'number' ? card.value : (card.type === 'wild-color-roulette' ? 'Sad Face' : (card.type === 'discard-all' ? 'Bajar Color' : card.type));
             const colorText = card.color !== 'black' ? card.color : chosenColor;
             const chatMsgText = `${player.name} jugó ${cardName}${colorText ? ` (${colorText})` : ''}.`;
@@ -873,7 +843,13 @@
                 data.message = `¡${player.name} GANÓ!`;
             } else {
                 if (player.cardCount > 1) player.isSafe = false;
-                if (turnAdvances) advanceTurn(data);
+                if (turnAdvances) {
+                    advanceTurn(data);
+                    // AQUÍ ESTÁ EL TRUCO: Concatenar el mensaje especial para que no se pierda
+                    if (specialEventMsg) {
+                        data.message = `${specialEventMsg} → ${data.message}`;
+                    }
+                }
             }
             await updateDoc(gameRef, data);
         }
@@ -914,7 +890,6 @@
             const target = data.players.find(p => p.uid === targetUid);
             if (!curr || !target) return;
 
-            // Ocultar modal
             swapHandModal.classList.add('hidden');
 
             const tempH = curr.hand; const tempC = curr.cardCount;
@@ -924,7 +899,6 @@
             data.gamePhase = 'playing';
             data.message = `¡${curr.name} intercambió manos con ${target.name}!`;
 
-            // Notificación de chat
             const chatMsgText = `${curr.name} activó la Carta 7 e intercambió manos con ${target.name}.`;
             await updateDoc(gameRef, { chatMessages: arrayUnion({ senderName: 'Sistema', senderUid: 'system', text: chatMsgText, timestamp: new Date() }) });
 
