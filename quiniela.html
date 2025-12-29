@@ -34,7 +34,7 @@
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
         import { getFirestore, collection, addDoc, query, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp, setDoc, getDocs, where } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
-        import { Trophy, Users, PlusCircle, CheckCircle, Clock, Search, FileText, LogOut, Shield, User, Printer, XCircle, Menu, X, Lock, RefreshCw, KeyRound, Calendar, Trash2, AlertTriangle, Banknote, ChevronDown, ChevronUp, Gamepad2, Check, Filter, Medal, Info } from 'https://esm.sh/lucide-react@0.263.1';
+        import { Trophy, Users, PlusCircle, CheckCircle, Clock, Search, FileText, LogOut, Shield, User, Printer, XCircle, Menu, X, Lock, RefreshCw, KeyRound, Calendar, Trash2, AlertTriangle, Banknote, ChevronDown, ChevronUp, Gamepad2, Check, Filter, Medal, Info, Pencil } from 'https://esm.sh/lucide-react@0.263.1';
 
         // --- CONFIGURACIÓN FIREBASE ---
         const localConfig = {
@@ -492,7 +492,103 @@
             );
         }
 
-        function AdminTeams({teams,appId,db}){ const [n,setN]=useState(''); return <div><div className="flex gap-2 mb-4"><input value={n} onChange={e=>setN(e.target.value)} className="border p-2 flex-1"/><button onClick={()=>{if(n)addDoc(collection(db,'artifacts',appId,'public','data','teams'),{name:n});setN('')}} className="bg-green-600 text-white px-4 rounded">Add</button></div><div className="h-64 overflow-y-auto border rounded">{teams.map(t=><div key={t.id} className="p-2 border-b">{t.name}</div>)}</div></div>; }
+        function AdminTeams({ teams, appId, db }) {
+            const [name, setName] = useState('');
+
+            const handleAdd = async (e) => {
+                e.preventDefault();
+                const cleanName = name.trim();
+                if (!cleanName) return;
+
+                // Validación de duplicados (Case insensitive)
+                if (teams.some(t => t.name.toLowerCase() === cleanName.toLowerCase())) {
+                    alert(`El equipo "${cleanName}" ya existe.`);
+                    return;
+                }
+
+                try {
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'teams'), { name: cleanName });
+                    setName('');
+                } catch (err) {
+                    alert("Error al guardar.");
+                }
+            };
+
+            const handleDelete = async (t) => {
+                if (confirm(`¿Eliminar equipo "${t.name}"?`)) {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'teams', t.id));
+                }
+            };
+
+            const handleEdit = async (t) => {
+                const newName = prompt("Nuevo nombre para el equipo:", t.name);
+                if (newName && newName.trim() !== "" && newName.trim() !== t.name) {
+                    const cleanName = newName.trim();
+                    if (teams.some(existing => existing.id !== t.id && existing.name.toLowerCase() === cleanName.toLowerCase())) {
+                        alert("Ya existe un equipo con ese nombre.");
+                        return;
+                    }
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'teams', t.id), { name: cleanName });
+                }
+            };
+
+            return (
+                <div className="max-w-xl mx-auto">
+                    <h3 className="text-xl font-bold mb-4">Gestión de Equipos</h3>
+                    
+                    {/* Formulario Agregar */}
+                    <form onSubmit={handleAdd} className="flex gap-2 mb-6">
+                        <div className="relative flex-1">
+                            <Shield className="absolute left-3 top-3 text-gray-400" size={20} />
+                            <input 
+                                value={name} 
+                                onChange={e => setName(e.target.value)} 
+                                placeholder="Nombre del Equipo (ej. América)" 
+                                className="w-full pl-10 p-3 border rounded-lg shadow-sm outline-none focus:ring-2 focus:ring-green-500"
+                            />
+                        </div>
+                        <button type="submit" className="bg-green-600 hover:bg-green-700 text-white px-4 md:px-6 py-2 rounded-lg font-bold shadow-sm transition flex items-center gap-2">
+                            <PlusCircle size={20} /> <span className="hidden md:inline">Agregar</span>
+                        </button>
+                    </form>
+
+                    {/* Lista de Equipos */}
+                    <div className="bg-white rounded-lg border shadow-sm overflow-hidden flex flex-col max-h-[60vh]">
+                        <div className="bg-gray-50 p-3 border-b text-xs font-bold text-gray-500 uppercase tracking-wider flex justify-between items-center">
+                            <span>Listado ({teams.length})</span>
+                            <span className="text-[10px] font-normal normal-case text-gray-400">Orden A-Z</span>
+                        </div>
+                        <div className="overflow-y-auto p-0 divide-y">
+                            {teams.length === 0 ? (
+                                <div className="p-8 text-center text-gray-400 flex flex-col items-center gap-2">
+                                    <Shield size={40} className="opacity-20"/>
+                                    <p>No hay equipos registrados.</p>
+                                </div>
+                            ) : (
+                                teams.map(t => (
+                                    <div key={t.id} className="p-3 flex justify-between items-center hover:bg-gray-50 transition group">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold text-xs border">
+                                                {t.name.substring(0, 2).toUpperCase()}
+                                            </div>
+                                            <span className="font-medium text-gray-700">{t.name}</span>
+                                        </div>
+                                        <div className="flex gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={() => handleEdit(t)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition" title="Editar Nombre">
+                                                <Pencil size={16} />
+                                            </button>
+                                            <button onClick={() => handleDelete(t)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Eliminar Equipo">
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
 
         function UserView(props) {
             const [tab, setTab] = useState('play');
