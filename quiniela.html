@@ -316,30 +316,55 @@
 
         function AdminUsers({ appId, db }) {
             const [users, setUsers] = useState([]);
+            const [searchTerm, setSearchTerm] = useState('');
+
             useEffect(() => { const unsub = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'users')), (s) => setUsers(s.docs.map(d => ({ id: d.id, ...d.data() })))); return () => unsub(); }, []);
+            
+            const filteredUsers = users.filter(u => 
+                u.username.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                (u.fullName && u.fullName.toLowerCase().includes(searchTerm.toLowerCase()))
+            );
+
             const toggleRole = async (u) => { if (confirm(`¿Cambiar rol?`)) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', u.id), { role: u.role === 'admin' ? 'player' : 'admin' }); };
             const handleDeleteUser = async (u) => { if (confirm(`¿Eliminar a ${u.username}?`)) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', u.id)); };
 
             return (
                 <div>
                     <h3 className="text-xl font-bold mb-4">Usuarios</h3>
-                    <div className="overflow-x-auto bg-white rounded shadow border">
-                        <table className="w-full text-left whitespace-nowrap">
-                            <thead className="bg-gray-100 text-gray-600 text-sm"><tr><th className="p-3">Nombre</th><th className="p-3">Usuario</th><th className="p-3">Rol</th><th className="p-3">Acciones</th></tr></thead>
-                            <tbody className="divide-y text-sm">
-                                {users.map(u => (
-                                    <tr key={u.id}>
-                                        <td className="p-3 font-medium capitalize">{u.fullName || '-'}</td>
-                                        <td className="p-3 text-gray-600">{u.username}</td>
-                                        <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-bold ${u.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>{u.role === 'admin' ? 'ADMIN' : 'JUGADOR'}</span></td>
-                                        <td className="p-3 flex gap-2">
-                                            <button onClick={() => toggleRole(u)} className="p-1 border rounded hover:bg-gray-100"><RefreshCw size={14}/></button>
-                                            <button onClick={() => handleDeleteUser(u)} className="p-1 border border-red-200 text-red-600 rounded hover:bg-red-50"><Trash2 size={14}/></button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                    
+                    {/* Buscador */}
+                    <div className="relative mb-4">
+                        <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+                        <input 
+                            type="text" 
+                            placeholder="Buscar por nombre o usuario..." 
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-10 p-2 border rounded-lg bg-white shadow-sm"
+                        />
+                    </div>
+
+                    <div className="overflow-hidden bg-white rounded shadow border flex flex-col max-h-[60vh]">
+                        <div className="overflow-y-auto flex-grow">
+                            <table className="w-full text-left whitespace-nowrap">
+                                <thead className="bg-gray-100 text-gray-600 text-sm sticky top-0 z-10"><tr><th className="p-3">Nombre</th><th className="p-3">Usuario</th><th className="p-3">Rol</th><th className="p-3">Acciones</th></tr></thead>
+                                <tbody className="divide-y text-sm">
+                                    {filteredUsers.length > 0 ? filteredUsers.map(u => (
+                                        <tr key={u.id}>
+                                            <td className="p-3 font-medium capitalize">{u.fullName || '-'}</td>
+                                            <td className="p-3 text-gray-600">{u.username}</td>
+                                            <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-bold ${u.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>{u.role === 'admin' ? 'ADMIN' : 'JUGADOR'}</span></td>
+                                            <td className="p-3 flex gap-2">
+                                                <button onClick={() => toggleRole(u)} className="p-1 border rounded hover:bg-gray-100"><RefreshCw size={14}/></button>
+                                                <button onClick={() => handleDeleteUser(u)} className="p-1 border border-red-200 text-red-600 rounded hover:bg-red-50"><Trash2 size={14}/></button>
+                                            </td>
+                                        </tr>
+                                    )) : (
+                                        <tr><td colSpan="4" className="p-6 text-center text-gray-400">No se encontraron usuarios.</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             );
@@ -348,19 +373,32 @@
         function AdminApprovals({ matchdays, bets, appId, db }) {
             const [filter, setFilter] = useState('active'); // 'active', 'all', or specific ID
             const [printBet, setPrintBet] = useState(null); // Nuevo estado para ticket
+            const [searchTerm, setSearchTerm] = useState(''); // Estado para el buscador
 
             const getMatchdayName = (id) => matchdays.find(m => m.id === id)?.name || '???';
 
             const filteredBets = useMemo(() => {
                 return bets.filter(b => {
-                    if (filter === 'all') return true;
-                    if (filter === 'active') {
+                    // 1. Filtro principal (Jornada)
+                    let matchesFilter = false;
+                    if (filter === 'all') matchesFilter = true;
+                    else if (filter === 'active') {
                          const m = matchdays.find(md => md.id === b.matchdayId);
-                         return m && m.status === 'active';
+                         matchesFilter = m && m.status === 'active';
+                    } else {
+                        matchesFilter = b.matchdayId === filter;
                     }
-                    return b.matchdayId === filter;
+
+                    // 2. Filtro de búsqueda (Texto)
+                    const term = searchTerm.toLowerCase();
+                    const matchesSearch = 
+                        b.userName.toLowerCase().includes(term) || 
+                        (b.userFullName && b.userFullName.toLowerCase().includes(term)) ||
+                        (b.paymentRef && b.paymentRef.toLowerCase().includes(term));
+
+                    return matchesFilter && matchesSearch;
                 }).sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0)); // Sort by newest
-            }, [bets, matchdays, filter]);
+            }, [bets, matchdays, filter, searchTerm]);
 
             const togglePay = async (b) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bets', b.id), { status: b.status === 'pending' ? 'paid' : 'pending' });
             const delBet = async (b) => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bets', b.id)); };
@@ -420,73 +458,90 @@
                 <div>
                     <h3 className="text-xl font-bold mb-4">Gestión de Pagos</h3>
                     
-                    {/* Filtros */}
+                    {/* Filtros y Buscador */}
                     <div className="flex flex-col md:flex-row gap-4 mb-6">
-                        <div className="flex items-center gap-2">
-                            <Filter size={20} className="text-gray-500"/>
-                            <select 
-                                value={filter} 
-                                onChange={(e) => setFilter(e.target.value)} 
-                                className="p-2 border rounded-lg bg-white shadow-sm font-medium text-gray-700 min-w-[200px]"
-                            >
-                                <option value="active">🟢 Solo Jornadas Activas</option>
-                                <option value="all">📂 Todo el Historial</option>
-                                <optgroup label="Por Jornada Específica">
-                                    {matchdays.map(m => (
-                                        <option key={m.id} value={m.id}>{m.name} ({m.status === 'active' ? 'Activa' : 'Cerrada'})</option>
-                                    ))}
-                                </optgroup>
-                            </select>
+                        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 flex-grow">
+                            {/* Selector de Jornada */}
+                            <div className="flex items-center gap-2 min-w-[200px]">
+                                <Filter size={20} className="text-gray-500 shrink-0"/>
+                                <select 
+                                    value={filter} 
+                                    onChange={(e) => setFilter(e.target.value)} 
+                                    className="w-full p-2 border rounded-lg bg-white shadow-sm font-medium text-gray-700"
+                                >
+                                    <option value="active">🟢 Solo Jornadas Activas</option>
+                                    <option value="all">📂 Todo el Historial</option>
+                                    <optgroup label="Por Jornada Específica">
+                                        {matchdays.map(m => (
+                                            <option key={m.id} value={m.id}>{m.name} ({m.status === 'active' ? 'Activa' : 'Cerrada'})</option>
+                                        ))}
+                                    </optgroup>
+                                </select>
+                            </div>
+
+                            {/* Buscador de Pago */}
+                            <div className="relative flex-grow">
+                                <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                                <input 
+                                    type="text" 
+                                    placeholder="Buscar usuario o referencia..." 
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full pl-10 p-2 border rounded-lg bg-white shadow-sm"
+                                />
+                            </div>
                         </div>
                         
-                        <div className="ml-auto text-sm text-gray-500 flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-full border">
-                            <span className="font-bold text-gray-700">{filteredBets.length}</span> quinielas encontradas
+                        <div className="ml-auto text-sm text-gray-500 flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-full border self-start md:self-center">
+                            <span className="font-bold text-gray-700">{filteredBets.length}</span> pagos
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto bg-white rounded border shadow-sm">
-                        <table className="w-full text-left text-sm whitespace-nowrap">
-                            <thead className="bg-gray-100 text-gray-600"><tr><th className="p-3">Usuario</th><th className="p-3">Jornada</th><th className="p-3">Ref</th><th className="p-3">Estado</th><th className="p-3">Acción</th></tr></thead>
-                            <tbody className="divide-y">
-                                {filteredBets.length > 0 ? filteredBets.map(b => {
-                                    const m = matchdays.find(md => md.id === b.matchdayId);
-                                    return (
-                                        <tr key={b.id} className="hover:bg-gray-50 transition">
-                                            <td className="p-3">
-                                                <div className="font-medium">{b.userName}</div>
-                                                <div className="text-xs text-gray-400">{b.userFullName}</div>
-                                            </td>
-                                            <td className="p-3">
-                                                <span className={`text-xs px-2 py-1 rounded border ${m?.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-100 text-gray-500'}`}>
-                                                    {m ? m.name : '???'}
-                                                </span>
-                                            </td>
-                                            <td className="p-3">
-                                                <div className="font-mono text-xs bg-yellow-50 px-2 py-1 rounded inline-block text-yellow-800 border border-yellow-100">
-                                                    {b.paymentRef}
-                                                </div>
-                                                {b.cost && <div className="text-[10px] text-gray-400 mt-0.5 font-bold">Total: ${b.cost}</div>}
-                                            </td>
-                                            <td className="p-3">
-                                                <span className={`px-2 py-1 rounded text-xs font-bold flex w-fit items-center gap-1 ${b.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600'}`}>
-                                                    {b.status === 'paid' ? <CheckCircle size={12}/> : <Clock size={12}/>}
-                                                    {b.status === 'paid'?'PAGADO':'PENDIENTE'}
-                                                </span>
-                                            </td>
-                                            <td className="p-3 flex gap-2 items-center">
-                                                <button onClick={() => setPrintBet(b)} className="text-blue-600 hover:text-blue-800 p-1.5 hover:bg-blue-50 rounded transition" title="Ver Ticket"><Printer size={16}/></button>
-                                                <button onClick={() => togglePay(b)} className={`text-xs border px-3 py-1.5 rounded font-bold transition flex items-center gap-1 ${b.status === 'paid' ? 'text-gray-500 hover:bg-gray-100' : 'bg-green-600 text-white hover:bg-green-700 border-transparent shadow-sm'}`}>
-                                                    {b.status === 'paid' ? 'Revocar' : 'Aprobar'}
-                                                </button>
-                                                <button onClick={() => delBet(b)} className="text-gray-400 hover:text-red-500 p-1.5 hover:bg-red-50 rounded transition"><Trash2 size={16}/></button>
-                                            </td>
-                                        </tr>
-                                    );
-                                }) : (
-                                    <tr><td colSpan="5" className="p-8 text-center text-gray-400 italic">No hay pagos que coincidan con el filtro.</td></tr>
-                                )}
-                            </tbody>
-                        </table>
+                    <div className="overflow-hidden bg-white rounded border shadow-sm flex flex-col max-h-[60vh]">
+                        <div className="overflow-y-auto flex-grow">
+                            <table className="w-full text-left text-sm whitespace-nowrap">
+                                <thead className="bg-gray-100 text-gray-600 sticky top-0 z-10 shadow-sm"><tr><th className="p-3">Usuario</th><th className="p-3">Jornada</th><th className="p-3">Ref</th><th className="p-3">Estado</th><th className="p-3">Acción</th></tr></thead>
+                                <tbody className="divide-y">
+                                    {filteredBets.length > 0 ? filteredBets.map(b => {
+                                        const m = matchdays.find(md => md.id === b.matchdayId);
+                                        return (
+                                            <tr key={b.id} className="hover:bg-gray-50 transition">
+                                                <td className="p-3">
+                                                    <div className="font-medium">{b.userName}</div>
+                                                    <div className="text-xs text-gray-400">{b.userFullName}</div>
+                                                </td>
+                                                <td className="p-3">
+                                                    <span className={`text-xs px-2 py-1 rounded border ${m?.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-100 text-gray-500'}`}>
+                                                        {m ? m.name : '???'}
+                                                    </span>
+                                                </td>
+                                                <td className="p-3">
+                                                    <div className="font-mono text-xs bg-yellow-50 px-2 py-1 rounded inline-block text-yellow-800 border border-yellow-100">
+                                                        {b.paymentRef}
+                                                    </div>
+                                                    {b.cost && <div className="text-[10px] text-gray-400 mt-0.5 font-bold">Total: ${b.cost}</div>}
+                                                </td>
+                                                <td className="p-3">
+                                                    <span className={`px-2 py-1 rounded text-xs font-bold flex w-fit items-center gap-1 ${b.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                                                        {b.status === 'paid' ? <CheckCircle size={12}/> : <Clock size={12}/>}
+                                                        {b.status === 'paid'?'PAGADO':'PENDIENTE'}
+                                                    </span>
+                                                </td>
+                                                <td className="p-3 flex gap-2 items-center">
+                                                    <button onClick={() => setPrintBet(b)} className="text-blue-600 hover:text-blue-800 p-1.5 hover:bg-blue-50 rounded transition" title="Ver Ticket"><Printer size={16}/></button>
+                                                    <button onClick={() => togglePay(b)} className={`text-xs border px-3 py-1.5 rounded font-bold transition flex items-center gap-1 ${b.status === 'paid' ? 'text-gray-500 hover:bg-gray-100' : 'bg-green-600 text-white hover:bg-green-700 border-transparent shadow-sm'}`}>
+                                                        {b.status === 'paid' ? 'Revocar' : 'Aprobar'}
+                                                    </button>
+                                                    <button onClick={() => delBet(b)} className="text-gray-400 hover:text-red-500 p-1.5 hover:bg-red-50 rounded transition"><Trash2 size={16}/></button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    }) : (
+                                        <tr><td colSpan="5" className="p-8 text-center text-gray-400 italic">No hay pagos que coincidan con el filtro.</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             );
