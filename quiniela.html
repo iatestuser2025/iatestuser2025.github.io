@@ -34,7 +34,7 @@
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
         import { getFirestore, collection, addDoc, query, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp, setDoc, getDocs, where } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
-        import { Trophy, Users, PlusCircle, CheckCircle, Clock, Search, FileText, LogOut, Shield, User, Printer, XCircle, Menu, X, Lock, RefreshCw, KeyRound, Calendar, Trash2, AlertTriangle, Banknote, ChevronDown, ChevronUp, Gamepad2, Check, Filter, Medal, Info, Pencil } from 'https://esm.sh/lucide-react@0.263.1';
+        import { Trophy, Users, PlusCircle, CheckCircle, Clock, Search, FileText, LogOut, Shield, User, Printer, XCircle, Menu, X, Lock, RefreshCw, KeyRound, Calendar, Trash2, AlertTriangle, Banknote, ChevronDown, ChevronUp, Gamepad2, Check, Filter, Medal, Info, Pencil, MessageCircle } from 'https://esm.sh/lucide-react@0.263.1';
 
         // --- CONFIGURACIÓN FIREBASE ---
         const localConfig = {
@@ -653,6 +653,18 @@
                 } catch (e) { alert("Error."); } finally { setSubmitting(false); }
             };
 
+            const groupCode = "K3DaeF85KRaHPQKwcfIBDl";
+            const handleWhatsAppClick = (e) => {
+                e.preventDefault();
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                if (isMobile) {
+                    window.open(`https://chat.whatsapp.com/${groupCode}`, '_blank');
+                } else {
+                    // En escritorio forzamos Web WhatsApp para asegurar que abra
+                    window.open(`https://web.whatsapp.com/accept?code=${groupCode}`, '_blank');
+                }
+            };
+
             if (selM) return (
                 <div>
                     <button onClick={() => setSelM(null)} className="text-sm font-bold text-gray-500 mb-4 flex items-center gap-1"><ChevronDown className="rotate-90" size={16}/> Volver</button>
@@ -691,6 +703,15 @@
 
                     {/* SECCIÓN DE PAGO (Diseño original limpio) */}
                     <div className="max-w-2xl mx-auto">
+                        {/* Botón de WhatsApp añadido con lógica inteligente */}
+                        <button 
+                            onClick={handleWhatsAppClick}
+                            className="mb-4 w-full bg-[#25D366] text-white font-bold py-3 rounded-lg shadow hover:bg-[#128C7E] transition flex items-center justify-center gap-2"
+                        >
+                            <MessageCircle size={20} />
+                            ¿Cómo realizar tu pago? Únete al Grupo
+                        </button>
+
                         <input type="text" value={paymentRef} onChange={e => setPaymentRef(e.target.value)} placeholder="Ref. Pago / Folio" className="w-full p-3 border rounded-lg bg-yellow-50 mb-4" />
                         <button onClick={submit} disabled={submitting} className={`w-full text-white py-3 rounded-lg font-bold shadow ${submitting?'bg-gray-400':'bg-green-600 hover:bg-green-700'}`}>
                             {submitting ? 'Enviando...' : 'Enviar Quiniela'}
