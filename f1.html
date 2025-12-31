@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>F1 SUPER SEX</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Socket.IO Client Library -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
@@ -41,7 +43,7 @@
             text-align: center;
         }
 
-        /* Botón Force Finish (Solo Host) */
+        /* Botón Force Finish */
         #host-controls {
             position: absolute; top: 60px; right: 10px;
             z-index: 25; pointer-events: auto;
@@ -115,29 +117,24 @@
         .podium-name { position: absolute; bottom: -30px; width: 150%; text-align: center; font-size: 10px; white-space: nowrap; text-shadow: 1px 1px 0 #000; color: white; }
         
         .pilot-img {
-            width: 70px; height: 70px; object-fit: contain;
-            margin-bottom: 10px;
-            filter: drop-shadow(4px 4px 0px rgba(0,0,0,0.5));
+            width: 70px; height: 70px; object-fit: contain; margin-bottom: 10px;
+            filter: drop-shadow(4px 4px 0px rgba(0,0,0,0.5)); transition: transform 0.5s;
         }
-        
-        #podium-1 .pilot-img { width: 100px; height: 100px; }
+        #podium-1 .pilot-img { width: 100px; height: 100px; animation: float 2s infinite ease-in-out; }
+        @keyframes float { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
         #podium-2 { background: linear-gradient(to bottom, #9ca3af, #4b5563); }
         #podium-3 { background: linear-gradient(to bottom, #d97706, #92400e); }
-
     </style>
 </head>
 <body>
 
-    <!-- ASSETS (MP3s y PNGs deben estar en la carpeta raíz) -->
     <div id="assets">
-        <!-- COCHES -->
         <img id="img-red" src="red_car.png" onerror="this.src='https://placehold.co/32x64/red/white?text=R'">
         <img id="img-blue" src="blue_car.png" onerror="this.src='https://placehold.co/32x64/blue/white?text=B'">
         <img id="img-green" src="green_car.png" onerror="this.src='https://placehold.co/32x64/green/white?text=G'">
         <img id="img-white" src="white_car.png" onerror="this.src='https://placehold.co/32x64/white/black?text=W'">
         <img id="img-black" src="black_car.png" onerror="this.src='https://placehold.co/32x64/333/white?text=K'">
         
-        <!-- PILOTOS -->
         <img id="pilot-red" src="red_pilot.png" onerror="this.src='https://placehold.co/64x64/red/white?text=P-R'">
         <img id="pilot-blue" src="blue_pilot.png" onerror="this.src='https://placehold.co/64x64/blue/white?text=P-B'">
         <img id="pilot-green" src="green_pilot.png" onerror="this.src='https://placehold.co/64x64/green/white?text=P-G'">
@@ -147,7 +144,6 @@
     
     <div id="fatal-error" class="hidden"></div>
 
-    <!-- LOBBY -->
     <div id="lobby-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gray-900 p-4">
         <div class="w-full max-w-lg bg-gray-800 p-6 rounded border-4 border-gray-600 shadow-xl overflow-y-auto max-h-screen">
             <h1 class="text-3xl md:text-4xl text-center text-yellow-400 mb-8 pixel-text-shadow leading-tight">F1 SUPER<br>SEX</h1>
@@ -185,103 +181,46 @@
         </div>
     </div>
 
-    <!-- JUEGO -->
     <div id="game-container" class="hidden">
         <canvas id="gameCanvas"></canvas>
-        
-        <div id="host-controls" class="hidden">
-            <button id="btn-force-finish" class="force-btn">🏁 FINALIZAR YA</button>
-        </div>
-
+        <div id="host-controls" class="hidden"><button id="btn-force-finish" class="force-btn">🏁 FINALIZAR YA</button></div>
         <div id="hud">
-            <div class="hud-panel">
-                <div class="text-[10px] text-gray-400">POS</div>
-                <div class="text-xl text-yellow-400"><span id="hud-pos">1</span>/5</div>
-            </div>
-            <div class="hud-panel">
-                 <div class="text-[10px] text-gray-400">VUELTA</div>
-                 <div class="text-xl text-white"><span id="hud-lap">1</span>/2</div>
-            </div>
-            <div class="hud-panel">
-                <div class="text-[10px] text-gray-400">VEL</div>
-                <div class="text-xl text-green-400"><span id="hud-speed">0</span></div>
-            </div>
+            <div class="hud-panel"><div class="text-[10px] text-gray-400">POS</div><div class="text-xl text-yellow-400"><span id="hud-pos">1</span>/5</div></div>
+            <div class="hud-panel"><div class="text-[10px] text-gray-400">VUELTA</div><div class="text-xl text-white"><span id="hud-lap">1</span>/2</div></div>
+            <div class="hud-panel"><div class="text-[10px] text-gray-400">VEL</div><div class="text-xl text-green-400"><span id="hud-speed">0</span></div></div>
         </div>
-
         <div id="traffic-light" class="traffic-light hidden">
-            <div id="light-1" class="light red"></div>
-            <div id="light-2" class="light red"></div>
-            <div id="light-3" class="light red"></div>
+            <div id="light-1" class="light red"></div><div id="light-2" class="light red"></div><div id="light-3" class="light red"></div>
         </div>
-
         <div id="mobile-controls" class="md:hidden">
-            <div class="flex gap-4">
-                <div id="btn-left" class="touch-btn">⬅️</div>
-                <div id="btn-right" class="touch-btn">➡️</div>
-            </div>
+            <div class="flex gap-4"><div id="btn-left" class="touch-btn">⬅️</div><div id="btn-right" class="touch-btn">➡️</div></div>
             <div id="btn-gas" class="touch-btn gas-btn">🚀</div>
         </div>
-
-        <!-- PODIO FINAL -->
         <div id="result-overlay" class="absolute inset-0 bg-black bg-opacity-95 flex flex-col items-center justify-center hidden z-50">
             <h2 id="result-title" class="text-4xl text-yellow-400 mb-8 pixel-text-shadow text-center">¡FINALIZADO!</h2>
-            
             <div id="podium-container" class="flex items-end justify-center gap-4 mb-16 h-80">
-                <!-- 2nd Place -->
-                <div id="podium-2" class="podium-step h-40 hidden">
-                    <img id="img-pilot-2" class="pilot-img" src="" alt="">
-                    <span class="podium-rank">2</span>
-                    <span class="podium-name" id="name-2">P2</span>
-                </div>
-                <!-- 1st Place -->
-                <div id="podium-1" class="podium-step h-60 hidden z-10 bg-yellow-400">
-                    <div class="text-4xl absolute -top-16">👑</div>
-                    <img id="img-pilot-1" class="pilot-img" src="" alt="">
-                    <span class="podium-rank">1</span>
-                    <span class="podium-name text-yellow-400 font-bold" id="name-1">WINNER</span>
-                </div>
-                <!-- 3rd Place -->
-                <div id="podium-3" class="podium-step h-24 hidden">
-                    <img id="img-pilot-3" class="pilot-img" src="" alt="">
-                    <span class="podium-rank">3</span>
-                    <span class="podium-name" id="name-3">P3</span>
-                </div>
+                <div id="podium-2" class="podium-step h-40 hidden"><img id="img-pilot-2" class="pilot-img" src=""><span class="podium-rank">2</span><span class="podium-name" id="name-2">P2</span></div>
+                <div id="podium-1" class="podium-step h-60 hidden z-10 bg-yellow-400"><div class="text-4xl absolute -top-16">👑</div><img id="img-pilot-1" class="pilot-img" src=""><span class="podium-rank">1</span><span class="podium-name text-yellow-400 font-bold" id="name-1">WINNER</span></div>
+                <div id="podium-3" class="podium-step h-24 hidden"><img id="img-pilot-3" class="pilot-img" src=""><span class="podium-rank">3</span><span class="podium-name" id="name-3">P3</span></div>
             </div>
-
             <button onclick="window.location.reload()" class="bg-blue-600 px-8 py-4 border-b-8 border-blue-800 active:border-b-0 active:translate-y-2 text-white font-bold text-xl">SALIR AL LOBBY</button>
         </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, setDoc, getDoc, updateDoc, runTransaction, deleteField } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <script>
+        // --- SOCKET.IO SETUP ---
+        // CAMBIA ESTO POR TU URL DE RENDER CUANDO LO SUBAS
+        const socket = io('http://localhost:5000'); 
+        // Ejemplo para producción: const socket = io('https://mi-juego-racing.onrender.com');
 
-        // FIREBASE CONFIG
-        const firebaseConfig = {
-            apiKey: "AIzaSyA6uydlodXo1vnyqoocwzHytwt5W0riIDQ",
-            authDomain: "blackjack-d6b7b.firebaseapp.com",
-            projectId: "blackjack-d6b7b",
-            storageBucket: "blackjack-d6b7b.appspot.com",
-            messagingSenderId: "705363226577",
-            appId: "1:705363226577:web:214cf8baa2c9fb48e73af0"
-        };
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
-        // --- SISTEMA DE AUDIO ---
+        // AUDIO
         const audioLobby = new Audio('lobby.mp3'); audioLobby.loop = true;
         const audioCountdown = new Audio('countdown.mp3');
         const audioRacing = new Audio('racing.mp3'); audioRacing.loop = true;
-        audioLobby.volume = 0.5;
-        audioRacing.volume = 0.4;
-        
-        const playAudio = (audio) => {
-            audio.play().catch(e => console.log("Audio autoplay bloqueado hasta interacción user"));
-        };
+        audioLobby.volume = 0.5; audioRacing.volume = 0.4;
+        const playAudio = (audio) => { audio.play().catch(e => console.log("Audio autoplay blocked")); };
 
-        // CONFIG AUTOS & PILOTOS
+        // DATA
         const CAR_CONFIG = [
             { id: 0, name: "Rojo", imgId: "img-red", pilotImgId: "pilot-red", color: "#ef4444" },
             { id: 1, name: "Azul", imgId: "img-blue", pilotImgId: "pilot-blue", color: "#3b82f6" },
@@ -290,19 +229,20 @@
             { id: 4, name: "Negro", imgId: "img-black", pilotImgId: "pilot-black", color: "#1f2937" }
         ];
 
-        let currentUser = null;
+        let currentUser = { uid: null, name: null };
         let gameId = null;
         let gameData = null;
         let raceStartTimeout = null;
         const opponentVisuals = {}; 
-
-        function getGameRef(id) { return doc(db, 'f1-races-v3', id); }
+        
+        // Generar UID simple al inicio
+        currentUser.uid = 'user_' + Math.random().toString(36).substr(2, 9);
 
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const fatalError = document.getElementById('fatal-error');
-        
-        // Pista
+
+        // PISTA
         const TRACK_WIDTH = 500; 
         const SEGMENT_HEIGHT = 50; 
         const RUMBLE_WIDTH = 25;
@@ -313,17 +253,10 @@
         const keys = { left: false, right: false, up: false };
 
         const trackMap = [
-            { end: 1000, curve: 0 }, 
-            { end: 4000, curve: 1.5 },  
-            { end: 5000, curve: 0 },
-            { end: 8000, curve: -1.5 }, 
-            { end: 10000, curve: 0.8 }, 
-            { end: 12000, curve: -0.8 },
-            { end: 15000, curve: 0 },
-            { end: 18000, curve: 2.0 }, 
-            { end: 20000, curve: 0 },
-            { end: 23000, curve: -2.0 }, 
-            { end: 30000, curve: 0 }
+            { end: 1000, curve: 0 }, { end: 4000, curve: 1.5 }, { end: 5000, curve: 0 },
+            { end: 8000, curve: -1.5 }, { end: 10000, curve: 0.8 }, { end: 12000, curve: -0.8 },
+            { end: 15000, curve: 0 }, { end: 18000, curve: 2.0 }, { end: 20000, curve: 0 },
+            { end: 23000, curve: -2.0 }, { end: 30000, curve: 0 }
         ];
 
         function getCurveAt(distance) {
@@ -332,6 +265,7 @@
             return segment ? segment.curve : 0;
         }
 
+        // --- GAME LOOP ---
         let lastTime = 0;
         function updateAndDraw(timestamp) {
             if (!lastTime) lastTime = timestamp;
@@ -365,7 +299,6 @@
                 if (keys.left) steerForce = -2.5;
                 if (keys.right) steerForce = 2.5;
             }
-            
             const centrifugalForce = -currentCurve * (myCar.speed / myCar.maxSpeed) * 1.0;
             myCar.x += (steerForce + centrifugalForce) * dt;
 
@@ -384,7 +317,6 @@
         function drawScene(dt) {
             const cx = canvas.width / 2;
             const cy = canvas.height;
-
             ctx.fillStyle = '#276725';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -393,19 +325,15 @@
             const offsetY = viewY % SEGMENT_HEIGHT;
             const segmentsOnScreen = Math.ceil(canvas.height / SEGMENT_HEIGHT) + 2;
             
-            let leftPoints = [];
-            let rightPoints = [];
-            let curveAccumulator = 0;
+            let leftPoints = [], rightPoints = [], curveAccumulator = 0;
 
             for (let i = 0; i < segmentsOnScreen; i++) {
                 const sy = canvas.height - (i * SEGMENT_HEIGHT) + offsetY;
                 const distFuture = viewY + (i * SEGMENT_HEIGHT);
                 const c = getCurveAt(distFuture);
                 curveAccumulator += c;
-                
                 const segmentXOffset = curveAccumulator * 10;
                 const visualCenterX = cx + segmentXOffset - (myCar.x * 150); 
-                
                 leftPoints.push({ x: visualCenterX - roadW/2, y: sy });
                 rightPoints.push({ x: visualCenterX + roadW/2, y: sy });
             }
@@ -415,8 +343,7 @@
             for (let i = 1; i < leftPoints.length; i++) ctx.lineTo(leftPoints[i].x, leftPoints[i].y);
             for (let i = rightPoints.length - 1; i >= 0; i--) ctx.lineTo(rightPoints[i].x, rightPoints[i].y);
             ctx.closePath();
-            ctx.fillStyle = '#555';
-            ctx.fill();
+            ctx.fillStyle = '#555'; ctx.fill();
 
             for (let i = 0; i < segmentsOnScreen - 1; i++) {
                 const p1l = leftPoints[i]; const p1r = rightPoints[i];
@@ -433,19 +360,14 @@
                         const x1_br = p1l.x + (p1r.x - p1l.x) * ((c+1)/cols);
                         const x2_tl = p2l.x + (p2r.x - p2l.x) * (c/cols);
                         const x2_tr = p2l.x + (p2r.x - p2l.x) * ((c+1)/cols);
-                        ctx.beginPath();
-                        ctx.moveTo(x1_bl, p1l.y); ctx.lineTo(x1_br, p1l.y);
-                        ctx.lineTo(x2_tr, p2l.y); ctx.lineTo(x2_tl, p2l.y);
-                        ctx.fill();
+                        ctx.beginPath(); ctx.moveTo(x1_bl, p1l.y); ctx.lineTo(x1_br, p1l.y); ctx.lineTo(x2_tr, p2l.y); ctx.lineTo(x2_tl, p2l.y); ctx.fill();
                     }
                 } else {
                     ctx.fillStyle = isDark ? '#fff' : '#c00';
                     ctx.beginPath(); ctx.moveTo(p1l.x - RUMBLE_WIDTH, p1l.y); ctx.lineTo(p1l.x, p1l.y); ctx.lineTo(p2l.x, p2l.y); ctx.lineTo(p2l.x - RUMBLE_WIDTH, p2l.y); ctx.fill();
                     ctx.beginPath(); ctx.moveTo(p1r.x, p1r.y); ctx.lineTo(p1r.x + RUMBLE_WIDTH, p1r.y); ctx.lineTo(p2r.x + RUMBLE_WIDTH, p2r.y); ctx.lineTo(p2r.x, p2r.y); ctx.fill();
-
                     ctx.fillStyle = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
                     ctx.beginPath(); ctx.moveTo(p1l.x, p1l.y); ctx.lineTo(p1r.x, p1r.y); ctx.lineTo(p2r.x, p2r.y); ctx.lineTo(p2l.x, p2l.y); ctx.fill();
-                    
                     if (isDark) {
                         const cx1 = (p1l.x + p1r.x) / 2; const cx2 = (p2l.x + p2r.x) / 2;
                         ctx.strokeStyle = '#fff'; ctx.lineWidth = 4;
@@ -457,12 +379,8 @@
             if (gameData && gameData.players) {
                 const playersArray = Object.values(gameData.players);
                 const sortedPlayers = playersArray.sort((a, b) => a.y - b.y);
-                sortedPlayers.forEach(p => {
-                    if (p.uid === currentUser.uid) return;
-                    drawOpponent(p, dt);
-                });
+                sortedPlayers.forEach(p => { if (p.uid !== currentUser.uid) drawOpponent(p, dt); });
             }
-            
             drawCar(true, myCar.steer);
             document.getElementById('hud-speed').textContent = Math.floor(myCar.speed);
             document.getElementById('hud-lap').textContent = myCar.lap + "/" + LAPS_TOTAL;
@@ -471,34 +389,23 @@
         function drawCar(isMe, rotation) {
             const screenX = canvas.width / 2; 
             const screenY = canvas.height - 150;
-            ctx.save();
-            ctx.translate(screenX, screenY);
-            ctx.rotate(rotation * Math.PI / 180);
+            ctx.save(); ctx.translate(screenX, screenY); ctx.rotate(rotation * Math.PI / 180);
             const w = 48; const h = 84;
-            ctx.fillStyle = 'rgba(0,0,0,0.5)';
-            ctx.beginPath(); ctx.ellipse(5, 5, w/2, h/2, 0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.ellipse(5, 5, w/2, h/2, 0, 0, Math.PI*2); ctx.fill();
             let imgId = "img-red";
-            if (isMe) {
-                if (gameData && gameData.players && gameData.players[currentUser.uid]) {
-                    const me = gameData.players[currentUser.uid];
-                    const safeCarId = (me && me.carId >= 0) ? me.carId : 0;
-                    imgId = CAR_CONFIG[safeCarId].imgId;
-                }
+            if (isMe && gameData && gameData.players[currentUser.uid]) {
+                const me = gameData.players[currentUser.uid];
+                const safeCarId = (me && me.carId >= 0) ? me.carId : 0;
+                imgId = CAR_CONFIG[safeCarId].imgId;
             }
             const img = document.getElementById(imgId);
-            if (img && img.complete && img.naturalHeight !== 0) {
-                ctx.drawImage(img, -w/2, -h/2, w, h);
-            } else {
-                ctx.fillStyle = 'purple'; ctx.fillRect(-w/2, -h/2, w, h);
-            }
+            if (img && img.complete) ctx.drawImage(img, -w/2, -h/2, w, h); else { ctx.fillStyle = 'purple'; ctx.fillRect(-w/2, -h/2, w, h); }
             ctx.restore();
         }
 
         function drawOpponent(p, dt) {
             if (p.carId === undefined || p.carId === -1) return;
-            if (!opponentVisuals[p.uid]) {
-                opponentVisuals[p.uid] = { x: p.x, y: p.y };
-            }
+            if (!opponentVisuals[p.uid]) opponentVisuals[p.uid] = { x: p.x, y: p.y };
             const visual = opponentVisuals[p.uid];
             const lerpFactor = 5.0 * dt; 
             visual.x += (p.x - visual.x) * lerpFactor;
@@ -511,35 +418,20 @@
                 const oppOffsetX = (visual.x || 0) * (roadW / 2); 
                 const curveFactor = getCurveAt(visual.y || 0) * relY * 0.05;
                 const finalX = visualX + oppOffsetX + curveFactor;
-                ctx.save();
-                ctx.translate(finalX, screenY);
+                ctx.save(); ctx.translate(finalX, screenY);
                 const w = 48; const h = 84;
                 const safeCarId = (p.carId >= 0 && p.carId < CAR_CONFIG.length) ? p.carId : 0;
-                ctx.fillStyle = 'rgba(0,0,0,0.3)';
-                ctx.beginPath(); ctx.ellipse(5, 5, w/2, h/2, 0, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(5, 5, w/2, h/2, 0, 0, Math.PI*2); ctx.fill();
                 const img = document.getElementById(CAR_CONFIG[safeCarId].imgId);
-                if (img && img.complete && img.naturalHeight !== 0) {
-                    ctx.drawImage(img, -w/2, -h/2, w, h);
-                } else {
-                    ctx.fillStyle = '#666'; ctx.fillRect(-w/2, -h/2, w, h);
-                }
-                ctx.fillStyle = "white"; ctx.font = "bold 10px sans-serif"; 
-                ctx.textAlign = "center"; ctx.shadowColor="black"; ctx.shadowBlur=4;
-                ctx.fillText(p.name, 0, -50);
+                if (img && img.complete) ctx.drawImage(img, -w/2, -h/2, w, h); else { ctx.fillStyle = '#666'; ctx.fillRect(-w/2, -h/2, w, h); }
+                ctx.fillStyle = "white"; ctx.font = "bold 10px sans-serif"; ctx.textAlign = "center"; 
+                ctx.shadowColor="black"; ctx.shadowBlur=4; ctx.fillText(p.name, 0, -50);
                 ctx.restore();
             }
         }
 
-        window.addEventListener('keydown', e => {
-            if(e.key === 'ArrowUp') keys.up = true;
-            if(e.key === 'ArrowLeft') keys.left = true;
-            if(e.key === 'ArrowRight') keys.right = true;
-        });
-        window.addEventListener('keyup', e => {
-            if(e.key === 'ArrowUp') keys.up = false;
-            if(e.key === 'ArrowLeft') keys.left = false;
-            if(e.key === 'ArrowRight') keys.right = false;
-        });
+        window.addEventListener('keydown', e => { if(e.key === 'ArrowUp') keys.up = true; if(e.key === 'ArrowLeft') keys.left = true; if(e.key === 'ArrowRight') keys.right = true; });
+        window.addEventListener('keyup', e => { if(e.key === 'ArrowUp') keys.up = false; if(e.key === 'ArrowLeft') keys.left = false; if(e.key === 'ArrowRight') keys.right = false; });
 
         const btnGas = document.getElementById('btn-gas');
         const btnLeft = document.getElementById('btn-left');
@@ -552,16 +444,8 @@
         }
         bindT(btnGas, 'up'); bindT(btnLeft, 'left'); bindT(btnRight, 'right');
 
-        async function initAuth() {
-            try {
-                await signInAnonymously(auth);
-                onAuthStateChanged(auth, u => { if(u) currentUser = u; });
-            } catch (e) {
-                fatalError.classList.remove('hidden'); fatalError.textContent = "Auth Error: " + e.message;
-            }
-        }
-        initAuth();
-
+        // --- SOCKET EVENTOS ---
+        
         const lobby = document.getElementById('lobby-screen');
         const btnCreate = document.getElementById('btn-create');
         const btnJoin = document.getElementById('btn-join-action');
@@ -575,14 +459,48 @@
         btnJoinMenu.onclick = () => { document.querySelector('#auth-panel .flex').classList.add('hidden'); joinArea.classList.remove('hidden'); errorMsg.textContent=""; };
         btnBack.onclick = () => { document.querySelector('#auth-panel .flex').classList.remove('hidden'); joinArea.classList.add('hidden'); errorMsg.textContent=""; };
 
+        // 1. Crear Sala
+        btnCreate.onclick = () => {
+            const name = document.getElementById('nickname-input').value.toUpperCase() || "PILOTO";
+            currentUser.name = name;
+            const player = { uid: currentUser.uid, name: name, carId: -1, x: 0, y: 0, finished: false };
+            socket.emit('create_game', { player });
+        };
+
+        // 2. Unirse Sala
+        btnJoin.onclick = () => {
+            const name = document.getElementById('nickname-input').value.toUpperCase() || "PILOTO";
+            const rid = document.getElementById('room-code-input').value;
+            if (rid.length !== 4) return;
+            currentUser.name = name;
+            const player = { uid: currentUser.uid, name: name, carId: -1, x: 0, y: 0, finished: false };
+            socket.emit('join_game', { roomId: rid, player });
+        };
+
+        socket.on('room_created', (data) => {
+            enterLobby(data.roomId);
+        });
+
+        socket.on('game_update', (data) => {
+            gameData = data;
+            gameId = data.roomId;
+            renderGameState(data);
+        });
+
+        socket.on('error_msg', (data) => {
+            errorMsg.textContent = data.msg;
+        });
+
         function enterLobby(id) {
             gameId = id;
             document.getElementById('auth-panel').classList.add('hidden');
             waitingRoom.classList.remove('hidden');
             document.getElementById('display-room-code').textContent = id;
-            
             playAudio(audioLobby); 
+            renderCarSelection();
+        }
 
+        function renderCarSelection() {
             const grid = document.getElementById('car-selection-grid');
             grid.innerHTML = '';
             CAR_CONFIG.forEach(c => {
@@ -593,96 +511,43 @@
                 b.dataset.id = c.id;
                 grid.appendChild(b);
             });
-            
-            onSnapshot(getGameRef(gameId), {
-                next: (snap) => { if(snap.exists()) handleServerUpdate(snap.data()); },
-                error: (e) => { console.error(e); fatalError.classList.remove('hidden'); fatalError.innerHTML = "ERROR CRÍTICO: Revisa reglas de Firebase."; }
-            });
         }
 
-        async function selectCar(cid) {
-            if (!gameData) return;
-            const fieldPath = `players.${currentUser.uid}`;
-            const currentPlayerData = gameData.players[currentUser.uid] || {};
-            const updatedPlayer = { ...currentPlayerData, carId: cid };
-            await updateDoc(getGameRef(gameId), { [fieldPath]: updatedPlayer });
+        function selectCar(cid) {
+            if (!gameId) return;
+            socket.emit('select_car', { roomId: gameId, uid: currentUser.uid, carId: cid });
         }
 
-        btnCreate.onclick = async () => {
-            const name = document.getElementById('nickname-input').value.toUpperCase() || "PILOTO";
-            const rid = Math.floor(1000 + Math.random()*9000).toString();
-            try {
-                const initialPlayers = {};
-                initialPlayers[currentUser.uid] = { uid: currentUser.uid, name, carId: -1, x: 0, y: 0, finished: false };
-                await setDoc(getGameRef(rid), {
-                    roomId: rid, hostId: currentUser.uid, status: 'waiting',
-                    players: initialPlayers
-                });
-                enterLobby(rid);
-            } catch (e) { errorMsg.textContent = "Error permisos Firebase."; }
+        document.getElementById('btn-start-race').onclick = () => {
+            socket.emit('start_game', { roomId: gameId });
+        };
+        
+        document.getElementById('btn-force-finish').onclick = () => {
+            socket.emit('force_finish', { roomId: gameId });
         };
 
-        btnJoin.onclick = async () => {
-            const name = document.getElementById('nickname-input').value.toUpperCase() || "PILOTO";
-            const rid = document.getElementById('room-code-input').value;
-            if (rid.length !== 4) return;
-            const ref = getGameRef(rid);
-            try {
-                await runTransaction(db, async t => {
-                    const docSnap = await t.get(ref);
-                    if (!docSnap.exists()) throw "Sala no existe";
-                    const d = docSnap.data();
-                    const numPlayers = Object.keys(d.players || {}).length;
-                    if(d.status==='waiting' && numPlayers < 5) {
-                         if (!d.players[currentUser.uid]) {
-                            const fieldPath = `players.${currentUser.uid}`;
-                            t.update(ref, { [fieldPath]: { uid: currentUser.uid, name, carId: -1, x: 0, y: 0, finished: false } });
-                         }
-                    } else if (!d.players[currentUser.uid]) throw "Error al entrar";
-                });
-                enterLobby(rid);
-            } catch (e) { errorMsg.textContent = "Error conexión."; }
-        };
-
-        document.getElementById('btn-start-race').onclick = async () => {
-            const playersArray = Object.values(gameData.players);
-            const updates = {};
-            const total = playersArray.length;
-            playersArray.forEach((p, i) => {
-                let startX = 0;
-                if (total > 1) startX = -0.6 + (i * (1.2 / (total - 1)));
-                updates[`players.${p.uid}.x`] = startX;
-            });
-            updates['status'] = 'counting';
-            updates['startTime'] = Date.now() + 3500;
-            await updateDoc(getGameRef(gameId), updates);
-        };
-
-        document.getElementById('btn-force-finish').onclick = async () => {
-            await updateDoc(getGameRef(gameId), { status: 'finished' });
-        };
-
-        function handleServerUpdate(data) {
-            gameData = data;
+        function renderGameState(data) {
             const playersArray = Object.values(data.players || {});
             
             if (data.status === 'waiting') {
                 const list = document.getElementById('players-list');
                 list.innerHTML = '';
                 playersArray.forEach(p => list.innerHTML += `<li>${p.name} ${p.carId>=0 ? '('+CAR_CONFIG[p.carId].name+')':''}</li>`);
-                if(data.hostId === currentUser.uid) {
+                
+                if (data.hostId === currentUser.uid) {
                     const btn = document.getElementById('btn-start-race');
-                    const ready = playersArray.every(p=>p.carId!==-1);
+                    const ready = playersArray.every(p => p.carId !== -1);
                     btn.classList.remove('hidden');
                     if(!ready) { btn.classList.add('opacity-50'); btn.textContent = "ESPERANDO..."; btn.disabled=true; }
                     else { btn.classList.remove('opacity-50'); btn.textContent = "INICIAR CARRERA"; btn.disabled=false; }
                 }
+                
                 document.querySelectorAll('.car-select-btn').forEach(b => {
                     const cid = parseInt(b.dataset.id);
-                    const owner = playersArray.find(p=>p.carId===cid);
-                    if(owner && owner.uid===currentUser.uid) b.classList.add('selected');
+                    const owner = playersArray.find(p => p.carId === cid);
+                    if(owner && owner.uid === currentUser.uid) b.classList.add('selected');
                     else b.classList.remove('selected');
-                    b.disabled = (owner && owner.uid!==currentUser.uid);
+                    b.disabled = (owner && owner.uid !== currentUser.uid);
                 });
 
             } else if (data.status === 'counting') {
@@ -691,35 +556,35 @@
                 document.querySelector('.traffic-light').classList.remove('hidden');
                 audioLobby.pause(); 
                 playAudio(audioCountdown); 
+
+                // Reset positions
                 const me = data.players[currentUser.uid];
                 if (me) myCar.x = me.x;
+
                 setTimeout(()=>document.getElementById('light-1').classList.add('active'), 500);
                 setTimeout(()=>document.getElementById('light-2').classList.add('active'), 1500);
                 setTimeout(()=>document.getElementById('light-3').classList.add('active'), 2500);
                 
-                if(data.hostId === currentUser.uid && !raceStartTimeout) {
-                    const delay = Math.max(0, data.startTime - Date.now());
-                    raceStartTimeout = setTimeout(() => {
-                        updateDoc(getGameRef(gameId), { status: 'racing' });
-                    }, delay);
+                // Host triggers race start after delay
+                if (data.hostId === currentUser.uid && !raceStartTimeout) {
+                     const delay = Math.max(0, data.startTime - Date.now());
+                     raceStartTimeout = setTimeout(() => {
+                         socket.emit('racing_start', { roomId: gameId });
+                     }, delay);
                 }
 
             } else if (data.status === 'racing') {
                 document.querySelector('.traffic-light').classList.add('hidden');
                 if (audioRacing.paused) playAudio(audioRacing);
                 updateRanking();
-                // Show Host Controls if I am the host
-                if (data.hostId === currentUser.uid) {
-                    hostControls.classList.remove('hidden');
-                } else {
-                    hostControls.classList.add('hidden');
-                }
+                if (data.hostId === currentUser.uid) hostControls.classList.remove('hidden');
+                else hostControls.classList.add('hidden');
 
             } else if (data.status === 'finished') {
-                 audioRacing.pause(); 
-                 document.getElementById('result-overlay').classList.remove('hidden');
-                 hostControls.classList.add('hidden');
-                 showPodium(playersArray);
+                audioRacing.pause(); 
+                document.getElementById('result-overlay').classList.remove('hidden');
+                hostControls.classList.add('hidden');
+                showPodium(playersArray);
             }
         }
 
@@ -731,65 +596,51 @@
                 if (player) {
                     el.classList.remove('hidden');
                     el.querySelector('.podium-name').textContent = player.name;
-                    
                     const safeCarId = (player.carId >= 0 && player.carId < CAR_CONFIG.length) ? player.carId : 0;
                     const pilotImgId = CAR_CONFIG[safeCarId].pilotImgId;
                     const imgEl = el.querySelector('.pilot-img');
-                    
-                    // Asignar src desde el elemento de assets
                     const assetImg = document.getElementById(pilotImgId);
                     if (assetImg) imgEl.src = assetImg.src;
                 } else {
                     el.classList.add('hidden');
                 }
             };
-
             updatePodiumStep('podium-1', sorted[0]);
             updatePodiumStep('podium-2', sorted[1]);
             updatePodiumStep('podium-3', sorted[2]);
         }
 
         let lastSync = 0;
-        async function syncMyData() {
-            if(Date.now() - lastSync < 100) return; 
+        function syncMyData() {
+            if (Date.now() - lastSync < 100) return; 
             lastSync = Date.now();
-            const fieldX = `players.${currentUser.uid}.x`;
-            const fieldY = `players.${currentUser.uid}.y`;
-            await updateDoc(getGameRef(gameId), { 
-                [fieldX]: parseFloat(myCar.x.toFixed(3)),
-                [fieldY]: Math.floor(myCar.y)
+            socket.emit('update_player', {
+                roomId: gameId,
+                player: {
+                    uid: currentUser.uid,
+                    x: parseFloat(myCar.x.toFixed(3)),
+                    y: Math.floor(myCar.y)
+                }
             });
         }
 
-        async function finishRace() {
-            const playersArray = Object.values(gameData.players);
-            const fieldFinished = `players.${currentUser.uid}.finished`;
-            const updates = { [fieldFinished]: true };
-            
-            // Check if ALL players are finished
-            const allFinished = playersArray.every(p => {
-                // If it's me, I am finished now.
-                if (p.uid === currentUser.uid) return true;
-                return p.finished;
+        function finishRace() {
+            myCar.finished = true;
+            socket.emit('update_player', {
+                roomId: gameId,
+                player: {
+                    uid: currentUser.uid,
+                    x: parseFloat(myCar.x.toFixed(3)),
+                    y: Math.floor(myCar.y),
+                    finished: true
+                }
             });
-
-            if (allFinished) {
-                updates['status'] = 'finished';
-            }
-            
-            // Still set winner if first (optional, for record)
-            if(!gameData.winner) {
-                updates['winner'] = currentUser.uid;
-                updates['winnerName'] = gameData.players[currentUser.uid].name;
-            }
-
-            await updateDoc(getGameRef(gameId), updates);
         }
 
         function updateRanking() {
             let rank = 1;
             const playersArray = Object.values(gameData.players || {});
-            playersArray.forEach(p => { if(p.uid!==currentUser.uid && p.y > myCar.y) rank++; });
+            playersArray.forEach(p => { if(p.uid !== currentUser.uid && p.y > myCar.y) rank++; });
             document.getElementById('hud-pos').textContent = rank;
         }
 
