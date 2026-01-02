@@ -807,6 +807,7 @@
 
         function UserHistory({ matchdays, user, bets }) {
             const [printBet, setPrintBet] = useState(null);
+            const [participantsModal, setParticipantsModal] = useState(null); // Nuevo estado
             const [filter, setFilter] = useState('all');
 
             const filteredBets = useMemo(() => {
@@ -824,6 +825,59 @@
                     return true;
                 }).sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
             }, [bets, matchdays, user, filter]);
+
+            const openParticipants = (m) => {
+                if (!m) return;
+                // Obtenemos todos los pagos APROBADOS para esta jornada
+                const paidBets = bets.filter(b => b.matchdayId === m.id && b.status === 'paid');
+                // Extraemos nombres únicos para la lista
+                const names = [...new Set(paidBets.map(b => b.userFullName || b.userName))].sort();
+                
+                setParticipantsModal({
+                    title: m.name,
+                    count: paidBets.length, // Total de quinielas pagadas
+                    players: names          // Nombres únicos
+                });
+            };
+
+            // --- VISTA LISTA PARTICIPANTES ---
+            if (participantsModal) {
+                 return (
+                    <div className="fixed inset-0 bg-black/80 z-[9999] flex justify-center items-center p-4">
+                        <div className="bg-white w-full max-w-sm rounded-xl shadow-2xl overflow-hidden animate-fade-in flex flex-col max-h-[80vh]">
+                            <div className="bg-green-700 text-white p-4 flex justify-between items-center shrink-0">
+                                <div>
+                                    <h3 className="font-bold text-lg">{participantsModal.title}</h3>
+                                    <p className="text-xs opacity-90">{participantsModal.count} quinielas activas</p>
+                                </div>
+                                <button onClick={() => setParticipantsModal(null)} className="bg-green-800 p-2 rounded-full hover:bg-green-600 transition"><X size={20}/></button>
+                            </div>
+                            <div className="p-4 overflow-y-auto bg-gray-50 flex-grow">
+                                {participantsModal.players.length > 0 ? (
+                                    <ul className="space-y-2">
+                                        {participantsModal.players.map((name, idx) => (
+                                            <li key={idx} className="bg-white p-3 rounded-lg border shadow-sm flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-bold text-xs">
+                                                    {idx + 1}
+                                                </div>
+                                                <span className="font-medium text-gray-800 capitalize">{name}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <div className="text-center py-8 text-gray-400">
+                                        <Users size={48} className="mx-auto mb-2 opacity-20"/>
+                                        <p>Aún no hay participantes confirmados.</p>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="p-4 border-t bg-white shrink-0">
+                                <button onClick={() => setParticipantsModal(null)} className="w-full py-3 bg-gray-100 text-gray-600 font-bold rounded-lg hover:bg-gray-200 transition">Cerrar</button>
+                            </div>
+                        </div>
+                    </div>
+                 );
+            }
 
             // --- TICKET VISTA PREVIA (ACTUALIZADO PARA DOBLES) ---
             if (printBet) {
@@ -890,7 +944,7 @@
 
                             return (
                                 <div key={b.id} className="border p-4 rounded-lg flex justify-between items-center bg-gray-50 hover:bg-white transition hover:shadow-sm">
-                                    <div>
+                                    <div className="flex-grow">
                                         <h4 className="font-bold text-gray-800">{m?.name}</h4>
                                         <div className="flex flex-wrap gap-2 mt-2">
                                             <span className={`text-[10px] px-2 py-0.5 rounded border font-bold ${b.status === 'paid' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'}`}>{b.status === 'paid' ? 'PAGO OK' : 'PENDIENTE'}</span>
@@ -898,7 +952,16 @@
                                         </div>
                                         <p className="text-[10px] text-gray-400 mt-1 font-mono">Costo: ${b.cost || m?.price}</p>
                                     </div>
-                                    <button onClick={() => setPrintBet(b)} className="text-gray-500 hover:text-green-600 flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-100 transition"><Printer size={20}/><span className="text-[10px] font-bold">Ticket</span></button>
+                                    <div className="flex gap-2 shrink-0">
+                                        <button onClick={() => openParticipants(m)} className="text-gray-500 hover:text-blue-600 flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-blue-50 transition" title="Ver Participantes">
+                                            <Users size={20}/>
+                                            <span className="text-[10px] font-bold">Participantes</span>
+                                        </button>
+                                        <button onClick={() => setPrintBet(b)} className="text-gray-500 hover:text-green-600 flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-green-50 transition" title="Ver Ticket">
+                                            <Printer size={20}/>
+                                            <span className="text-[10px] font-bold">Ticket</span>
+                                        </button>
+                                    </div>
                                 </div>
                             );
                         })}
