@@ -34,7 +34,7 @@
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
         import { getFirestore, collection, addDoc, query, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp, setDoc, getDocs, where } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
-        import { Trophy, Users, PlusCircle, CheckCircle, Clock, Search, FileText, LogOut, Shield, User, Printer, XCircle, Menu, X, Lock, RefreshCw, KeyRound, Calendar, Trash2, AlertTriangle, Banknote, ChevronDown, ChevronUp, Gamepad2, Check, Filter, Medal, Info, Pencil, MessageCircle, FileSpreadsheet, Download } from 'https://esm.sh/lucide-react@0.263.1';
+        import { Trophy, Users, PlusCircle, CheckCircle, Clock, Search, FileText, LogOut, Shield, User, Printer, XCircle, Menu, X, Lock, RefreshCw, KeyRound, Calendar, Trash2, AlertTriangle, Banknote, ChevronDown, ChevronUp, Gamepad2, Check, Filter, Medal, Info, Pencil, MessageCircle, FileSpreadsheet, Download, Save, Flag } from 'https://esm.sh/lucide-react@0.263.1';
 
         // --- CONFIGURACIÓN FIREBASE ---
         const localConfig = {
@@ -280,46 +280,33 @@
             };
 
             const exportReport = (matchday) => {
-                // Filtramos las apuestas de esta jornada
                 const matchdayBets = bets.filter(b => b.matchdayId === matchday.id);
-                
-                if (matchdayBets.length === 0) {
-                    alert("No hay apuestas para generar reporte.");
-                    return;
-                }
+                if (matchdayBets.length === 0) { alert("No hay apuestas para generar reporte."); return; }
 
-                // Construcción CSV
-                // 1. Cabecera
-                let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // BOM para acentos en Excel
+                let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
                 const headers = ["Jugador", "Referencia", "Estado", "Costo"];
                 matchday.matches.forEach(m => headers.push(`${m.home} vs ${m.away}`));
                 csvContent += headers.join(",") + "\n";
 
-                // 2. Filas de datos
                 matchdayBets.forEach(bet => {
                     const row = [
-                        `"${bet.userFullName || bet.userName}"`, // Comillas para evitar problemas con comas en nombres
+                        `"${bet.userFullName || bet.userName}"`,
                         `"${bet.paymentRef}"`,
                         bet.status === 'paid' ? "PAGADO" : "PENDIENTE",
                         `$${bet.cost}`
                     ];
-
-                    // Predicciones
                     matchday.matches.forEach(m => {
                         const pred = bet.predictions.find(p => p.matchId === m.id);
                         let val = "-";
                         if (pred) {
                             const picks = normalizePred(pred.prediction);
-                            // Convertir 'local' -> 'L', etc.
                             val = picks.map(p => p === 'local' ? 'L' : p === 'tie' ? 'E' : 'V').join("/");
                         }
                         row.push(val);
                     });
-
                     csvContent += row.join(",") + "\n";
                 });
 
-                // 3. Descarga
                 const encodedUri = encodeURI(csvContent);
                 const link = document.createElement("a");
                 link.setAttribute("href", encodedUri);
@@ -335,23 +322,11 @@
                         <h3 className="font-bold mb-4">Nueva Jornada</h3>
                         <div className="space-y-4">
                             <input value={name} onChange={e => setName(e.target.value)} placeholder="Nombre" className="w-full p-3 border rounded-lg" />
-                            
                             <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="text-xs font-bold text-gray-500 ml-1">Precio Base</label>
-                                    <input type="number" value={price} onChange={e => setPrice(e.target.value)} placeholder="$ Costo Quiniela" className="w-full p-3 border rounded-lg" />
-                                </div>
-                                <div>
-                                    <label className="text-xs font-bold text-gray-500 ml-1">Precio Doble</label>
-                                    <input type="number" value={doublePrice} onChange={e => setDoublePrice(e.target.value)} placeholder="$ Costo Extra" className="w-full p-3 border rounded-lg" />
-                                </div>
+                                <div><label className="text-xs font-bold text-gray-500 ml-1">Precio Base</label><input type="number" value={price} onChange={e => setPrice(e.target.value)} placeholder="$ Costo Quiniela" className="w-full p-3 border rounded-lg" /></div>
+                                <div><label className="text-xs font-bold text-gray-500 ml-1">Precio Doble</label><input type="number" value={doublePrice} onChange={e => setDoublePrice(e.target.value)} placeholder="$ Costo Extra" className="w-full p-3 border rounded-lg" /></div>
                             </div>
-
-                            <div>
-                                <label className="text-xs font-bold text-gray-500 ml-1">Fecha Límite</label>
-                                <input type="datetime-local" value={deadline} onChange={e => setDeadline(e.target.value)} className="w-full p-3 border rounded-lg text-sm" />
-                            </div>
-
+                            <div><label className="text-xs font-bold text-gray-500 ml-1">Fecha Límite</label><input type="datetime-local" value={deadline} onChange={e => setDeadline(e.target.value)} className="w-full p-3 border rounded-lg text-sm" /></div>
                             <div className="bg-gray-50 p-4 rounded-lg border space-y-2">{matches.map((m, i) => <div key={i} className="flex gap-2"><select className="flex-1 p-2 border rounded" value={m.home} onChange={e => updateMatch(i, 'home', e.target.value)}><option value="">Local</option>{getAvailableTeams(i, 'home').map(t => <option key={t.id} value={t.name}>{t.name}</option>)}</select><select className="flex-1 p-2 border rounded" value={m.away} onChange={e => updateMatch(i, 'away', e.target.value)}><option value="">Visit.</option>{getAvailableTeams(i, 'away').map(t => <option key={t.id} value={t.name}>{t.name}</option>)}</select><button onClick={() => setMatches(matches.filter((_, idx) => idx !== i))} className="text-red-500"><X size={16}/></button></div>)}<button onClick={() => setMatches([...matches, { home: '', away: '' }])} className="text-green-600 text-sm font-bold flex items-center gap-1 mt-2"><PlusCircle size={14}/> Partido</button></div>
                             <button onClick={handleCreate} className="w-full bg-green-700 text-white py-3 rounded-lg font-bold">Publicar</button>
                         </div>
@@ -363,26 +338,12 @@
                                 <div key={m.id} className="p-4 border rounded shadow-sm flex justify-between items-center bg-white">
                                     <div>
                                         <h4 className="font-bold">{m.name}</h4>
-                                        <p className="text-xs text-gray-500">
-                                            Base: ${m.price} | Doble: ${m.doublePrice ?? 10} | {m.matches.length} juegos
-                                        </p>
+                                        <p className="text-xs text-gray-500">Base: ${m.price} | Doble: ${m.doublePrice ?? 10} | {m.matches.length} juegos</p>
                                         <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${m.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-600'}`}>{m.status === 'active' ? 'Activa' : 'Finalizada'}</span>
                                     </div>
                                     <div className="flex gap-2">
-                                        <button 
-                                            onClick={() => exportReport(m)} 
-                                            className="text-green-600 bg-green-50 p-2 rounded hover:bg-green-100 border border-green-200 transition"
-                                            title="Descargar Reporte Excel"
-                                        >
-                                            <FileSpreadsheet size={18} />
-                                        </button>
-                                        <button 
-                                            onClick={() => confirm("¿Borrar jornada y sus datos?") && deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matchdays', m.id))} 
-                                            className="text-red-500 bg-red-50 p-2 rounded hover:bg-red-100 border border-red-200 transition"
-                                            title="Eliminar Jornada"
-                                        >
-                                            <Trash2 size={18}/>
-                                        </button>
+                                        <button onClick={() => exportReport(m)} className="text-green-600 bg-green-50 p-2 rounded hover:bg-green-100 border border-green-200 transition" title="Descargar Reporte Excel"><FileSpreadsheet size={18} /></button>
+                                        <button onClick={() => confirm("¿Borrar jornada y sus datos?") && deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matchdays', m.id))} className="text-red-500 bg-red-50 p-2 rounded hover:bg-red-100 border border-red-200 transition" title="Eliminar Jornada"><Trash2 size={18}/></button>
                                     </div>
                                 </div>
                             ))}
@@ -410,12 +371,23 @@
                 }).sort((a, b) => b.points - a.points);
             }, [m, bets, res]);
 
-            const save = async () => {
-                if(!m || !confirm("¿Finalizar?")) return;
+            // --- BOTÓN 1: GUARDAR AVANCE (Mantiene status 'active') ---
+            const savePreliminary = async () => {
+                if(!m) return;
+                const updated = m.matches.map(match => ({ ...match, result: res[match.id] || null }));
+                // Solo actualizamos 'matches', no el status
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matchdays', m.id), { matches: updated });
+                alert("Avance guardado. Los usuarios verán estos resultados preliminares.");
+            };
+
+            // --- BOTÓN 2: FINALIZAR (Cambia status a 'finalized') ---
+            const finalize = async () => {
+                if(!m || !confirm("¿Estás seguro de FINALIZAR la jornada? Esto cerrará el evento definitivamente.")) return;
                 const updated = m.matches.map(match => ({ ...match, result: res[match.id] || null }));
                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matchdays', m.id), { matches: updated, status: 'finalized' });
-                alert("Guardado");
+                alert("Jornada finalizada y cerrada.");
             };
+
             useEffect(() => { if(m && m.matches) { const l = {}; m.matches.forEach(ma => { if(ma.result) l[ma.id] = ma.result; }); setRes(l); } else setRes({}); }, [m]);
 
             return (
@@ -423,7 +395,25 @@
                     <div>
                         <h3 className="font-bold mb-4">Captura Resultados</h3>
                         <select className="w-full p-2 border rounded mb-6" value={selId} onChange={e => setSelId(e.target.value)}><option value="">Selecciona Jornada</option>{matchdays.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select>
-                        {m && <div className="bg-gray-50 p-4 rounded border space-y-3">{m.matches.map(ma => <div key={ma.id} className="flex justify-between items-center text-sm bg-white p-2 rounded"><span className="w-1/3 text-right font-bold">{ma.home}</span><div className="flex gap-1">{['local','tie','visit'].map(o => <button key={o} onClick={() => setRes({...res, [ma.id]: o === 'local' ? 'local' : o === 'tie' ? 'tie' : 'visit'})} className={`w-8 h-8 rounded text-xs font-bold ${res[ma.id] === (o==='local'?'local':o==='tie'?'tie':'visit') ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>{o[0].toUpperCase()}</button>)}</div><span className="w-1/3 font-bold">{ma.away}</span></div>)}<button onClick={save} className="w-full bg-blue-600 text-white py-3 rounded mt-4">Guardar</button></div>}
+                        {m && <div className="bg-gray-50 p-4 rounded border space-y-3">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className={`text-xs font-bold px-2 py-1 rounded ${m.status==='active'?'bg-blue-100 text-blue-800':'bg-gray-200 text-gray-600'}`}>Estado: {m.status==='active'?'EN JUEGO (Abierta)':'FINALIZADA'}</span>
+                            </div>
+                            {m.matches.map(ma => <div key={ma.id} className="flex justify-between items-center text-sm bg-white p-2 rounded"><span className="w-1/3 text-right font-bold">{ma.home}</span><div className="flex gap-1">{['local','tie','visit'].map(o => <button key={o} onClick={() => setRes({...res, [ma.id]: o === 'local' ? 'local' : o === 'tie' ? 'tie' : 'visit'})} className={`w-8 h-8 rounded text-xs font-bold ${res[ma.id] === (o==='local'?'local':o==='tie'?'tie':'visit') ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>{o[0].toUpperCase()}</button>)}</div><span className="w-1/3 font-bold">{ma.away}</span></div>)}
+                            
+                            <div className="grid grid-cols-2 gap-3 mt-6">
+                                <button onClick={savePreliminary} className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded font-bold text-sm">
+                                    <Save size={16}/> Guardar Avance
+                                </button>
+                                <button onClick={finalize} className="flex items-center justify-center gap-2 bg-gray-800 hover:bg-black text-white py-3 rounded font-bold text-sm">
+                                    <Flag size={16}/> Finalizar Jornada
+                                </button>
+                            </div>
+                            <p className="text-[10px] text-gray-500 text-center mt-2">
+                                * <strong>Guardar Avance:</strong> Actualiza la tabla "En Vivo" de los jugadores.<br/>
+                                * <strong>Finalizar:</strong> Cierra la jornada y define ganadores oficiales.
+                            </p>
+                        </div>}
                     </div>
                     <div><h3 className="font-bold mb-4">Ranking Preliminar</h3><div className="border rounded bg-white">{leaderboard.map((b,i)=><div key={b.id} className="p-3 border-b flex justify-between text-sm"><span>{i+1}. {b.userName}</span><span className="font-bold text-blue-600">{b.points} pts</span></div>)}</div></div>
                 </div>
@@ -447,126 +437,43 @@
             return (
                 <div>
                     <h3 className="text-xl font-bold mb-4">Usuarios</h3>
-                    
-                    {/* Buscador */}
-                    <div className="relative mb-4">
-                        <Search className="absolute left-3 top-3 text-gray-400" size={18} />
-                        <input 
-                            type="text" 
-                            placeholder="Buscar por nombre o usuario..." 
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 p-2 border rounded-lg bg-white shadow-sm"
-                        />
-                    </div>
-
+                    <div className="relative mb-4"><Search className="absolute left-3 top-3 text-gray-400" size={18} /><input type="text" placeholder="Buscar por nombre o usuario..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 p-2 border rounded-lg bg-white shadow-sm"/></div>
                     <div className="overflow-hidden bg-white rounded shadow border flex flex-col max-h-[60vh]">
-                        <div className="overflow-y-auto flex-grow">
-                            <table className="w-full text-left whitespace-nowrap">
-                                <thead className="bg-gray-100 text-gray-600 text-sm sticky top-0 z-10"><tr><th className="p-3">Nombre</th><th className="p-3">Usuario</th><th className="p-3">Rol</th><th className="p-3">Acciones</th></tr></thead>
-                                <tbody className="divide-y text-sm">
-                                    {filteredUsers.length > 0 ? filteredUsers.map(u => (
-                                        <tr key={u.id}>
-                                            <td className="p-3 font-medium capitalize">{u.fullName || '-'}</td>
-                                            <td className="p-3 text-gray-600">{u.username}</td>
-                                            <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-bold ${u.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>{u.role === 'admin' ? 'ADMIN' : 'JUGADOR'}</span></td>
-                                            <td className="p-3 flex gap-2">
-                                                <button onClick={() => toggleRole(u)} className="p-1 border rounded hover:bg-gray-100"><RefreshCw size={14}/></button>
-                                                <button onClick={() => handleDeleteUser(u)} className="p-1 border border-red-200 text-red-600 rounded hover:bg-red-50"><Trash2 size={14}/></button>
-                                            </td>
-                                        </tr>
-                                    )) : (
-                                        <tr><td colSpan="4" className="p-6 text-center text-gray-400">No se encontraron usuarios.</td></tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
+                        <div className="overflow-y-auto flex-grow"><table className="w-full text-left whitespace-nowrap"><thead className="bg-gray-100 text-gray-600 text-sm sticky top-0 z-10"><tr><th className="p-3">Nombre</th><th className="p-3">Usuario</th><th className="p-3">Rol</th><th className="p-3">Acciones</th></tr></thead><tbody className="divide-y text-sm">{filteredUsers.length > 0 ? filteredUsers.map(u => (<tr key={u.id}><td className="p-3 font-medium capitalize">{u.fullName || '-'}</td><td className="p-3 text-gray-600">{u.username}</td><td className="p-3"><span className={`px-2 py-1 rounded text-xs font-bold ${u.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>{u.role === 'admin' ? 'ADMIN' : 'JUGADOR'}</span></td><td className="p-3 flex gap-2"><button onClick={() => toggleRole(u)} className="p-1 border rounded hover:bg-gray-100"><RefreshCw size={14}/></button><button onClick={() => handleDeleteUser(u)} className="p-1 border border-red-200 text-red-600 rounded hover:bg-red-50"><Trash2 size={14}/></button></td></tr>)) : (<tr><td colSpan="4" className="p-6 text-center text-gray-400">No se encontraron usuarios.</td></tr>)}</tbody></table></div>
                     </div>
                 </div>
             );
         }
 
         function AdminApprovals({ matchdays, bets, appId, db }) {
-            const [filter, setFilter] = useState('active'); // 'active', 'all', or specific ID
-            const [statusFilter, setStatusFilter] = useState('all'); // NUEVO: Filtro de estado
-            const [printBet, setPrintBet] = useState(null); // Nuevo estado para ticket
-            const [searchTerm, setSearchTerm] = useState(''); // Estado para el buscador
-
+            const [filter, setFilter] = useState('active'); const [statusFilter, setStatusFilter] = useState('all'); const [printBet, setPrintBet] = useState(null); const [searchTerm, setSearchTerm] = useState('');
             const getMatchdayName = (id) => matchdays.find(m => m.id === id)?.name || '???';
-
             const filteredBets = useMemo(() => {
                 return bets.filter(b => {
-                    // 1. Filtro principal (Jornada)
                     let matchesFilter = false;
-                    if (filter === 'all') matchesFilter = true;
-                    else if (filter === 'active') {
-                         const m = matchdays.find(md => md.id === b.matchdayId);
-                         matchesFilter = m && m.status === 'active';
-                    } else {
-                        matchesFilter = b.matchdayId === filter;
-                    }
-
-                    // 2. Filtro de búsqueda (Texto)
+                    if (filter === 'all') matchesFilter = true; else if (filter === 'active') { const m = matchdays.find(md => md.id === b.matchdayId); matchesFilter = m && m.status === 'active'; } else { matchesFilter = b.matchdayId === filter; }
                     const term = searchTerm.toLowerCase();
-                    const matchesSearch = 
-                        b.userName.toLowerCase().includes(term) || 
-                        (b.userFullName && b.userFullName.toLowerCase().includes(term)) ||
-                        (b.paymentRef && b.paymentRef.toLowerCase().includes(term));
-
-                    // 3. Filtro de Estado (NUEVO)
+                    const matchesSearch = b.userName.toLowerCase().includes(term) || (b.userFullName && b.userFullName.toLowerCase().includes(term)) || (b.paymentRef && b.paymentRef.toLowerCase().includes(term));
                     let statusMatch = true;
-                    if (statusFilter === 'paid') statusMatch = b.status === 'paid';
-                    if (statusFilter === 'pending') statusMatch = b.status === 'pending';
-
+                    if (statusFilter === 'paid') statusMatch = b.status === 'paid'; if (statusFilter === 'pending') statusMatch = b.status === 'pending';
                     return matchesFilter && matchesSearch && statusMatch;
-                }).sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0)); // Sort by newest
+                }).sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
             }, [bets, matchdays, filter, searchTerm, statusFilter]);
-
             const togglePay = async (b) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bets', b.id), { status: b.status === 'pending' ? 'paid' : 'pending' });
             const delBet = async (b) => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bets', b.id)); };
 
-            // --- VISTA TICKET (REUTILIZADA) ---
             if (printBet) {
                 const m = matchdays.find(md => md.id === printBet.matchdayId);
                 return (
                     <div className="fixed inset-0 bg-black/80 z-[9999] flex justify-center items-center p-4 print:p-0 print:bg-white print:items-start print:static">
                         <div className="bg-white w-full max-w-md rounded-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] print:shadow-none print:max-h-none print:w-full print:overflow-visible">
-                            <div className="bg-gray-900 text-white p-4 flex justify-between items-center no-print shrink-0">
-                                <h3 className="font-bold text-lg flex items-center gap-2"><Trophy size={20} className="text-yellow-400"/> Ticket Admin</h3>
-                                <div className="flex gap-2">
-                                    <button onClick={() => window.print()} className="bg-green-600 px-4 py-2 rounded font-bold text-sm flex gap-2"><Printer size={18}/> Imprimir</button>
-                                    <button onClick={() => setPrintBet(null)} className="bg-gray-700 p-2 rounded"><X size={20}/></button>
-                                </div>
-                            </div>
+                            <div className="bg-gray-900 text-white p-4 flex justify-between items-center no-print shrink-0"><h3 className="font-bold text-lg flex items-center gap-2"><Trophy size={20} className="text-yellow-400"/> Ticket Admin</h3><div className="flex gap-2"><button onClick={() => window.print()} className="bg-green-600 px-4 py-2 rounded font-bold text-sm flex gap-2"><Printer size={18}/> Imprimir</button><button onClick={() => setPrintBet(null)} className="bg-gray-700 p-2 rounded"><X size={20}/></button></div></div>
                             <div className="overflow-y-auto bg-gray-100 flex-1 w-full print:overflow-visible">
                                 <div className="min-h-full flex justify-center p-8 print:p-0">
                                     <div id="printable-ticket" className="w-[350px] h-fit bg-white border-2 border-dashed border-gray-800 p-6 text-black shadow-sm print:shadow-none print:border-gray-800 print:w-full print:max-w-[400px] print:mx-auto relative">
                                         <div className="text-center border-b-2 border-black pb-4 mb-4"><div className="flex justify-center mb-2"><Trophy size={32} className="text-black"/></div><h1 className="text-xl font-black uppercase tracking-wider">Quiniela SICAR</h1><p className="text-xs font-mono mt-1 text-gray-500">{new Date().toLocaleString()}</p></div>
-                                        <div className="mb-6 text-sm space-y-2 font-mono">
-                                            <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">Jornada:</span><span className="font-bold truncate max-w-[150px]">{m?.name}</span></div>
-                                            <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">Jugador:</span><span className="font-bold uppercase truncate max-w-[150px]">{printBet.userFullName || printBet.userName}</span></div>
-                                            <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">Ref. Pago:</span><span className="font-bold">{printBet.paymentRef}</span></div>
-                                            <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">Total:</span><span className="font-bold text-lg">${printBet.cost || m?.price}</span></div>
-                                        </div>
-                                        <div className="mb-6">
-                                            <div className="flex text-[10px] font-bold text-gray-400 mb-2 border-b-2 border-gray-800 pb-1"><span className="flex-1">PARTIDO</span><span className="w-6 text-center">L</span><span className="w-6 text-center">E</span><span className="w-6 text-center">V</span></div>
-                                            {printBet.predictions.map((p, i) => {
-                                                const match = m?.matches.find(ma => ma.id === p.matchId);
-                                                if (!match) return null;
-                                                const picks = normalizePred(p.prediction);
-                                                return (
-                                                    <div key={i} className="flex items-center text-xs py-2 border-b border-gray-100">
-                                                        <div className="flex-1 pr-2 leading-tight"><div className="font-bold">{match.home}</div><div className="text-[10px] text-gray-500">vs {match.away}</div></div>
-                                                        <div className="flex gap-0">
-                                                            {['local', 'tie', 'visit'].map(opt => {
-                                                                const isSelected = picks.includes(opt);
-                                                                return <div key={opt} className="w-6 flex justify-center items-center">{isSelected ? <div className="w-5 h-5 bg-black text-white rounded-full flex items-center justify-center print:bg-black print:text-white"><Check size={12} strokeWidth={4} /></div> : <div className="w-5 h-5 rounded-full border border-gray-300"></div>}</div>
-                                                            })}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
+                                        <div className="mb-6 text-sm space-y-2 font-mono"><div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">Jornada:</span><span className="font-bold truncate max-w-[150px]">{m?.name}</span></div><div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">Jugador:</span><span className="font-bold uppercase truncate max-w-[150px]">{printBet.userFullName || printBet.userName}</span></div><div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">Ref. Pago:</span><span className="font-bold">{printBet.paymentRef}</span></div><div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">Total:</span><span className="font-bold text-lg">${printBet.cost || m?.price}</span></div></div>
+                                        <div className="mb-6"><div className="flex text-[10px] font-bold text-gray-400 mb-2 border-b-2 border-gray-800 pb-1"><span className="flex-1">PARTIDO</span><span className="w-6 text-center">L</span><span className="w-6 text-center">E</span><span className="w-6 text-center">V</span></div>{printBet.predictions.map((p, i) => { const match = m?.matches.find(ma => ma.id === p.matchId); if (!match) return null; const picks = normalizePred(p.prediction); return (<div key={i} className="flex items-center text-xs py-2 border-b border-gray-100"><div className="flex-1 pr-2 leading-tight"><div className="font-bold">{match.home}</div><div className="text-[10px] text-gray-500">vs {match.away}</div></div><div className="flex gap-0">{['local', 'tie', 'visit'].map(opt => { const isSelected = picks.includes(opt); return <div key={opt} className="w-6 flex justify-center items-center">{isSelected ? <div className="w-5 h-5 bg-black text-white rounded-full flex items-center justify-center print:bg-black print:text-white"><Check size={12} strokeWidth={4} /></div> : <div className="w-5 h-5 rounded-full border border-gray-300"></div>}</div> })}</div></div>); })}</div>
                                         <div className="text-center border-t-2 border-black pt-4"><div className="inline-block border-2 border-black px-4 py-1 rounded font-black text-lg uppercase tracking-widest">{printBet.status === 'paid' ? 'PAGADO' : 'PENDIENTE'}</div><p className="text-[10px] text-gray-400 mt-2">¡Mucha Suerte!</p></div>
                                     </div>
                                 </div>
@@ -579,105 +486,9 @@
             return (
                 <div>
                     <h3 className="text-xl font-bold mb-4">Gestión de Pagos</h3>
-                    
-                    {/* Filtros y Buscador */}
-                    <div className="flex flex-col md:flex-row gap-4 mb-6">
-                        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 flex-grow">
-                            {/* Selector de Jornada */}
-                            <div className="flex items-center gap-2 min-w-[200px]">
-                                <Filter size={20} className="text-gray-500 shrink-0"/>
-                                <select 
-                                    value={filter} 
-                                    onChange={(e) => setFilter(e.target.value)} 
-                                    className="w-full p-2 border rounded-lg bg-white shadow-sm font-medium text-gray-700"
-                                >
-                                    <option value="active">🟢 Solo Jornadas Activas</option>
-                                    <option value="all">📂 Todo el Historial</option>
-                                    <optgroup label="Por Jornada Específica">
-                                        {matchdays.map(m => (
-                                            <option key={m.id} value={m.id}>{m.name} ({m.status === 'active' ? 'Activa' : 'Cerrada'})</option>
-                                        ))}
-                                    </optgroup>
-                                </select>
-                            </div>
-
-                            {/* NUEVO Selector de Estado */}
-                            <div className="flex items-center gap-2 min-w-[160px]">
-                                <CheckCircle size={20} className="text-gray-500 shrink-0"/>
-                                <select 
-                                    value={statusFilter} 
-                                    onChange={(e) => setStatusFilter(e.target.value)} 
-                                    className="w-full p-2 border rounded-lg bg-white shadow-sm font-medium text-gray-700"
-                                >
-                                    <option value="all">🔄 Todos</option>
-                                    <option value="paid">✅ Pagados</option>
-                                    <option value="pending">⏳ Pendientes</option>
-                                </select>
-                            </div>
-
-                            {/* Buscador de Pago */}
-                            <div className="relative flex-grow">
-                                <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
-                                <input 
-                                    type="text" 
-                                    placeholder="Buscar usuario o referencia..." 
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full pl-10 p-2 border rounded-lg bg-white shadow-sm"
-                                />
-                            </div>
-                        </div>
-                        
-                        <div className="ml-auto text-sm text-gray-500 flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-full border self-start md:self-center">
-                            <span className="font-bold text-gray-700">{filteredBets.length}</span> pagos
-                        </div>
-                    </div>
-
+                    <div className="flex flex-col md:flex-row gap-4 mb-6"><div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 flex-grow"><div className="flex items-center gap-2 min-w-[200px]"><Filter size={20} className="text-gray-500 shrink-0"/><select value={filter} onChange={(e) => setFilter(e.target.value)} className="w-full p-2 border rounded-lg bg-white shadow-sm font-medium text-gray-700"><option value="active">🟢 Solo Jornadas Activas</option><option value="all">📂 Todo el Historial</option><optgroup label="Por Jornada Específica">{matchdays.map(m => (<option key={m.id} value={m.id}>{m.name} ({m.status === 'active' ? 'Activa' : 'Cerrada'})</option>))}</optgroup></select></div><div className="flex items-center gap-2 min-w-[160px]"><CheckCircle size={20} className="text-gray-500 shrink-0"/><select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full p-2 border rounded-lg bg-white shadow-sm font-medium text-gray-700"><option value="all">🔄 Todos</option><option value="paid">✅ Pagados</option><option value="pending">⏳ Pendientes</option></select></div><div className="relative flex-grow"><Search className="absolute left-3 top-2.5 text-gray-400" size={18} /><input type="text" placeholder="Buscar usuario o referencia..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 p-2 border rounded-lg bg-white shadow-sm"/></div></div><div className="ml-auto text-sm text-gray-500 flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-full border self-start md:self-center"><span className="font-bold text-gray-700">{filteredBets.length}</span> pagos</div></div>
                     <div className="overflow-hidden bg-white rounded border shadow-sm flex flex-col max-h-[60vh]">
-                        <div className="overflow-y-auto flex-grow">
-                            <table className="w-full text-left text-sm whitespace-nowrap">
-                                <thead className="bg-gray-100 text-gray-600 sticky top-0 z-10 shadow-sm"><tr><th className="p-3">Usuario</th><th className="p-3">Jornada</th><th className="p-3">Ref</th><th className="p-3">Estado</th><th className="p-3">Acción</th></tr></thead>
-                                <tbody className="divide-y">
-                                    {filteredBets.length > 0 ? filteredBets.map(b => {
-                                        const m = matchdays.find(md => md.id === b.matchdayId);
-                                        return (
-                                            <tr key={b.id} className="hover:bg-gray-50 transition">
-                                                <td className="p-3">
-                                                    <div className="font-medium">{b.userName}</div>
-                                                    <div className="text-xs text-gray-400">{b.userFullName}</div>
-                                                </td>
-                                                <td className="p-3">
-                                                    <span className={`text-xs px-2 py-1 rounded border ${m?.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-100 text-gray-500'}`}>
-                                                        {m ? m.name : '???'}
-                                                    </span>
-                                                </td>
-                                                <td className="p-3">
-                                                    <div className="font-mono text-xs bg-yellow-50 px-2 py-1 rounded inline-block text-yellow-800 border border-yellow-100">
-                                                        {b.paymentRef}
-                                                    </div>
-                                                    {b.cost && <div className="text-[10px] text-gray-400 mt-0.5 font-bold">Total: ${b.cost}</div>}
-                                                </td>
-                                                <td className="p-3">
-                                                    <span className={`px-2 py-1 rounded text-xs font-bold flex w-fit items-center gap-1 ${b.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600'}`}>
-                                                        {b.status === 'paid' ? <CheckCircle size={12}/> : <Clock size={12}/>}
-                                                        {b.status === 'paid'?'PAGADO':'PENDIENTE'}
-                                                    </span>
-                                                </td>
-                                                <td className="p-3 flex gap-2 items-center">
-                                                    <button onClick={() => setPrintBet(b)} className="text-blue-600 hover:text-blue-800 p-1.5 hover:bg-blue-50 rounded transition" title="Ver Ticket"><Printer size={16}/></button>
-                                                    <button onClick={() => togglePay(b)} className={`text-xs border px-3 py-1.5 rounded font-bold transition flex items-center gap-1 ${b.status === 'paid' ? 'text-gray-500 hover:bg-gray-100' : 'bg-green-600 text-white hover:bg-green-700 border-transparent shadow-sm'}`}>
-                                                        {b.status === 'paid' ? 'Revocar' : 'Aprobar'}
-                                                    </button>
-                                                    <button onClick={() => delBet(b)} className="text-gray-400 hover:text-red-500 p-1.5 hover:bg-red-50 rounded transition"><Trash2 size={16}/></button>
-                                                </td>
-                                            </tr>
-                                        );
-                                    }) : (
-                                        <tr><td colSpan="5" className="p-8 text-center text-gray-400 italic">No hay pagos que coincidan con el filtro.</td></tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
+                        <div className="overflow-y-auto flex-grow"><table className="w-full text-left text-sm whitespace-nowrap"><thead className="bg-gray-100 text-gray-600 sticky top-0 z-10 shadow-sm"><tr><th className="p-3">Usuario</th><th className="p-3">Jornada</th><th className="p-3">Ref</th><th className="p-3">Estado</th><th className="p-3">Acción</th></tr></thead><tbody className="divide-y">{filteredBets.length > 0 ? filteredBets.map(b => { const m = matchdays.find(md => md.id === b.matchdayId); return (<tr key={b.id} className="hover:bg-gray-50 transition"><td className="p-3"><div className="font-medium">{b.userName}</div><div className="text-xs text-gray-400">{b.userFullName}</div></td><td className="p-3"><span className={`text-xs px-2 py-1 rounded border ${m?.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-100 text-gray-500'}`}>{m ? m.name : '???'}</span></td><td className="p-3"><div className="font-mono text-xs bg-yellow-50 px-2 py-1 rounded inline-block text-yellow-800 border border-yellow-100">{b.paymentRef}</div>{b.cost && <div className="text-[10px] text-gray-400 mt-0.5 font-bold">Total: ${b.cost}</div>}</td><td className="p-3"><span className={`px-2 py-1 rounded text-xs font-bold flex w-fit items-center gap-1 ${b.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600'}`}>{b.status === 'paid' ? <CheckCircle size={12}/> : <Clock size={12}/>}{b.status === 'paid'?'PAGADO':'PENDIENTE'}</span></td><td className="p-3 flex gap-2 items-center"><button onClick={() => setPrintBet(b)} className="text-blue-600 hover:text-blue-800 p-1.5 hover:bg-blue-50 rounded transition" title="Ver Ticket"><Printer size={16}/></button><button onClick={() => togglePay(b)} className={`text-xs border px-3 py-1.5 rounded font-bold transition flex items-center gap-1 ${b.status === 'paid' ? 'text-gray-500 hover:bg-gray-100' : 'bg-green-600 text-white hover:bg-green-700 border-transparent shadow-sm'}`}>{b.status === 'paid' ? 'Revocar' : 'Aprobar'}</button><button onClick={() => delBet(b)} className="text-gray-400 hover:text-red-500 p-1.5 hover:bg-red-50 rounded transition"><Trash2 size={16}/></button></td></tr>); }) : (<tr><td colSpan="5" className="p-8 text-center text-gray-400 italic">No hay pagos que coincidan con el filtro.</td></tr>)}</tbody></table></div>
                     </div>
                 </div>
             );
@@ -685,98 +496,14 @@
 
         function AdminTeams({ teams, appId, db }) {
             const [name, setName] = useState('');
-
-            const handleAdd = async (e) => {
-                e.preventDefault();
-                const cleanName = name.trim();
-                if (!cleanName) return;
-
-                // Validación de duplicados (Case insensitive)
-                if (teams.some(t => t.name.toLowerCase() === cleanName.toLowerCase())) {
-                    alert(`El equipo "${cleanName}" ya existe.`);
-                    return;
-                }
-
-                try {
-                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'teams'), { name: cleanName });
-                    setName('');
-                } catch (err) {
-                    alert("Error al guardar.");
-                }
-            };
-
-            const handleDelete = async (t) => {
-                if (confirm(`¿Eliminar equipo "${t.name}"?`)) {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'teams', t.id));
-                }
-            };
-
-            const handleEdit = async (t) => {
-                const newName = prompt("Nuevo nombre para el equipo:", t.name);
-                if (newName && newName.trim() !== "" && newName.trim() !== t.name) {
-                    const cleanName = newName.trim();
-                    if (teams.some(existing => existing.id !== t.id && existing.name.toLowerCase() === cleanName.toLowerCase())) {
-                        alert("Ya existe un equipo con ese nombre.");
-                        return;
-                    }
-                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'teams', t.id), { name: cleanName });
-                }
-            };
-
+            const handleAdd = async (e) => { e.preventDefault(); const cleanName = name.trim(); if (!cleanName) return; if (teams.some(t => t.name.toLowerCase() === cleanName.toLowerCase())) { alert(`El equipo "${cleanName}" ya existe.`); return; } try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'teams'), { name: cleanName }); setName(''); } catch (err) { alert("Error al guardar."); } };
+            const handleDelete = async (t) => { if (confirm(`¿Eliminar equipo "${t.name}"?`)) { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'teams', t.id)); } };
+            const handleEdit = async (t) => { const newName = prompt("Nuevo nombre para el equipo:", t.name); if (newName && newName.trim() !== "" && newName.trim() !== t.name) { const cleanName = newName.trim(); if (teams.some(existing => existing.id !== t.id && existing.name.toLowerCase() === cleanName.toLowerCase())) { alert("Ya existe un equipo con ese nombre."); return; } await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'teams', t.id), { name: cleanName }); } };
             return (
                 <div className="max-w-xl mx-auto">
                     <h3 className="text-xl font-bold mb-4">Gestión de Equipos</h3>
-                    
-                    {/* Formulario Agregar */}
-                    <form onSubmit={handleAdd} className="flex gap-2 mb-6">
-                        <div className="relative flex-1">
-                            <Shield className="absolute left-3 top-3 text-gray-400" size={20} />
-                            <input 
-                                value={name} 
-                                onChange={e => setName(e.target.value)} 
-                                placeholder="Nombre del Equipo (ej. América)" 
-                                className="w-full pl-10 p-3 border rounded-lg shadow-sm outline-none focus:ring-2 focus:ring-green-500"
-                            />
-                        </div>
-                        <button type="submit" className="bg-green-600 hover:bg-green-700 text-white px-4 md:px-6 py-2 rounded-lg font-bold shadow-sm transition flex items-center gap-2">
-                            <PlusCircle size={20} /> <span className="hidden md:inline">Agregar</span>
-                        </button>
-                    </form>
-
-                    {/* Lista de Equipos */}
-                    <div className="bg-white rounded-lg border shadow-sm overflow-hidden flex flex-col max-h-[60vh]">
-                        <div className="bg-gray-50 p-3 border-b text-xs font-bold text-gray-500 uppercase tracking-wider flex justify-between items-center">
-                            <span>Listado ({teams.length})</span>
-                            <span className="text-[10px] font-normal normal-case text-gray-400">Orden A-Z</span>
-                        </div>
-                        <div className="overflow-y-auto p-0 divide-y">
-                            {teams.length === 0 ? (
-                                <div className="p-8 text-center text-gray-400 flex flex-col items-center gap-2">
-                                    <Shield size={40} className="opacity-20"/>
-                                    <p>No hay equipos registrados.</p>
-                                </div>
-                            ) : (
-                                teams.map(t => (
-                                    <div key={t.id} className="p-3 flex justify-between items-center hover:bg-gray-50 transition group">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold text-xs border">
-                                                {t.name.substring(0, 2).toUpperCase()}
-                                            </div>
-                                            <span className="font-medium text-gray-700">{t.name}</span>
-                                        </div>
-                                        <div className="flex gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button onClick={() => handleEdit(t)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition" title="Editar Nombre">
-                                                <Pencil size={16} />
-                                            </button>
-                                            <button onClick={() => handleDelete(t)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Eliminar Equipo">
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
+                    <form onSubmit={handleAdd} className="flex gap-2 mb-6"><div className="relative flex-1"><Shield className="absolute left-3 top-3 text-gray-400" size={20} /><input value={name} onChange={e => setName(e.target.value)} placeholder="Nombre del Equipo (ej. América)" className="w-full pl-10 p-3 border rounded-lg shadow-sm outline-none focus:ring-2 focus:ring-green-500"/></div><button type="submit" className="bg-green-600 hover:bg-green-700 text-white px-4 md:px-6 py-2 rounded-lg font-bold shadow-sm transition flex items-center gap-2"><PlusCircle size={20} /> <span className="hidden md:inline">Agregar</span></button></form>
+                    <div className="bg-white rounded-lg border shadow-sm overflow-hidden flex flex-col max-h-[60vh]"><div className="bg-gray-50 p-3 border-b text-xs font-bold text-gray-500 uppercase tracking-wider flex justify-between items-center"><span>Listado ({teams.length})</span><span className="text-[10px] font-normal normal-case text-gray-400">Orden A-Z</span></div><div className="overflow-y-auto p-0 divide-y">{teams.length === 0 ? (<div className="p-8 text-center text-gray-400 flex flex-col items-center gap-2"><Shield size={40} className="opacity-20"/><p>No hay equipos registrados.</p></div>) : (teams.map(t => (<div key={t.id} className="p-3 flex justify-between items-center hover:bg-gray-50 transition group"><div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold text-xs border">{t.name.substring(0, 2).toUpperCase()}</div><span className="font-medium text-gray-700">{t.name}</span></div><div className="flex gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => handleEdit(t)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition" title="Editar Nombre"><Pencil size={16} /></button><button onClick={() => handleDelete(t)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Eliminar Equipo"><Trash2 size={16} /></button></div></div>)))}</div></div>
                 </div>
             );
         }
@@ -809,8 +536,6 @@
             const MAX_BETS_PER_MATCHDAY = 2;
 
             const doublesCount = Object.values(preds).filter(p => p.length === 2).length;
-            
-            // Lógica de costo dinámico: Si existe doublePrice en la jornada, se usa, si no, se usa el default 10
             const doubleCost = (selM && selM.doublePrice !== undefined && selM.doublePrice !== null) ? selM.doublePrice : 10;
             const totalCost = selM ? selM.price + (doublesCount * doubleCost) : 0;
 
@@ -853,7 +578,6 @@
                 if (isMobile) {
                     window.open(`https://chat.whatsapp.com/${groupCode}`, '_blank');
                 } else {
-                    // En escritorio forzamos Web WhatsApp para asegurar que abra
                     window.open(`https://web.whatsapp.com/accept?code=${groupCode}`, '_blank');
                 }
             };
@@ -861,66 +585,26 @@
             if (selM) return (
                 <div>
                     <button onClick={() => setSelM(null)} className="text-sm font-bold text-gray-500 mb-4 flex items-center gap-1"><ChevronDown className="rotate-90" size={16}/> Volver</button>
-                    {/* ENCABEZADO SIMPLE (Restaurado) */}
                     <div className="text-center mb-6">
                         <h3 className="text-2xl font-bold mb-1">{selM.name}</h3>
-                        <p className="text-green-700 font-bold">
-                            Costo: ${totalCost} {doublesCount > 0 && <span className="text-xs text-gray-500 font-normal">(Base ${selM.price} + ${doublesCount * doubleCost} dobles)</span>}
-                        </p>
+                        <p className="text-green-700 font-bold">Costo: ${totalCost} {doublesCount > 0 && <span className="text-xs text-gray-500 font-normal">(Base ${selM.price} + ${doublesCount * doubleCost} dobles)</span>}</p>
                     </div>
                     
-                    {/* LISTA DE PARTIDOS (Estilo original rectangular) */}
                     <div className="space-y-4 max-w-2xl mx-auto mb-6">
                         {selM.matches.map(m => (
                             <div key={m.id} className="bg-gray-50 p-2 md:p-3 rounded flex flex-col md:flex-row justify-between items-center border gap-2 md:gap-0">
-                                
-                                {/* VISTA MÓVIL: Nombres en una fila con VS */}
-                                <div className="flex md:hidden w-full items-center justify-center gap-2 mb-1">
-                                    <span className="flex-1 text-right font-bold text-sm leading-tight">{m.home}</span>
-                                    <span className="text-gray-400 text-[10px] font-black px-1 bg-gray-200 rounded-full">VS</span>
-                                    <span className="flex-1 text-left font-bold text-sm leading-tight">{m.away}</span>
-                                </div>
-
-                                {/* VISTA ESCRITORIO: Nombre Local */}
+                                <div className="flex md:hidden w-full items-center justify-center gap-2 mb-1"><span className="flex-1 text-right font-bold text-sm leading-tight">{m.home}</span><span className="text-gray-400 text-[10px] font-black px-1 bg-gray-200 rounded-full">VS</span><span className="flex-1 text-left font-bold text-sm leading-tight">{m.away}</span></div>
                                 <span className="hidden md:block md:flex-1 text-right font-bold text-base">{m.home}</span>
-                                
-                                <div className="flex gap-4 md:gap-2 mx-0 md:mx-4 justify-center w-full md:w-auto">
-                                    {['L','E','V'].map(opt => {
-                                        const val = opt === 'L' ? 'local' : opt === 'E' ? 'tie' : 'visit';
-                                        const isSelected = preds[m.id]?.includes(val);
-                                        return (
-                                            <button 
-                                                key={opt} 
-                                                onClick={() => togglePrediction(m.id, val)} 
-                                                className={`w-12 h-10 md:w-10 md:h-10 rounded-lg md:rounded-full font-bold border transition flex items-center justify-center ${isSelected ? 'bg-green-600 text-white scale-110 shadow-md' : 'bg-white text-gray-400 hover:bg-gray-50'}`}
-                                            >
-                                                {opt}
-                                            </button>
-                                        )
-                                    })}
-                                </div>
-
-                                {/* VISTA ESCRITORIO: Nombre Visitante */}
+                                <div className="flex gap-4 md:gap-2 mx-0 md:mx-4 justify-center w-full md:w-auto">{['L','E','V'].map(opt => { const val = opt === 'L' ? 'local' : opt === 'E' ? 'tie' : 'visit'; const isSelected = preds[m.id]?.includes(val); return (<button key={opt} onClick={() => togglePrediction(m.id, val)} className={`w-12 h-10 md:w-10 md:h-10 rounded-lg md:rounded-full font-bold border transition flex items-center justify-center ${isSelected ? 'bg-green-600 text-white scale-110 shadow-md' : 'bg-white text-gray-400 hover:bg-gray-50'}`}>{opt}</button>) })}</div>
                                 <span className="hidden md:block md:flex-1 text-left font-bold text-base">{m.away}</span>
                             </div>
                         ))}
                     </div>
 
-                    {/* SECCIÓN DE PAGO (Diseño original limpio) */}
                     <div className="max-w-2xl mx-auto">
-                        {/* Botón de WhatsApp añadido con lógica inteligente */}
-                        <button 
-                            onClick={handleWhatsAppClick}
-                            className="mb-4 w-full bg-[#25D366] text-white font-bold py-3 rounded-lg shadow hover:bg-[#128C7E] transition flex items-center justify-center gap-2"
-                        >
-                            <MessageCircle size={20} />
-                            ¿Cómo realizar tu pago? Únete al Grupo
-                        </button>
-
+                        <button onClick={handleWhatsAppClick} className="mb-4 w-full bg-[#25D366] text-white font-bold py-3 rounded-lg shadow hover:bg-[#128C7E] transition flex items-center justify-center gap-2"><MessageCircle size={20} /> ¿Cómo realizar tu pago? Únete al Grupo</button>
                         <input type="text" value={paymentRef} onChange={e => setPaymentRef(e.target.value)} placeholder="Ref. Pago / Folio" className="w-full p-3 border rounded-lg bg-yellow-50 mb-4" />
-                        <button onClick={submit} disabled={submitting} className={`w-full text-white py-3 rounded-lg font-bold shadow ${submitting?'bg-gray-400':'bg-green-600 hover:bg-green-700'}`}>
-                            {submitting ? 'Enviando...' : 'Enviar Quiniela'}
-                        </button>
+                        <button onClick={submit} disabled={submitting} className={`w-full text-white py-3 rounded-lg font-bold shadow ${submitting?'bg-gray-400':'bg-green-600 hover:bg-green-700'}`}>{submitting ? 'Enviando...' : 'Enviar Quiniela'}</button>
                     </div>
                 </div>
             );
@@ -935,18 +619,10 @@
                         return (
                             <div key={m.id} className={`border p-5 rounded-lg relative overflow-hidden flex flex-col ${isExpired ? 'bg-gray-50' : 'bg-white shadow-sm hover:shadow-md transition'}`}>
                                 {isExpired && <div className="absolute top-0 right-0 bg-red-500 text-white text-[10px] px-2 py-1 font-bold rounded-bl">CERRADA</div>}
-                                <div className="flex justify-between items-start mb-2">
-                                    <h3 className="font-bold text-xl text-green-800">{m.name}</h3>
-                                    <span className="text-xs bg-gray-100 px-2 py-1 rounded border">Jugadas: {myBetsCount}/{MAX_BETS_PER_MATCHDAY}</span>
-                                </div>
+                                <div className="flex justify-between items-start mb-2"><h3 className="font-bold text-xl text-green-800">{m.name}</h3><span className="text-xs bg-gray-100 px-2 py-1 rounded border">Jugadas: {myBetsCount}/{MAX_BETS_PER_MATCHDAY}</span></div>
                                 <div className="flex items-center gap-2 mb-3"><span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1"><Banknote size={12}/> Bolsa aprox: ${paidBets.reduce((acc, b) => acc + (b.cost || m.price), 0)}</span></div>
-                                <div className="text-sm text-gray-500 mb-4 space-y-1">
-                                    <p>{m.matches.length} partidos - Base ${m.price}</p>
-                                    {m.deadline && <p className={`flex items-center gap-1 ${isExpired?'text-red-500':'text-orange-500'}`}><Clock size={12}/> {new Date(m.deadline).toLocaleString()}</p>}
-                                </div>
-                                <button onClick={() => !isMaxed && !isExpired && setSelM(m)} disabled={isMaxed || isExpired} className={`mt-auto w-full py-2 rounded font-bold transition ${isMaxed||isExpired?'bg-gray-200 text-gray-400 cursor-not-allowed':'bg-green-600 text-white hover:bg-green-700 shadow'}`}>
-                                    {isMaxed ? 'Máx 2 jugadas' : isExpired ? 'Cerrada' : 'Jugar Ahora'}
-                                </button>
+                                <div className="text-sm text-gray-500 mb-4 space-y-1"><p>{m.matches.length} partidos - Base ${m.price}</p>{m.deadline && <p className={`flex items-center gap-1 ${isExpired?'text-red-500':'text-orange-500'}`}><Clock size={12}/> {new Date(m.deadline).toLocaleString()}</p>}</div>
+                                <button onClick={() => !isMaxed && !isExpired && setSelM(m)} disabled={isMaxed || isExpired} className={`mt-auto w-full py-2 rounded font-bold transition ${isMaxed||isExpired?'bg-gray-200 text-gray-400 cursor-not-allowed':'bg-green-600 text-white hover:bg-green-700 shadow'}`}>{isMaxed ? 'Máx 2 jugadas' : isExpired ? 'Cerrada' : 'Jugar Ahora'}</button>
                             </div>
                         );
                     })}
@@ -978,96 +654,35 @@
 
             const openParticipants = (m) => {
                 if (!m) return;
-                // Obtenemos todos los pagos APROBADOS para esta jornada
                 const paidBets = bets.filter(b => b.matchdayId === m.id && b.status === 'paid');
-                // Extraemos nombres únicos para la lista
                 const names = [...new Set(paidBets.map(b => b.userFullName || b.userName))].sort();
-                
-                setParticipantsModal({
-                    title: m.name,
-                    count: paidBets.length, // Total de quinielas pagadas
-                    players: names          // Nombres únicos
-                });
+                setParticipantsModal({ title: m.name, count: paidBets.length, players: names });
             };
 
-            // --- VISTA LISTA PARTICIPANTES ---
             if (participantsModal) {
                  return (
                     <div className="fixed inset-0 bg-black/80 z-[9999] flex justify-center items-center p-4">
                         <div className="bg-white w-full max-w-sm rounded-xl shadow-2xl overflow-hidden animate-fade-in flex flex-col max-h-[80vh]">
-                            <div className="bg-green-700 text-white p-4 flex justify-between items-center shrink-0">
-                                <div>
-                                    <h3 className="font-bold text-lg">{participantsModal.title}</h3>
-                                    <p className="text-xs opacity-90">{participantsModal.count} quinielas activas</p>
-                                </div>
-                                <button onClick={() => setParticipantsModal(null)} className="bg-green-800 p-2 rounded-full hover:bg-green-600 transition"><X size={20}/></button>
-                            </div>
-                            <div className="p-4 overflow-y-auto bg-gray-50 flex-grow">
-                                {participantsModal.players.length > 0 ? (
-                                    <ul className="space-y-2">
-                                        {participantsModal.players.map((name, idx) => (
-                                            <li key={idx} className="bg-white p-3 rounded-lg border shadow-sm flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-bold text-xs">
-                                                    {idx + 1}
-                                                </div>
-                                                <span className="font-medium text-gray-800 capitalize">{name}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                ) : (
-                                    <div className="text-center py-8 text-gray-400">
-                                        <Users size={48} className="mx-auto mb-2 opacity-20"/>
-                                        <p>Aún no hay participantes confirmados.</p>
-                                    </div>
-                                )}
-                            </div>
-                            <div className="p-4 border-t bg-white shrink-0">
-                                <button onClick={() => setParticipantsModal(null)} className="w-full py-3 bg-gray-100 text-gray-600 font-bold rounded-lg hover:bg-gray-200 transition">Cerrar</button>
-                            </div>
+                            <div className="bg-green-700 text-white p-4 flex justify-between items-center shrink-0"><div><h3 className="font-bold text-lg">{participantsModal.title}</h3><p className="text-xs opacity-90">{participantsModal.count} quinielas activas</p></div><button onClick={() => setParticipantsModal(null)} className="bg-green-800 p-2 rounded-full hover:bg-green-600 transition"><X size={20}/></button></div>
+                            <div className="p-4 overflow-y-auto bg-gray-50 flex-grow">{participantsModal.players.length > 0 ? (<ul className="space-y-2">{participantsModal.players.map((name, idx) => (<li key={idx} className="bg-white p-3 rounded-lg border shadow-sm flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-bold text-xs">{idx + 1}</div><span className="font-medium text-gray-800 capitalize">{name}</span></li>))}</ul>) : (<div className="text-center py-8 text-gray-400"><Users size={48} className="mx-auto mb-2 opacity-20"/><p>Aún no hay participantes confirmados.</p></div>)}</div>
+                            <div className="p-4 border-t bg-white shrink-0"><button onClick={() => setParticipantsModal(null)} className="w-full py-3 bg-gray-100 text-gray-600 font-bold rounded-lg hover:bg-gray-200 transition">Cerrar</button></div>
                         </div>
                     </div>
                  );
             }
 
-            // --- TICKET VISTA PREVIA (ACTUALIZADO PARA DOBLES) ---
             if (printBet) {
                 const m = matchdays.find(md => md.id === printBet.matchdayId);
                 return (
                     <div className="fixed inset-0 bg-black/80 z-[9999] flex justify-center items-center p-4 print:p-0 print:bg-white print:items-start print:static">
                         <div className="bg-white w-full max-w-md rounded-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] print:shadow-none print:max-h-none print:w-full print:overflow-visible">
-                            <div className="bg-gray-900 text-white p-4 flex justify-between items-center no-print shrink-0">
-                                <h3 className="font-bold text-lg flex items-center gap-2"><Trophy size={20} className="text-yellow-400"/> Ticket</h3>
-                                <div className="flex gap-2"><button onClick={() => window.print()} className="bg-green-600 px-4 py-2 rounded font-bold text-sm flex gap-2"><Printer size={18}/> Imprimir</button><button onClick={() => setPrintBet(null)} className="bg-gray-700 p-2 rounded"><X size={20}/></button></div>
-                            </div>
+                            <div className="bg-gray-900 text-white p-4 flex justify-between items-center no-print shrink-0"><h3 className="font-bold text-lg flex items-center gap-2"><Trophy size={20} className="text-yellow-400"/> Ticket</h3><div className="flex gap-2"><button onClick={() => window.print()} className="bg-green-600 px-4 py-2 rounded font-bold text-sm flex gap-2"><Printer size={18}/> Imprimir</button><button onClick={() => setPrintBet(null)} className="bg-gray-700 p-2 rounded"><X size={20}/></button></div></div>
                             <div className="overflow-y-auto bg-gray-100 flex-1 w-full print:overflow-visible">
                                 <div className="min-h-full flex justify-center p-8 print:p-0">
                                     <div id="printable-ticket" className="w-[350px] h-fit bg-white border-2 border-dashed border-gray-800 p-6 text-black shadow-sm print:shadow-none print:border-gray-800 print:w-full print:max-w-[400px] print:mx-auto relative">
                                         <div className="text-center border-b-2 border-black pb-4 mb-4"><div className="flex justify-center mb-2"><Trophy size={32} className="text-black"/></div><h1 className="text-xl font-black uppercase tracking-wider">Quiniela SICAR</h1><p className="text-xs font-mono mt-1 text-gray-500">{new Date().toLocaleString()}</p></div>
-                                        <div className="mb-6 text-sm space-y-2 font-mono">
-                                            <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">Jornada:</span><span className="font-bold truncate max-w-[150px]">{m?.name}</span></div>
-                                            <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">Jugador:</span><span className="font-bold uppercase truncate max-w-[150px]">{printBet.userFullName || printBet.userName}</span></div>
-                                            <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">Ref. Pago:</span><span className="font-bold">{printBet.paymentRef}</span></div>
-                                            <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">Total:</span><span className="font-bold text-lg">${printBet.cost || m?.price}</span></div>
-                                        </div>
-                                        <div className="mb-6">
-                                            <div className="flex text-[10px] font-bold text-gray-400 mb-2 border-b-2 border-gray-800 pb-1"><span className="flex-1">PARTIDO</span><span className="w-6 text-center">L</span><span className="w-6 text-center">E</span><span className="w-6 text-center">V</span></div>
-                                            {printBet.predictions.map((p, i) => {
-                                                const match = m?.matches.find(ma => ma.id === p.matchId);
-                                                if (!match) return null;
-                                                const picks = normalizePred(p.prediction);
-                                                return (
-                                                    <div key={i} className="flex items-center text-xs py-2 border-b border-gray-100">
-                                                        <div className="flex-1 pr-2 leading-tight"><div className="font-bold">{match.home}</div><div className="text-[10px] text-gray-500">vs {match.away}</div></div>
-                                                        <div className="flex gap-0">
-                                                            {['local', 'tie', 'visit'].map(opt => {
-                                                                const isSelected = picks.includes(opt);
-                                                                return <div key={opt} className="w-6 flex justify-center items-center">{isSelected ? <div className="w-5 h-5 bg-black text-white rounded-full flex items-center justify-center print:bg-black print:text-white"><Check size={12} strokeWidth={4} /></div> : <div className="w-5 h-5 rounded-full border border-gray-300"></div>}</div>
-                                                            })}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
+                                        <div className="mb-6 text-sm space-y-2 font-mono"><div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">Jornada:</span><span className="font-bold truncate max-w-[150px]">{m?.name}</span></div><div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">Jugador:</span><span className="font-bold uppercase truncate max-w-[150px]">{printBet.userFullName || printBet.userName}</span></div><div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">Ref. Pago:</span><span className="font-bold">{printBet.paymentRef}</span></div><div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">Total:</span><span className="font-bold text-lg">${printBet.cost || m?.price}</span></div></div>
+                                        <div className="mb-6"><div className="flex text-[10px] font-bold text-gray-400 mb-2 border-b-2 border-gray-800 pb-1"><span className="flex-1">PARTIDO</span><span className="w-6 text-center">L</span><span className="w-6 text-center">E</span><span className="w-6 text-center">V</span></div>{printBet.predictions.map((p, i) => { const match = m?.matches.find(ma => ma.id === p.matchId); if (!match) return null; const picks = normalizePred(p.prediction); return (<div key={i} className="flex items-center text-xs py-2 border-b border-gray-100"><div className="flex-1 pr-2 leading-tight"><div className="font-bold">{match.home}</div><div className="text-[10px] text-gray-500">vs {match.away}</div></div><div className="flex gap-0">{['local', 'tie', 'visit'].map(opt => { const isSelected = picks.includes(opt); return <div key={opt} className="w-6 flex justify-center items-center">{isSelected ? <div className="w-5 h-5 bg-black text-white rounded-full flex items-center justify-center print:bg-black print:text-white"><Check size={12} strokeWidth={4} /></div> : <div className="w-5 h-5 rounded-full border border-gray-300"></div>}</div> })}</div></div>); })}</div>
                                         <div className="text-center border-t-2 border-black pt-4"><div className="inline-block border-2 border-black px-4 py-1 rounded font-black text-lg uppercase tracking-widest">{printBet.status === 'paid' ? 'PAGADO' : 'PENDIENTE'}</div><p className="text-[10px] text-gray-400 mt-2">¡Mucha Suerte!</p></div>
                                     </div>
                                 </div>
@@ -1085,33 +700,15 @@
                     <div className="space-y-4">
                         {filteredBets.map(b => {
                             const m = matchdays.find(md => md.id === b.matchdayId);
-                            // Cálculo de aciertos para historial (usando normalizePred para soporte dobles)
-                            const points = m?.status === 'finalized' ? b.predictions.filter(p => {
-                                const match = m.matches.find(ma => ma.id === p.matchId);
-                                const userPicks = normalizePred(p.prediction);
-                                return match?.result && userPicks.includes(match.result);
-                            }).length : null;
-
+                            const points = m?.status === 'finalized' ? b.predictions.filter(p => { const match = m.matches.find(ma => ma.id === p.matchId); const userPicks = normalizePred(p.prediction); return match?.result && userPicks.includes(match.result); }).length : null;
                             return (
                                 <div key={b.id} className="border p-4 rounded-lg flex justify-between items-center bg-gray-50 hover:bg-white transition hover:shadow-sm">
                                     <div className="flex-grow">
                                         <h4 className="font-bold text-gray-800">{m?.name}</h4>
-                                        <div className="flex flex-wrap gap-2 mt-2">
-                                            <span className={`text-[10px] px-2 py-0.5 rounded border font-bold ${b.status === 'paid' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'}`}>{b.status === 'paid' ? 'PAGO OK' : 'PENDIENTE'}</span>
-                                            {points !== null && <span className="text-[10px] px-2 py-0.5 rounded border font-bold bg-purple-50 text-purple-700 border-purple-200">{points} Aciertos</span>}
-                                        </div>
+                                        <div className="flex flex-wrap gap-2 mt-2"><span className={`text-[10px] px-2 py-0.5 rounded border font-bold ${b.status === 'paid' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'}`}>{b.status === 'paid' ? 'PAGO OK' : 'PENDIENTE'}</span>{points !== null && <span className="text-[10px] px-2 py-0.5 rounded border font-bold bg-purple-50 text-purple-700 border-purple-200">{points} Aciertos</span>}</div>
                                         <p className="text-[10px] text-gray-400 mt-1 font-mono">Costo: ${b.cost || m?.price}</p>
                                     </div>
-                                    <div className="flex gap-2 shrink-0">
-                                        <button onClick={() => openParticipants(m)} className="text-gray-500 hover:text-blue-600 flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-blue-50 transition" title="Ver Participantes">
-                                            <Users size={20}/>
-                                            <span className="text-[10px] font-bold">Participantes</span>
-                                        </button>
-                                        <button onClick={() => setPrintBet(b)} className="text-gray-500 hover:text-green-600 flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-green-50 transition" title="Ver Ticket">
-                                            <Printer size={20}/>
-                                            <span className="text-[10px] font-bold">Ticket</span>
-                                        </button>
-                                    </div>
+                                    <div className="flex gap-2 shrink-0"><button onClick={() => openParticipants(m)} className="text-gray-500 hover:text-blue-600 flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-blue-50 transition" title="Ver Participantes"><Users size={20}/><span className="text-[10px] font-bold">Participantes</span></button><button onClick={() => setPrintBet(b)} className="text-gray-500 hover:text-green-600 flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-green-50 transition" title="Ver Ticket"><Printer size={20}/><span className="text-[10px] font-bold">Ticket</span></button></div>
                                 </div>
                             );
                         })}
@@ -1121,15 +718,37 @@
             );
         }
 
-        // --- USER RESULTS (Actualizado para dobles) ---
+        // --- USER RESULTS (Actualizado para mostrar 'Live' Results) ---
         function UserResults({ matchdays, bets, user }) {
-            const [filterDateStart, setFilterDateStart] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 10); return d.toISOString().split('T')[0]; });
-            const [filterDateEnd, setFilterDateEnd] = useState(new Date().toISOString().split('T')[0]);
-            const finalized = useMemo(() => matchdays.filter(m => m.status === 'finalized' && (!m.deadline || (new Date(m.deadline) >= new Date(filterDateStart) && new Date(m.deadline) <= new Date(filterDateEnd+'T23:59:59')))), [matchdays, filterDateStart, filterDateEnd]);
             const [selId, setSelId] = useState('');
-            useEffect(() => { if (finalized.length > 0 && (!selId || !finalized.find(f => f.id === selId))) setSelId(finalized[0].id); else if (finalized.length===0) setSelId(''); }, [finalized, selId]);
-            const m = matchdays.find(x => x.id === selId);
             
+            // FILTRO DE JORNADAS DISPONIBLES PARA VER
+            // 1. Finalizadas
+            // 2. Activas pero con fecha límite vencida (ya no se puede apostar, así que es seguro mostrar resultados)
+            // 3. Opcional: Podríamos mostrar activas con resultados parciales si quisieras, pero el estándar es esperar al cierre de apuestas.
+            //    Aquí usaremos: Finalizadas O (Activas Y FechaPasada)
+            const availableResults = useMemo(() => {
+                const now = new Date();
+                return matchdays.filter(m => {
+                    const isFinalized = m.status === 'finalized';
+                    const isLive = m.status === 'active' && m.deadline && now > new Date(m.deadline);
+                    // Solo mostramos si tiene al menos un resultado capturado o está finalizada
+                    const hasResults = m.matches.some(ma => ma.result); 
+                    return isFinalized || (isLive && hasResults);
+                }).sort((a, b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
+            }, [matchdays]);
+
+            useEffect(() => { 
+                if (availableResults.length > 0 && (!selId || !availableResults.find(f => f.id === selId))) {
+                    setSelId(availableResults[0].id); 
+                } else if (availableResults.length === 0) {
+                    setSelId(''); 
+                }
+            }, [availableResults, selId]);
+
+            const m = matchdays.find(x => x.id === selId);
+            const isLive = m && m.status === 'active'; // Si está activa y aparece aquí, es porque es "Live/Preliminar"
+
             const leaderboard = useMemo(() => {
                 if (!m) return [];
                 return bets.filter(b => b.matchdayId === m.id && b.status === 'paid').map(bet => {
@@ -1146,19 +765,73 @@
             return (
                 <div className="space-y-6">
                     <div className="bg-white p-4 rounded-lg border shadow-sm">
-                        <div className="flex gap-4 mb-4"><input type="date" value={filterDateStart} onChange={e=>setFilterDateStart(e.target.value)} className="w-full border p-2 rounded text-xs"/><input type="date" value={filterDateEnd} onChange={e=>setFilterDateEnd(e.target.value)} className="w-full border p-2 rounded text-xs"/></div>
-                        <select className="w-full p-2 border rounded bg-gray-50" value={selId} onChange={e => setSelId(e.target.value)} disabled={finalized.length === 0}>{finalized.length > 0 ? finalized.map(f => <option key={f.id} value={f.id}>{f.name}</option>) : <option>Sin resultados recientes</option>}</select>
+                        <label className="text-xs font-bold text-gray-500 mb-1 block">Selecciona Jornada</label>
+                        <select className="w-full p-2 border rounded bg-gray-50 font-medium" value={selId} onChange={e => setSelId(e.target.value)} disabled={availableResults.length === 0}>
+                            {availableResults.length > 0 ? availableResults.map(f => (
+                                <option key={f.id} value={f.id}>
+                                    {f.name} {f.status === 'active' ? '(🔴 EN VIVO)' : '(✅ Finalizada)'}
+                                </option>
+                            )) : <option>Sin resultados disponibles</option>}
+                        </select>
                     </div>
-                    {m && <div className="grid md:grid-cols-2 gap-4">
-                        <div className="bg-white rounded border overflow-hidden">
-                            <div className="bg-gray-100 p-3 border-b font-bold text-gray-700 flex items-center gap-2"><CheckCircle size={18}/> Oficiales</div>
-                            <div className="p-4 space-y-2">{m.matches.map(ma => <div key={ma.id} className="flex text-sm border-b pb-2"><span className={`flex-1 text-right ${ma.result==='local'?'font-bold text-green-700':''}`}>{ma.home}</span><div className="mx-3 flex gap-1">{['L','E','V'].map((o,i)=><span key={o} className={`w-6 h-6 flex items-center justify-center rounded text-xs font-bold ${ma.result===(i===0?'local':i===1?'tie':'visit')?'bg-green-600 text-white':'bg-gray-100'}`}>{o}</span>)}</div><span className={`flex-1 text-left ${ma.result==='visit'?'font-bold text-green-700':''}`}>{ma.away}</span></div>)}</div>
+
+                    {m && (
+                        <div>
+                            {/* Header de estado */}
+                            <div className={`mb-4 p-3 rounded-lg text-center font-bold text-sm border flex items-center justify-center gap-2 ${isLive ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-green-50 text-green-700 border-green-200'}`}>
+                                {isLive ? <><div className="w-2 h-2 rounded-full bg-red-600 animate-ping"/> RESULTADOS AL MOMENTO (EN JUEGO)</> : <><CheckCircle size={16}/> RESULTADOS FINALES</>}
+                            </div>
+
+                            <div className="grid md:grid-cols-2 gap-4">
+                                <div className="bg-white rounded border overflow-hidden">
+                                    <div className="bg-gray-100 p-3 border-b font-bold text-gray-700 flex items-center gap-2"><CheckCircle size={18}/> Marcadores Oficiales</div>
+                                    <div className="p-4 space-y-2">
+                                        {m.matches.map(ma => (
+                                            <div key={ma.id} className="flex text-sm border-b pb-2 last:border-0">
+                                                <span className={`flex-1 text-right ${ma.result==='local'?'font-bold text-green-700':''}`}>{ma.home}</span>
+                                                <div className="mx-3 flex gap-1">
+                                                    {['L','E','V'].map((o,i)=> {
+                                                        const val = i===0?'local':i===1?'tie':'visit';
+                                                        const isRes = ma.result === val;
+                                                        return (
+                                                            <span key={o} className={`w-6 h-6 flex items-center justify-center rounded text-xs font-bold transition-all ${isRes ? 'bg-green-600 text-white scale-110 shadow' : 'bg-gray-100 text-gray-300'}`}>
+                                                                {o}
+                                                            </span>
+                                                        );
+                                                    })}
+                                                </div>
+                                                <span className={`flex-1 text-left ${ma.result==='visit'?'font-bold text-green-700':''}`}>{ma.away}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                
+                                <div className="bg-white rounded border overflow-hidden">
+                                    <div className="bg-yellow-50 p-3 border-b font-bold text-yellow-800 flex items-center gap-2"><Trophy size={18}/> Tabla de Posiciones</div>
+                                    <div className="max-h-[500px] overflow-y-auto">
+                                        <table className="w-full text-sm">
+                                            <thead className="bg-yellow-100 text-yellow-900 sticky top-0">
+                                                <tr><th className="p-2 w-10">#</th><th className="text-left">Jugador</th><th className="text-right p-2">Aciertos</th></tr>
+                                            </thead>
+                                            <tbody className="divide-y">
+                                                {leaderboard.map((b,i)=> (
+                                                    <tr key={b.id} className={`${b.userName===user.username ? 'bg-green-50' : 'hover:bg-gray-50'}`}>
+                                                        <td className="p-2 text-center font-bold text-gray-500">{i+1}</td>
+                                                        <td className="p-2">
+                                                            <div className="font-bold text-gray-800">{b.userFullName}</div>
+                                                            {b.userName===user.username && <div className="text-[10px] text-green-600 font-bold">¡Eres tú!</div>}
+                                                        </td>
+                                                        <td className="p-2 text-right font-black text-lg text-blue-600">{b.points}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                        {leaderboard.length === 0 && <div className="p-8 text-center text-gray-400 italic">Esperando resultados...</div>}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div className="bg-white rounded border overflow-hidden">
-                            <div className="bg-yellow-50 p-3 border-b font-bold text-yellow-800 flex items-center gap-2"><Trophy size={18}/> Ganadores</div>
-                            <div className="max-h-[400px] overflow-y-auto"><table className="w-full text-sm"><thead><tr><th className="p-2 w-10">#</th><th>Jugador</th><th className="text-right p-2">Pts</th></tr></thead><tbody>{leaderboard.map((b,i)=><tr key={b.id} className={b.userName===user.username?'bg-green-50':''}><td className="p-2 text-center font-bold">{i+1}</td><td className="p-2">{b.userFullName}</td><td className="p-2 text-right font-bold text-blue-600">{b.points}</td></tr>)}</tbody></table></div>
-                        </div>
-                    </div>}
+                    )}
                 </div>
             );
         }
