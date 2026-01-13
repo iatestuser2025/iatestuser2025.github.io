@@ -247,31 +247,84 @@
         
         // --- ADMIN SUB-COMPONENTS ---
         function AdminMatchdays({ teams, matchdays, appId, db }) {
-            const [name, setName] = useState(''); const [price, setPrice] = useState(''); const [deadline, setDeadline] = useState(''); const [matches, setMatches] = useState([{ home: '', away: '' }]);
+            // Se agrega estado para precio doble (default string vacío)
+            const [name, setName] = useState(''); 
+            const [price, setPrice] = useState(''); 
+            const [doublePrice, setDoublePrice] = useState(''); 
+            const [deadline, setDeadline] = useState(''); 
+            const [matches, setMatches] = useState([{ home: '', away: '' }]);
+
             const getAvailableTeams = (rowIdx, side) => {
                 const used = matches.flatMap((m, i) => i !== rowIdx ? [m.home, m.away] : []).filter(Boolean);
                 const opp = side === 'home' ? matches[rowIdx].away : matches[rowIdx].home;
                 if (opp) used.push(opp);
                 return teams.filter(t => !used.includes(t.name));
             };
+
             const updateMatch = (i, f, v) => { const n = [...matches]; n[i][f] = v; setMatches(n); };
+
             const handleCreate = async () => {
-                if (!name || !price || !deadline || matches.some(m => !m.home || !m.away)) return alert("Faltan datos.");
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'matchdays'), { name, price: Number(price), deadline, matches: matches.map((m, i) => ({ ...m, id: i, result: null })), status: 'active', createdAt: serverTimestamp() });
-                setName(''); setPrice(''); setDeadline(''); setMatches([{ home: '', away: '' }]); alert("Jornada creada.");
+                // Validación incluye doublePrice
+                if (!name || !price || !doublePrice || !deadline || matches.some(m => !m.home || !m.away)) return alert("Faltan datos.");
+                
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'matchdays'), { 
+                    name, 
+                    price: Number(price), 
+                    doublePrice: Number(doublePrice), // Guardamos el precio del doble
+                    deadline, 
+                    matches: matches.map((m, i) => ({ ...m, id: i, result: null })), 
+                    status: 'active', 
+                    createdAt: serverTimestamp() 
+                });
+                
+                setName(''); setPrice(''); setDoublePrice(''); setDeadline(''); setMatches([{ home: '', away: '' }]); 
+                alert("Jornada creada.");
             };
+
             return (
                 <div className="grid lg:grid-cols-2 gap-8">
                     <div>
                         <h3 className="font-bold mb-4">Nueva Jornada</h3>
                         <div className="space-y-4">
                             <input value={name} onChange={e => setName(e.target.value)} placeholder="Nombre" className="w-full p-3 border rounded-lg" />
-                            <div className="grid grid-cols-2 gap-4"><input type="number" value={price} onChange={e => setPrice(e.target.value)} placeholder="Costo ($)" className="w-full p-3 border rounded-lg" /><input type="datetime-local" value={deadline} onChange={e => setDeadline(e.target.value)} className="w-full p-3 border rounded-lg text-sm" /></div>
+                            
+                            {/* Grid para precios */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs font-bold text-gray-500 ml-1">Precio Base</label>
+                                    <input type="number" value={price} onChange={e => setPrice(e.target.value)} placeholder="$ Costo Quiniela" className="w-full p-3 border rounded-lg" />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-gray-500 ml-1">Precio Doble</label>
+                                    <input type="number" value={doublePrice} onChange={e => setDoublePrice(e.target.value)} placeholder="$ Costo Extra" className="w-full p-3 border rounded-lg" />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-bold text-gray-500 ml-1">Fecha Límite</label>
+                                <input type="datetime-local" value={deadline} onChange={e => setDeadline(e.target.value)} className="w-full p-3 border rounded-lg text-sm" />
+                            </div>
+
                             <div className="bg-gray-50 p-4 rounded-lg border space-y-2">{matches.map((m, i) => <div key={i} className="flex gap-2"><select className="flex-1 p-2 border rounded" value={m.home} onChange={e => updateMatch(i, 'home', e.target.value)}><option value="">Local</option>{getAvailableTeams(i, 'home').map(t => <option key={t.id} value={t.name}>{t.name}</option>)}</select><select className="flex-1 p-2 border rounded" value={m.away} onChange={e => updateMatch(i, 'away', e.target.value)}><option value="">Visit.</option>{getAvailableTeams(i, 'away').map(t => <option key={t.id} value={t.name}>{t.name}</option>)}</select><button onClick={() => setMatches(matches.filter((_, idx) => idx !== i))} className="text-red-500"><X size={16}/></button></div>)}<button onClick={() => setMatches([...matches, { home: '', away: '' }])} className="text-green-600 text-sm font-bold flex items-center gap-1 mt-2"><PlusCircle size={14}/> Partido</button></div>
                             <button onClick={handleCreate} className="w-full bg-green-700 text-white py-3 rounded-lg font-bold">Publicar</button>
                         </div>
                     </div>
-                    <div><h3 className="font-bold mb-4">Activas</h3><div className="space-y-3">{matchdays.map(m => <div key={m.id} className="p-4 border rounded shadow-sm flex justify-between"><div><h4 className="font-bold">{m.name}</h4><p className="text-xs text-gray-500">${m.price} - {m.matches.length} juegos</p></div><button onClick={() => confirm("¿Borrar?") && deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matchdays', m.id))} className="text-red-500 text-xs">Borrar</button></div>)}</div></div>
+                    <div>
+                        <h3 className="font-bold mb-4">Activas</h3>
+                        <div className="space-y-3">
+                            {matchdays.map(m => (
+                                <div key={m.id} className="p-4 border rounded shadow-sm flex justify-between">
+                                    <div>
+                                        <h4 className="font-bold">{m.name}</h4>
+                                        <p className="text-xs text-gray-500">
+                                            Base: ${m.price} | Doble: ${m.doublePrice ?? 10} | {m.matches.length} juegos
+                                        </p>
+                                    </div>
+                                    <button onClick={() => confirm("¿Borrar?") && deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'matchdays', m.id))} className="text-red-500 text-xs">Borrar</button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             );
         }
@@ -372,6 +425,7 @@
 
         function AdminApprovals({ matchdays, bets, appId, db }) {
             const [filter, setFilter] = useState('active'); // 'active', 'all', or specific ID
+            const [statusFilter, setStatusFilter] = useState('all'); // NUEVO: Filtro de estado
             const [printBet, setPrintBet] = useState(null); // Nuevo estado para ticket
             const [searchTerm, setSearchTerm] = useState(''); // Estado para el buscador
 
@@ -396,9 +450,14 @@
                         (b.userFullName && b.userFullName.toLowerCase().includes(term)) ||
                         (b.paymentRef && b.paymentRef.toLowerCase().includes(term));
 
-                    return matchesFilter && matchesSearch;
+                    // 3. Filtro de Estado (NUEVO)
+                    let statusMatch = true;
+                    if (statusFilter === 'paid') statusMatch = b.status === 'paid';
+                    if (statusFilter === 'pending') statusMatch = b.status === 'pending';
+
+                    return matchesFilter && matchesSearch && statusMatch;
                 }).sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0)); // Sort by newest
-            }, [bets, matchdays, filter, searchTerm]);
+            }, [bets, matchdays, filter, searchTerm, statusFilter]);
 
             const togglePay = async (b) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bets', b.id), { status: b.status === 'pending' ? 'paid' : 'pending' });
             const delBet = async (b) => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bets', b.id)); };
@@ -476,6 +535,20 @@
                                             <option key={m.id} value={m.id}>{m.name} ({m.status === 'active' ? 'Activa' : 'Cerrada'})</option>
                                         ))}
                                     </optgroup>
+                                </select>
+                            </div>
+
+                            {/* NUEVO Selector de Estado */}
+                            <div className="flex items-center gap-2 min-w-[160px]">
+                                <CheckCircle size={20} className="text-gray-500 shrink-0"/>
+                                <select 
+                                    value={statusFilter} 
+                                    onChange={(e) => setStatusFilter(e.target.value)} 
+                                    className="w-full p-2 border rounded-lg bg-white shadow-sm font-medium text-gray-700"
+                                >
+                                    <option value="all">🔄 Todos</option>
+                                    <option value="paid">✅ Pagados</option>
+                                    <option value="pending">⏳ Pendientes</option>
                                 </select>
                             </div>
 
@@ -670,11 +743,13 @@
             const active = matchdays.filter(m => m.status === 'active');
             
             const MAX_DOUBLES = 2;
-            const DOUBLE_COST = 10;
             const MAX_BETS_PER_MATCHDAY = 2;
 
             const doublesCount = Object.values(preds).filter(p => p.length === 2).length;
-            const totalCost = selM ? selM.price + (doublesCount * DOUBLE_COST) : 0;
+            
+            // Lógica de costo dinámico: Si existe doublePrice en la jornada, se usa, si no, se usa el default 10
+            const doubleCost = (selM && selM.doublePrice !== undefined && selM.doublePrice !== null) ? selM.doublePrice : 10;
+            const totalCost = selM ? selM.price + (doublesCount * doubleCost) : 0;
 
             const togglePrediction = (matchId, value) => {
                 const current = preds[matchId] || [];
@@ -727,7 +802,7 @@
                     <div className="text-center mb-6">
                         <h3 className="text-2xl font-bold mb-1">{selM.name}</h3>
                         <p className="text-green-700 font-bold">
-                            Costo: ${totalCost} {doublesCount > 0 && <span className="text-xs text-gray-500 font-normal">(Base ${selM.price} + ${doublesCount * DOUBLE_COST} dobles)</span>}
+                            Costo: ${totalCost} {doublesCount > 0 && <span className="text-xs text-gray-500 font-normal">(Base ${selM.price} + ${doublesCount * doubleCost} dobles)</span>}
                         </p>
                     </div>
                     
