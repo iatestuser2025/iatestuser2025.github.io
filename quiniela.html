@@ -34,7 +34,7 @@
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
         import { getFirestore, collection, addDoc, query, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp, setDoc, getDocs, where } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
-        import { Trophy, Users, PlusCircle, CheckCircle, Clock, Search, FileText, LogOut, Shield, User, Printer, XCircle, Menu, X, Lock, RefreshCw, KeyRound, Calendar, Trash2, AlertTriangle, Banknote, ChevronDown, ChevronUp, Gamepad2, Check, Filter, Medal, Info, Pencil, MessageCircle, FileSpreadsheet, Download, Save, Flag, CalendarDays } from 'https://esm.sh/lucide-react@0.263.1';
+        import { Trophy, Users, PlusCircle, CheckCircle, Clock, Search, FileText, LogOut, Shield, User, Printer, XCircle, Menu, X, Lock, RefreshCw, KeyRound, Calendar, Trash2, AlertTriangle, Banknote, ChevronDown, ChevronUp, Gamepad2, Check, Filter, Medal, Info, Pencil, MessageCircle, FileSpreadsheet, Download, Save, Flag, CalendarDays, DollarSign } from 'https://esm.sh/lucide-react@0.263.1';
 
         // --- CONFIGURACIÓN FIREBASE ---
         const localConfig = {
@@ -768,9 +768,18 @@
             const m = matchdays.find(x => x.id === selId);
             const isLive = m && m.status === 'active'; // Si está activa y aparece aquí, es porque es "Live/Preliminar"
 
-            const leaderboard = useMemo(() => {
-                if (!m) return [];
-                return bets.filter(b => b.matchdayId === m.id && b.status === 'paid').map(bet => {
+            // --- LÓGICA DE BOLSA Y GANADORES ---
+            const { leaderboard, pot, winnersInfo } = useMemo(() => {
+                if (!m) return { leaderboard: [], pot: 0, winnersInfo: null };
+                
+                // 1. Filtrar apuestas pagadas de esta jornada
+                const paidBets = bets.filter(b => b.matchdayId === m.id && b.status === 'paid');
+                
+                // 2. Calcular Bolsa Total (Sumando costo real de cada apuesta)
+                const currentPot = paidBets.reduce((acc, b) => acc + (b.cost || m.price), 0);
+
+                // 3. Calcular Puntos
+                const ranked = paidBets.map(bet => {
                     let points = 0;
                     bet.predictions.forEach(pred => {
                         const match = m.matches.find(ma => ma.id === pred.matchId);
@@ -779,6 +788,23 @@
                     });
                     return { ...bet, points };
                 }).sort((a, b) => b.points - a.points);
+
+                // 4. Identificar Ganadores (Máximo Puntaje)
+                const maxPoints = ranked.length > 0 ? ranked[0].points : 0;
+                // Solo consideramos ganadores si tienen al menos 1 punto (opcional, pero lógico)
+                const currentWinners = (maxPoints > 0) ? ranked.filter(r => r.points === maxPoints) : [];
+                
+                let wInfo = null;
+                if (currentWinners.length > 0) {
+                    wInfo = {
+                        count: currentWinners.length,
+                        totalPot: currentPot,
+                        prizePerWinner: currentPot / currentWinners.length,
+                        score: maxPoints
+                    };
+                }
+
+                return { leaderboard: ranked, pot: currentPot, winnersInfo: wInfo };
             }, [m, bets]);
 
             return (
@@ -814,8 +840,27 @@
                                 {isLive ? <><div className="w-2 h-2 rounded-full bg-red-600 animate-ping"/> RESULTADOS AL MOMENTO (EN JUEGO)</> : <><CheckCircle size={16}/> RESULTADOS FINALES</>}
                             </div>
 
+                            {/* --- TARJETA DE RESUMEN DE PREMIOS (NUEVO) --- */}
+                            <div className="bg-gradient-to-r from-yellow-100 to-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4 flex flex-col md:flex-row justify-between items-center shadow-sm">
+                                <div className="text-center md:text-left mb-2 md:mb-0">
+                                    <p className="text-xs font-bold text-yellow-800 uppercase tracking-widest mb-1">Bolsa Total Acumulada</p>
+                                    <p className="text-3xl font-black text-yellow-600 flex items-center justify-center md:justify-start gap-1"><DollarSign size={24}/>{pot.toLocaleString()}</p>
+                                </div>
+                                {winnersInfo && (
+                                    <div className="text-center md:text-right bg-white/50 p-2 rounded-lg border border-yellow-100">
+                                        <p className="text-xs font-bold text-gray-500">
+                                            {winnersInfo.count > 1 ? `¡Empate entre ${winnersInfo.count} ganadores!` : '¡Tenemos un Ganador!'}
+                                        </p>
+                                        <div className="text-lg font-bold text-green-700 flex items-center justify-center md:justify-end gap-1">
+                                            <Trophy size={16} className="text-yellow-500"/>
+                                            <span>${winnersInfo.prizePerWinner.toLocaleString()} <span className="text-xs font-normal text-gray-400">c/u</span></span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
                             <div className="grid md:grid-cols-2 gap-4">
-                                <div className="bg-white rounded border overflow-hidden">
+                                <div className="bg-white rounded border overflow-hidden order-2 md:order-1">
                                     <div className="bg-gray-100 p-3 border-b font-bold text-gray-700 flex items-center gap-2"><CheckCircle size={18}/> Marcadores Oficiales</div>
                                     <div className="p-4 space-y-2">
                                         {m.matches.map(ma => (
@@ -838,24 +883,32 @@
                                     </div>
                                 </div>
                                 
-                                <div className="bg-white rounded border overflow-hidden">
+                                <div className="bg-white rounded border overflow-hidden order-1 md:order-2">
                                     <div className="bg-yellow-50 p-3 border-b font-bold text-yellow-800 flex items-center gap-2"><Trophy size={18}/> Tabla de Posiciones</div>
                                     <div className="max-h-[500px] overflow-y-auto">
                                         <table className="w-full text-sm">
-                                            <thead className="bg-yellow-100 text-yellow-900 sticky top-0">
+                                            <thead className="bg-yellow-100 text-yellow-900 sticky top-0 z-10">
                                                 <tr><th className="p-2 w-10">#</th><th className="text-left">Jugador</th><th className="text-right p-2">Aciertos</th></tr>
                                             </thead>
                                             <tbody className="divide-y">
-                                                {leaderboard.map((b,i)=> (
-                                                    <tr key={b.id} className={`${b.userName===user.username ? 'bg-green-50' : 'hover:bg-gray-50'}`}>
-                                                        <td className="p-2 text-center font-bold text-gray-500">{i+1}</td>
-                                                        <td className="p-2">
-                                                            <div className="font-bold text-gray-800">{b.userFullName}</div>
-                                                            {b.userName===user.username && <div className="text-[10px] text-green-600 font-bold">¡Eres tú!</div>}
-                                                        </td>
-                                                        <td className="p-2 text-right font-black text-lg text-blue-600">{b.points}</td>
-                                                    </tr>
-                                                ))}
+                                                {leaderboard.map((b,i)=> {
+                                                    const isWinner = winnersInfo && b.points === winnersInfo.score;
+                                                    return (
+                                                        <tr key={b.id} className={`${b.userName===user.username ? 'bg-blue-50' : isWinner ? 'bg-yellow-50/50' : 'hover:bg-gray-50'}`}>
+                                                            <td className="p-2 text-center font-bold text-gray-500">
+                                                                {isWinner ? <Trophy size={16} className="text-yellow-500 mx-auto"/> : i+1}
+                                                            </td>
+                                                            <td className="p-2">
+                                                                <div className="font-bold text-gray-800 flex items-center gap-2">
+                                                                    {b.userFullName}
+                                                                    {isWinner && <span className="bg-green-100 text-green-800 text-[10px] px-1.5 py-0.5 rounded border border-green-200 font-bold">+${winnersInfo.prizePerWinner.toLocaleString()}</span>}
+                                                                </div>
+                                                                {b.userName===user.username && <div className="text-[10px] text-blue-600 font-bold">¡Eres tú!</div>}
+                                                            </td>
+                                                            <td className="p-2 text-right font-black text-lg text-blue-600">{b.points}</td>
+                                                        </tr>
+                                                    );
+                                                })}
                                             </tbody>
                                         </table>
                                         {leaderboard.length === 0 && <div className="p-8 text-center text-gray-400 italic">Esperando resultados...</div>}
