@@ -34,7 +34,7 @@
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
         import { getFirestore, collection, addDoc, query, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp, setDoc, getDocs, where } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
-        import { Trophy, Users, PlusCircle, CheckCircle, Clock, Search, FileText, LogOut, Shield, User, Printer, XCircle, Menu, X, Lock, RefreshCw, KeyRound, Calendar, Trash2, AlertTriangle, Banknote, ChevronDown, ChevronUp, Gamepad2, Check, Filter, Medal, Info, Pencil, MessageCircle, FileSpreadsheet, Download, Save, Flag } from 'https://esm.sh/lucide-react@0.263.1';
+        import { Trophy, Users, PlusCircle, CheckCircle, Clock, Search, FileText, LogOut, Shield, User, Printer, XCircle, Menu, X, Lock, RefreshCw, KeyRound, Calendar, Trash2, AlertTriangle, Banknote, ChevronDown, ChevronUp, Gamepad2, Check, Filter, Medal, Info, Pencil, MessageCircle, FileSpreadsheet, Download, Save, Flag, CalendarDays } from 'https://esm.sh/lucide-react@0.263.1';
 
         // --- CONFIGURACIÓN FIREBASE ---
         const localConfig = {
@@ -638,15 +638,23 @@
 
             const filteredBets = useMemo(() => {
                 const myBets = bets.filter(b => b.userName === user.username);
-                const now = new Date();
+                // La variable 'now' ya no es necesaria para el filtrado, pero la mantengo si se requiriera en el futuro
+                // const now = new Date(); 
                 return myBets.filter(b => {
                     const m = matchdays.find(md => md.id === b.matchdayId);
                     if (!m) return false;
-                    const isExpired = m.deadline && now > new Date(m.deadline);
+                    
+                    // Lógica anterior que ocultaba si isExpired:
+                    // const isExpired = m.deadline && now > new Date(m.deadline);
                     const isFinalized = m.status === 'finalized';
                     const isPaid = b.status === 'paid';
-                    if (filter === 'active') return !isExpired && !isFinalized;
-                    if (filter === 'finished') return isExpired || isFinalized;
+
+                    // NUEVA LÓGICA:
+                    // 'active' = No finalizada (incluye las que ya cerraron apuesta pero se están jugando)
+                    if (filter === 'active') return !isFinalized;
+                    // 'finished' = Solo las finalizadas oficialmente
+                    if (filter === 'finished') return isFinalized;
+                    
                     if (filter === 'unpaid') return !isPaid;
                     return true;
                 }).sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
@@ -721,6 +729,10 @@
         // --- USER RESULTS (Actualizado para mostrar 'Live' Results) ---
         function UserResults({ matchdays, bets, user }) {
             const [selId, setSelId] = useState('');
+            // ESTADO PARA FILTRAR POR MES (YYYY-MM)
+            // Se inicializa con el mes actual
+            const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
+
             
             // FILTRO DE JORNADAS DISPONIBLES PARA VER
             // 1. Finalizadas
@@ -734,9 +746,16 @@
                     const isLive = m.status === 'active' && m.deadline && now > new Date(m.deadline);
                     // Solo mostramos si tiene al menos un resultado capturado o está finalizada
                     const hasResults = m.matches.some(ma => ma.result); 
-                    return isFinalized || (isLive && hasResults);
+                    
+                    // Lógica de fecha para el mes seleccionado
+                    // Si m.deadline existe lo usamos, si no, usamos createdAt o fecha actual como fallback
+                    const mDate = m.deadline ? new Date(m.deadline) : (m.createdAt ? new Date(m.createdAt.seconds * 1000) : new Date());
+                    const mMonth = mDate.toISOString().slice(0, 7); // Formato YYYY-MM
+                    const isSameMonth = mMonth === selectedMonth;
+
+                    return (isFinalized || (isLive && hasResults)) && isSameMonth;
                 }).sort((a, b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
-            }, [matchdays]);
+            }, [matchdays, selectedMonth]);
 
             useEffect(() => { 
                 if (availableResults.length > 0 && (!selId || !availableResults.find(f => f.id === selId))) {
@@ -764,15 +783,28 @@
 
             return (
                 <div className="space-y-6">
-                    <div className="bg-white p-4 rounded-lg border shadow-sm">
-                        <label className="text-xs font-bold text-gray-500 mb-1 block">Selecciona Jornada</label>
-                        <select className="w-full p-2 border rounded bg-gray-50 font-medium" value={selId} onChange={e => setSelId(e.target.value)} disabled={availableResults.length === 0}>
-                            {availableResults.length > 0 ? availableResults.map(f => (
-                                <option key={f.id} value={f.id}>
-                                    {f.name} {f.status === 'active' ? '(🔴 EN VIVO)' : '(✅ Finalizada)'}
-                                </option>
-                            )) : <option>Sin resultados disponibles</option>}
-                        </select>
+                    <div className="bg-white p-4 rounded-lg border shadow-sm space-y-4">
+                        {/* Selector de Mes */}
+                        <div>
+                             <label className="text-xs font-bold text-gray-500 mb-1 flex items-center gap-1"><CalendarDays size={14}/> Filtrar por Mes</label>
+                             <input 
+                                type="month" 
+                                value={selectedMonth} 
+                                onChange={(e) => setSelectedMonth(e.target.value)} 
+                                className="w-full p-2 border rounded bg-gray-50 font-medium text-sm"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-bold text-gray-500 mb-1 block">Selecciona Jornada</label>
+                            <select className="w-full p-2 border rounded bg-gray-50 font-medium" value={selId} onChange={e => setSelId(e.target.value)} disabled={availableResults.length === 0}>
+                                {availableResults.length > 0 ? availableResults.map(f => (
+                                    <option key={f.id} value={f.id}>
+                                        {f.name} {f.status === 'active' ? '(🔴 EN VIVO)' : '(✅ Finalizada)'}
+                                    </option>
+                                )) : <option>Sin resultados disponibles este mes</option>}
+                            </select>
+                        </div>
                     </div>
 
                     {m && (
