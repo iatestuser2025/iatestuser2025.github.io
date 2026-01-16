@@ -47,14 +47,6 @@
         import { getFirestore, collection, addDoc, query, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp, setDoc, getDocs, where } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
         import { Trophy, Users, PlusCircle, CheckCircle, Clock, Search, FileText, LogOut, Shield, User, Printer, XCircle, Menu, X, Lock, RefreshCw, KeyRound, Calendar, Trash2, AlertTriangle, Banknote, ChevronDown, ChevronUp, Gamepad2, Check, Filter, Medal, Info, Pencil, MessageCircle, FileSpreadsheet, Download, Save, Flag, CalendarDays, DollarSign, Ban, Dices, Sparkles, BrainCircuit } from 'https://esm.sh/lucide-react@0.263.1';
 
-        // ==================================================================================
-        // 🔑 CONFIGURACIÓN DE API KEY (GEMINI)
-        // ==================================================================================
-        // Pon aquí tu API Key entre las comillas para que los jugadores NO tengan que meterla.
-        // Ejemplo: const SYSTEM_GEMINI_API_KEY = "AIzaSyD-xxxxxxxxxxxxxxxxxxxxxxxx";
-        const SYSTEM_GEMINI_API_KEY = ""; 
-        // ==================================================================================
-
         // --- CONFIGURACIÓN FIREBASE ---
         const localConfig = {
           apiKey: "AIzaSyA6uydlodXo1vnyqoocwzHytwt5W0riIDQ",
@@ -597,13 +589,7 @@
 
             // FUNCION 2: INTEGRACIÓN CON GEMINI AI
             const askGemini = async () => {
-                // 1. Intenta usar la llave configurada en el código
-                let apiKey = SYSTEM_GEMINI_API_KEY;
-                
-                // 2. Si no hay, busca en localStorage
-                if (!apiKey) apiKey = localStorage.getItem('gemini_api_key');
-
-                // 3. Si no hay, pide al usuario
+                let apiKey = localStorage.getItem('gemini_api_key');
                 if (!apiKey) {
                     apiKey = prompt("Para usar la IA, ingresa tu API Key de Google Gemini (Flash):\n\nLa guardaremos en tu navegador. Es gratis en aistudio.google.com");
                     if (apiKey) localStorage.setItem('gemini_api_key', apiKey);
