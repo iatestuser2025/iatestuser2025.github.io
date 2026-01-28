@@ -14,22 +14,18 @@
         body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        /* Estilo para las barras de desplazamiento dentro del modal */
-        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        
+        /* Scrollbar personalizada */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        
-        /* Animación de carga para el chat */
-        .typing-dot {
-            animation: typing 1.4s infinite ease-in-out both;
-        }
+
+        /* Animación de carga */
+        .typing-dot { animation: typing 1.4s infinite ease-in-out both; }
         .typing-dot:nth-child(1) { animation-delay: -0.32s; }
         .typing-dot:nth-child(2) { animation-delay: -0.16s; }
-        @keyframes typing {
-            0%, 80%, 100% { transform: scale(0); }
-            40% { transform: scale(1); }
-        }
+        @keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
     </style>
 </head>
 <body>
@@ -39,11 +35,8 @@
         const { useState, useEffect, useRef } = React;
 
         // ==========================================
-        // CONFIGURACIÓN API GEMINI
+        // BASE DE CONOCIMIENTO PARA LA IA
         // ==========================================
-        const GEMINI_API_KEY = "AIzaSyAdUr952gKSiXkM1OlB5wZZGurc2kiOvyg"; // <--- ¡COLOCA TU API KEY AQUÍ! (Dentro de las comillas)
-
-        // Contexto para la IA con toda la información de la guía
         const KNOWLEDGE_BASE = `
         Actúa como un experto técnico de soporte para bases de datos SICAR. Responde preguntas basándote ESTRICTAMENTE en los siguientes protocolos:
 
@@ -69,38 +62,31 @@
            - Impresoras en Windows: Deben tener el MISMO NOMBRE.
            - Linux: Ruta /usr/bin/SICAR, instalar con dpkg -i.
            - SQL: drop database sicar (si falla GUI).
-        
-        Sé conciso, técnico y directo. Si la pregunta no está en estos protocolos, di que no tienes información al respecto.
         `;
 
-        // --- Icon Components ---
-        const IconServer = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>;
-        const IconTrash = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
-        const IconRefresh = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>;
-        const IconArrowLeft = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>;
-        const IconCheck = ({size}) => <svg xmlns="http://www.w3.org/2000/svg" width={size || 24} height={size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>;
-        const IconAlert = () => <svg xmlns="http://www.w3.org/2000/svg" width={size || 24} height={size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>;
-        const IconHardDrive = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" x2="2" y1="12" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" x2="6.01" y1="16" y2="16"/><line x1="10" x2="10.01" y1="16" y2="16"/></svg>;
-        const IconDatabase = ({size}) => <svg xmlns="http://www.w3.org/2000/svg" width={size || 24} height={size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>;
-        const IconCloud = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19c0-3.037-2.463-5.5-5.5-5.5S6.5 15.963 6.5 19"/><path d="M20.6 16c.4.6.6 1.3.6 2 0 2.2-1.8 4-4 4h-11c-2.2 0-4-1.8-4-4 0-1.5.8-2.8 2-3.5"/><path d="M16.6 13a6 6 0 0 0-11.2 0"/><path d="M12 3a9 9 0 0 1 9 9"/></svg>;
-        const IconTerminal = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg>;
-        const IconFolder = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>;
-        const IconSettings = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>;
-        const IconDownload = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>;
-        const IconBox = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" x2="12" y1="22.08" y2="12"/></svg>;
-        const IconCopy = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>;
-        const IconLightbulb = ({size}) => <svg xmlns="http://www.w3.org/2000/svg" width={size || 24} height={size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-1 1.5-2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>;
-        const IconX = ({size}) => <svg xmlns="http://www.w3.org/2000/svg" width={size || 24} height={size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>;
-        const IconImage = ({size}) => <svg xmlns="http://www.w3.org/2000/svg" width={size || 24} height={size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>;
-        // Nuevo icono para el Chat
-        const IconRobot = ({size}) => <svg xmlns="http://www.w3.org/2000/svg" width={size || 24} height={size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>;
-        const IconSend = ({size}) => <svg xmlns="http://www.w3.org/2000/svg" width={size || 24} height={size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" x2="11" y1="2" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>;
+        // ==========================================
+        // COMPONENTES DE ICONOS
+        // ==========================================
+        const IconServer = ({size = 24, className = ""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>;
+        const IconTrash = ({size = 24, className = ""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
+        const IconRefresh = ({size = 24, className = ""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>;
+        const IconArrowLeft = ({size = 24, className = ""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>;
+        const IconCheck = ({size = 24, className = ""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M20 6 9 17l-5-5"/></svg>;
+        const IconAlert = ({size = 24, className = ""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>;
+        const IconHardDrive = ({size = 24, className = ""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="22" x2="2" y1="12" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" x2="6.01" y1="16" y2="16"/><line x1="10" x2="10.01" y1="16" y2="16"/></svg>;
+        const IconDatabase = ({size = 24, className = ""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>;
+        const IconCloud = ({size = 24, className = ""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M17.5 19c0-3.037-2.463-5.5-5.5-5.5S6.5 15.963 6.5 19"/><path d="M20.6 16c.4.6.6 1.3.6 2 0 2.2-1.8 4-4 4h-11c-2.2 0-4-1.8-4-4 0-1.5.8-2.8 2-3.5"/><path d="M16.6 13a6 6 0 0 0-11.2 0"/><path d="M12 3a9 9 0 0 1 9 9"/></svg>;
+        const IconRobot = ({size = 24, className = ""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>;
+        const IconSend = ({size = 24, className = ""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="22" x2="11" y1="2" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>;
+        const IconX = ({size = 24, className = ""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>;
+        const IconSettings = ({size = 24, className = ""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>;
+        const IconBox = ({size = 24, className = ""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" x2="12" y1="22.08" y2="12"/></svg>;
+        const IconCopy = (props) => <svg xmlns="http://www.w3.org/2000/svg" width={props.size||24} height={props.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>;
 
         // --- Main App Component ---
         const App = () => {
             const [currentView, setCurrentView] = useState('HOME');
-            const [showTips, setShowTips] = useState(false);
-            const [showChat, setShowChat] = useState(false); // Estado para el chat
+            const [showChat, setShowChat] = useState(false);
 
             const renderView = () => {
                 switch(currentView) {
@@ -122,19 +108,10 @@
                         {renderView()}
                     </div>
                     <footer className="mt-8 text-gray-400 text-sm text-center">
-                        Sistema de Guía Interactiva v2.6
+                        Sistema de Guía Interactiva v2.9 (Con IA Segura)
                     </footer>
 
-                    {/* Botón Flotante de Consejos (Izquierda del Chat) */}
-                    <button 
-                        onClick={() => setShowTips(true)} 
-                        className="fixed bottom-6 right-24 bg-yellow-400 text-yellow-900 p-4 rounded-full shadow-lg hover:bg-yellow-300 transition-transform hover:scale-110 z-40 flex items-center justify-center border-4 border-white"
-                        title="Consejos Rápidos"
-                    >
-                        <IconLightbulb size={32} />
-                    </button>
-
-                    {/* Botón Flotante de Chat AI (Esquina) */}
+                    {/* Botón Flotante de Chat AI */}
                     <button 
                         onClick={() => setShowChat(true)} 
                         className="fixed bottom-6 right-6 bg-violet-600 text-white p-4 rounded-full shadow-lg hover:bg-violet-500 transition-transform hover:scale-110 z-40 flex items-center justify-center border-4 border-white"
@@ -143,22 +120,19 @@
                         <IconRobot size={32} />
                     </button>
 
-                    {/* Modal de Consejos */}
-                    {showTips && <TipsModal onClose={() => setShowTips(false)} />}
-                    
                     {/* Modal de Chat AI */}
                     {showChat && <GeminiChatModal onClose={() => setShowChat(false)} />}
                 </div>
             );
         };
 
-        // --- Gemini Chat Component ---
+        // --- Gemini Chat Component (CON SEGURIDAD DE CLAVE) ---
         const GeminiChatModal = ({ onClose }) => {
-            const [messages, setMessages] = useState([
-                { role: 'model', text: '¡Hola! Soy tu asistente técnico de SICAR. ¿Tienes dudas sobre algún procedimiento de la guía?' }
-            ]);
+            const [messages, setMessages] = useState([{ role: 'model', text: '¡Hola! Soy tu asistente técnico de SICAR. ¿En qué te puedo ayudar hoy?' }]);
             const [input, setInput] = useState('');
             const [loading, setLoading] = useState(false);
+            const [apiKey, setApiKey] = useState(localStorage.getItem('gemini_api_key') || '');
+            const [tempKey, setTempKey] = useState('');
             const messagesEndRef = useRef(null);
 
             const scrollToBottom = () => {
@@ -169,8 +143,23 @@
                 scrollToBottom();
             }, [messages]);
 
+            const saveKey = () => {
+                if(tempKey.trim().length > 10) {
+                    localStorage.setItem('gemini_api_key', tempKey.trim());
+                    setApiKey(tempKey.trim());
+                } else {
+                    alert("La API Key parece demasiado corta.");
+                }
+            };
+
+            const clearKey = () => {
+                localStorage.removeItem('gemini_api_key');
+                setApiKey('');
+                setTempKey('');
+            };
+
             const handleSend = async () => {
-                if (!input.trim()) return;
+                if (!input.trim() || !apiKey) return;
                 
                 const userMessage = { role: 'user', text: input };
                 setMessages(prev => [...prev, userMessage]);
@@ -178,25 +167,17 @@
                 setLoading(true);
 
                 try {
-                    // Validamos que exista una key, pero quitamos la validación del texto exacto
-                    // para evitar el error si el usuario reemplazó el texto.
-                    if (!GEMINI_API_KEY || GEMINI_API_KEY.includes("PON_TU_API_KEY")) {
-                         throw new Error("API Key no configurada. Por favor, edita el código fuente y coloca tu API Key de Gemini.");
-                    }
-
-                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             contents: [
                                 {
                                     role: "user",
                                     parts: [
-                                        { text: KNOWLEDGE_BASE }, // Contexto del sistema
-                                        ...messages.map(m => ({ text: `${m.role === 'user' ? 'Usuario' : 'Modelo'}: ${m.text}` })), // Historial
-                                        { text: `Usuario: ${input}` } // Pregunta actual
+                                        { text: KNOWLEDGE_BASE },
+                                        ...messages.map(m => ({ text: `${m.role === 'user' ? 'Usuario' : 'Modelo'}: ${m.text}` })),
+                                        { text: `Usuario: ${input}` }
                                     ]
                                 }
                             ]
@@ -209,13 +190,12 @@
                         throw new Error(data.error.message);
                     }
 
-                    const aiResponseText = data.candidates?.[0]?.content?.parts?.[0]?.text || "Lo siento, no pude procesar tu solicitud.";
-                    
+                    const aiResponseText = data.candidates?.[0]?.content?.parts?.[0]?.text || "No pude generar una respuesta.";
                     setMessages(prev => [...prev, { role: 'model', text: aiResponseText }]);
 
                 } catch (error) {
                     console.error("Error Gemini:", error);
-                    setMessages(prev => [...prev, { role: 'model', text: `Error: ${error.message}` }]);
+                    setMessages(prev => [...prev, { role: 'model', text: `Error: ${error.message}. Verifica tu API Key.` }]);
                 } finally {
                     setLoading(false);
                 }
@@ -228,6 +208,41 @@
                 }
             };
 
+            // VISTA: Si no hay API Key configurada
+            if (!apiKey) {
+                return (
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4 fade-in">
+                        <div className="bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl relative">
+                            <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><IconX size={24} /></button>
+                            <div className="text-center mb-6">
+                                <div className="bg-violet-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-violet-600">
+                                    <IconSettings size={32} />
+                                </div>
+                                <h2 className="text-xl font-bold text-gray-800">Configuración Requerida</h2>
+                                <p className="text-sm text-gray-500 mt-2">Para usar el asistente, ingresa tu API Key de Google Gemini. Se guardará en tu navegador de forma segura.</p>
+                            </div>
+                            <input 
+                                type="password" 
+                                placeholder="Pega tu API Key aquí..." 
+                                className="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-violet-500 outline-none"
+                                value={tempKey}
+                                onChange={(e) => setTempKey(e.target.value)}
+                            />
+                            <button 
+                                onClick={saveKey}
+                                className="w-full bg-violet-600 text-white py-3 rounded-lg font-bold hover:bg-violet-700 transition"
+                            >
+                                Guardar y Continuar
+                            </button>
+                            <p className="text-xs text-center mt-4 text-gray-400">
+                                <a href="https://aistudio.google.com/app/apikey" target="_blank" className="underline hover:text-violet-600">Obtener API Key gratis aquí</a>
+                            </p>
+                        </div>
+                    </div>
+                );
+            }
+
+            // VISTA: Chat normal
             return (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-4 fade-in">
                     <div className="bg-white w-full sm:max-w-md h-[80vh] sm:h-[600px] sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
@@ -241,9 +256,14 @@
                                     <span className="text-xs text-violet-200">Powered by Gemini Flash</span>
                                 </div>
                             </div>
-                            <button onClick={onClose} className="p-1 hover:bg-violet-700 rounded-full transition">
-                                <IconX size={24} />
-                            </button>
+                            <div className="flex gap-2">
+                                <button onClick={clearKey} title="Borrar API Key" className="p-1 hover:bg-violet-700 rounded-full transition text-violet-200 hover:text-white">
+                                    <IconSettings size={20} />
+                                </button>
+                                <button onClick={onClose} className="p-1 hover:bg-violet-700 rounded-full transition">
+                                    <IconX size={24} />
+                                </button>
+                            </div>
                         </div>
 
                         {/* Messages Area */}
@@ -295,166 +315,6 @@
                                     <IconSend size={20} />
                                 </button>
                             </div>
-                            <div className="text-center mt-2">
-                                <p className="text-[10px] text-gray-400">La IA puede cometer errores. Verifica la información importante.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        // --- Tips Modal Component ---
-        const TipsModal = ({ onClose }) => {
-            const [copied, setCopied] = useState(null);
-
-            const copyToClipboard = (text, id) => {
-                const textArea = document.createElement("textarea");
-                textArea.value = text;
-                document.body.appendChild(textArea);
-                textArea.select();
-                try {
-                    document.execCommand('copy');
-                    setCopied(id);
-                    setTimeout(() => setCopied(null), 2000);
-                } catch (err) { console.error('Error al copiar', err); }
-                document.body.removeChild(textArea);
-            };
-
-            const CommandBlock = ({ label, command, id }) => (
-                <div className="bg-slate-800 text-slate-200 p-3 rounded-lg font-mono text-sm mb-2 relative group">
-                    <div className="mb-1 text-xs text-slate-500 uppercase font-bold">{label}</div>
-                    <div className="break-all pr-8">{command}</div>
-                    <button 
-                        onClick={() => copyToClipboard(command, id)}
-                        className="absolute top-2 right-2 text-slate-400 hover:text-white transition"
-                        title="Copiar comando"
-                    >
-                        {copied === id ? <IconCheck size={18} className="text-green-400" /> : <IconCopy size={18} />}
-                    </button>
-                </div>
-            );
-
-            return (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4 fade-in">
-                    <div className="bg-white w-full max-w-2xl max-h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-                        <div className="bg-yellow-400 p-4 flex justify-between items-center">
-                            <h2 className="text-xl font-bold text-yellow-900 flex items-center gap-2">
-                                <IconLightbulb /> Consejos Rápidos
-                            </h2>
-                            <button onClick={onClose} className="p-1 hover:bg-yellow-500/20 rounded-full transition text-yellow-900">
-                                <IconX size={24} />
-                            </button>
-                        </div>
-                        
-                        <div className="p-6 overflow-y-auto custom-scrollbar space-y-8">
-                            
-                            {/* Consejo 1: CMD Windows */}
-                            <section>
-                                <h3 className="font-bold text-lg text-gray-800 mb-2 border-b pb-1 flex items-center gap-2">
-                                    <span className="bg-blue-100 text-blue-600 px-2 py-0.5 rounded text-sm">WIN</span> Abrir SICAR con CMD
-                                </h3>
-                                <ol className="list-decimal list-inside space-y-2 text-gray-600 text-sm mb-3">
-                                    <li>Abrir <strong>Símbolo del sistema</strong> como Administrador.</li>
-                                    <li>Navegar a la ruta de instalación: <code className="bg-gray-100 px-1 rounded">cd C:\Program Files (x86)\SICAR</code></li>
-                                    <li>Ejecutar el comando de Java:</li>
-                                </ol>
-                                <CommandBlock 
-                                    label="Comando de Ejecución" 
-                                    command="jre8\bin\java.exe -jar -DSICAR.mode=privileged -xmx1G -Xms1G SICAR.jar" 
-                                    id="cmd_win" 
-                                />
-                            </section>
-
-                            {/* Consejo 2: Restore GuiTools */}
-                            <section>
-                                <h3 className="font-bold text-lg text-gray-800 mb-2 border-b pb-1">Proceso Restore (GuiTools)</h3>
-                                <div className="bg-gray-100 rounded-lg p-2 flex items-center justify-center min-h-[200px] border-2 border-dashed border-gray-300">
-                                    <img 
-                                        src="Mysql administrador restore.PNG" 
-                                        alt="Mysql administrador restore" 
-                                        className="max-w-full h-auto rounded shadow-sm"
-                                        onError={(e) => {
-                                            e.target.style.display = 'none';
-                                            e.target.parentElement.innerHTML = '<div class="text-center text-gray-400"><svg class="mx-auto mb-2" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>Imagen: Mysql administrador restore.PNG</div>';
-                                        }}
-                                    />
-                                </div>
-                            </section>
-
-                            {/* Consejo 3: Backup GuiTools */}
-                            <section>
-                                <h3 className="font-bold text-lg text-gray-800 mb-2 border-b pb-1">Proceso Backup (GuiTools)</h3>
-                                <div className="bg-gray-100 rounded-lg p-2 flex items-center justify-center min-h-[200px] border-2 border-dashed border-gray-300">
-                                    <img 
-                                        src="Mysql administrador backup.PNG" 
-                                        alt="Mysql administrador backup" 
-                                        className="max-w-full h-auto rounded shadow-sm"
-                                        onError={(e) => {
-                                            e.target.style.display = 'none';
-                                            e.target.parentElement.innerHTML = '<div class="text-center text-gray-400"><svg class="mx-auto mb-2" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>Imagen: Mysql administrador backup.PNG</div>';
-                                        }}
-                                    />
-                                </div>
-                            </section>
-
-                            {/* Consejo 4: SicarTool Mac */}
-                            <section>
-                                <h3 className="font-bold text-lg text-gray-800 mb-2 border-b pb-1 flex items-center gap-2">
-                                    <span className="bg-gray-800 text-white px-2 py-0.5 rounded text-sm">MAC</span> Ejecutar SicarTool.jar
-                                </h3>
-                                <ol className="list-decimal list-inside space-y-2 text-gray-600 text-sm mb-3">
-                                    <li>Abrir <strong>Terminal</strong>.</li>
-                                    <li>Navegar a la carpeta Resources: <code className="bg-gray-100 px-1 rounded">cd /Applications/SICAR.app/Contents/Resources/</code></li>
-                                    <li>Ejecutar el comando de Java:</li>
-                                </ol>
-                                <CommandBlock 
-                                    label="Comando de Ejecución" 
-                                    command="jre8Mac/Contents/Home/bin/java -jar Sicartool.jar" 
-                                    id="cmd_mac" 
-                                />
-                            </section>
-
-                            {/* Consejo 5: Importantes Linux (NUEVO) */}
-                            <section>
-                                <h3 className="font-bold text-lg text-gray-800 mb-2 border-b pb-1 flex items-center gap-2">
-                                    <span className="bg-orange-600 text-white px-2 py-0.5 rounded text-sm">LINUX</span> Comandos Importantes
-                                </h3>
-                                <div className="space-y-4">
-                                    <div>
-                                        <p className="text-sm text-gray-600 mb-1 font-semibold">Comando para instalación (.deb):</p>
-                                        <CommandBlock 
-                                            label="Instalar Paquete" 
-                                            command="sudo dpkg -i nombre_del_archivo.deb" 
-                                            id="cmd_linux_install" 
-                                        />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-gray-600 mb-1 font-semibold">Ruta del ejecutable SICAR:</p>
-                                        <CommandBlock 
-                                            label="Ruta del Sistema" 
-                                            command="/usr/bin/SICAR" 
-                                            id="cmd_linux_path" 
-                                        />
-                                    </div>
-                                </div>
-                            </section>
-
-                            {/* Consejo 6: Drop Database (NUEVO) */}
-                            <section>
-                                <h3 className="font-bold text-lg text-gray-800 mb-2 border-b pb-1 flex items-center gap-2">
-                                    <span className="bg-purple-600 text-white px-2 py-0.5 rounded text-sm">SQL</span> Borrar BD (Query Browser)
-                                </h3>
-                                <p className="text-sm text-gray-600 mb-2">
-                                    Si la interfaz gráfica falla, use este comando en la consola SQL para eliminar la base de datos <strong>sicar</strong>:
-                                </p>
-                                <CommandBlock 
-                                    label="Sentencia SQL" 
-                                    command="drop database sicar" 
-                                    id="cmd_drop_db" 
-                                />
-                            </section>
-
                         </div>
                     </div>
                 </div>
@@ -465,31 +325,59 @@
         const MainMenu = ({ onSelect }) => {
             return (
                 <div className="p-8 grid gap-6 md:grid-cols-2 h-full flex-grow items-center fade-in">
-                    <button onClick={() => onSelect('MIGRATION')} className="group flex flex-col items-center p-6 border-2 border-indigo-100 rounded-xl hover:border-indigo-500 hover:bg-indigo-50 transition-all duration-300 h-64 justify-center">
-                        <div className="p-4 bg-indigo-100 text-indigo-600 rounded-full mb-4 group-hover:scale-110 transition-transform"><IconServer /></div>
+                    
+                    {/* Card 1: Migraciones */}
+                    <button 
+                        onClick={() => onSelect('MIGRATION')}
+                        className="group flex flex-col items-center p-6 border-2 border-indigo-100 rounded-xl hover:border-indigo-500 hover:bg-indigo-50 transition-all duration-300 h-64 justify-center"
+                    >
+                        <div className="p-4 bg-indigo-100 text-indigo-600 rounded-full mb-4 group-hover:scale-110 transition-transform">
+                            <IconServer size={32} />
+                        </div>
                         <h3 className="text-xl font-bold text-gray-800">Migraciones</h3>
-                        <p className="text-center text-gray-500 text-sm mt-2">Traslado de datos entre equipos.</p>
+                        <p className="text-center text-gray-500 text-sm mt-2">Traslado de datos entre equipos o servidores.</p>
                     </button>
-                    <button onClick={() => onSelect('REPLACEMENT')} className="group flex flex-col items-center p-6 border-2 border-blue-100 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all duration-300 h-64 justify-center">
-                        <div className="p-4 bg-blue-100 text-blue-600 rounded-full mb-4 group-hover:scale-110 transition-transform"><IconRefresh /></div>
+
+                    {/* Card 2: Reposiciones */}
+                    <button 
+                        onClick={() => onSelect('REPLACEMENT')}
+                        className="group flex flex-col items-center p-6 border-2 border-blue-100 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all duration-300 h-64 justify-center"
+                    >
+                        <div className="p-4 bg-blue-100 text-blue-600 rounded-full mb-4 group-hover:scale-110 transition-transform">
+                            <IconRefresh size={32} />
+                        </div>
                         <h3 className="text-xl font-bold text-gray-800">Reposiciones</h3>
-                        <p className="text-center text-gray-500 text-sm mt-2">Restauración y recuperación.</p>
+                        <p className="text-center text-gray-500 text-sm mt-2">Restauración de sistemas y recuperación.</p>
                     </button>
-                     <button onClick={() => onSelect('DELETION')} className="group flex flex-col items-center p-6 border-2 border-red-100 rounded-xl hover:border-red-500 hover:bg-red-50 transition-all duration-300 h-64 justify-center">
-                        <div className="p-4 bg-red-100 text-red-600 rounded-full mb-4 group-hover:scale-110 transition-transform"><IconTrash /></div>
+
+                     {/* Card 3: Borrado */}
+                     <button 
+                        onClick={() => onSelect('DELETION')}
+                        className="group flex flex-col items-center p-6 border-2 border-red-100 rounded-xl hover:border-red-500 hover:bg-red-50 transition-all duration-300 h-64 justify-center"
+                    >
+                        <div className="p-4 bg-red-100 text-red-600 rounded-full mb-4 group-hover:scale-110 transition-transform">
+                            <IconTrash size={32} />
+                        </div>
                         <h3 className="text-xl font-bold text-gray-800">Borrado de BD</h3>
                         <p className="text-center text-gray-500 text-sm mt-2">Eliminación segura y checklist.</p>
                     </button>
-                     <button onClick={() => onSelect('RESOURCES')} className="group flex flex-col items-center p-6 border-2 border-emerald-100 rounded-xl hover:border-emerald-500 hover:bg-emerald-50 transition-all duration-300 h-64 justify-center">
-                        <div className="p-4 bg-emerald-100 text-emerald-600 rounded-full mb-4 group-hover:scale-110 transition-transform"><IconBox /></div>
+
+                     {/* Card 4: Recursos (RESTAURADO) */}
+                     <button 
+                        onClick={() => onSelect('RESOURCES')}
+                        className="group flex flex-col items-center p-6 border-2 border-emerald-100 rounded-xl hover:border-emerald-500 hover:bg-emerald-50 transition-all duration-300 h-64 justify-center"
+                    >
+                        <div className="p-4 bg-emerald-100 text-emerald-600 rounded-full mb-4 group-hover:scale-110 transition-transform">
+                            <IconBox size={32} />
+                        </div>
                         <h3 className="text-xl font-bold text-gray-800">Recursos</h3>
-                        <p className="text-center text-gray-500 text-sm mt-2">Descarga de herramientas y utilidades.</p>
+                        <p className="text-center text-gray-500 text-sm mt-2">Herramientas y descargas.</p>
                     </button>
                 </div>
             );
         };
 
-        // --- Resources Guide ---
+        // --- Resources View (RESTAURADO) ---
         const ResourcesView = ({ onBack }) => {
             const [copiedIndex, setCopiedIndex] = useState(null);
             const resources = [
@@ -517,8 +405,8 @@
             return (
                 <div className="flex flex-col h-full bg-gray-50 fade-in">
                     <div className="bg-emerald-600 p-4 text-white flex items-center shadow-md">
-                        <button onClick={onBack} className="mr-4 hover:bg-emerald-700 p-2 rounded-full transition"><IconArrowLeft /></button>
-                        <h2 className="text-xl font-bold flex items-center gap-2"><IconBox /> Recursos y Descargas</h2>
+                        <button onClick={onBack} className="mr-4 hover:bg-emerald-700 p-2 rounded-full transition"><IconArrowLeft size={24} /></button>
+                        <h2 className="text-xl font-bold flex items-center gap-2"><IconBox size={24} /> Recursos y Descargas</h2>
                     </div>
                     <div className="p-8 flex-grow overflow-y-auto">
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
@@ -529,7 +417,7 @@
                                         <p className="text-gray-500 text-sm mb-4">{res.desc}</p>
                                     </div>
                                     <button onClick={() => copyToClipboard(res.url, idx)} className={`inline-flex items-center justify-center w-full px-4 py-2 border rounded-lg transition font-medium text-sm ${copiedIndex === idx ? 'bg-green-100 text-green-700 border-green-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'}`}>
-                                        {copiedIndex === idx ? <><IconCheck size={18} className="mr-2" /> ¡Copiado!</> : <><IconCopy className="w-4 h-4 mr-2" /> Copiar Enlace</>}
+                                        {copiedIndex === idx ? <><IconCheck size={18} className="mr-2" /> ¡Copiado!</> : <><IconCopy size={16} className="mr-2" /> Copiar Enlace</>}
                                     </button>
                                 </div>
                             ))}
@@ -541,67 +429,49 @@
 
         // --- Deletion Guide ---
         const DeletionGuide = ({ onBack }) => {
-            const [step, setStep] = useState('CHECK_TERMINALS');
-            const content = {
-                CHECK_TERMINALS: {
-                    title: "Verificación de Infraestructura", desc: "Antes de cualquier acción, verifique la estructura de red.",
-                    question: "¿El sistema cuenta con terminales conectadas?",
-                    yesAction: () => setStep('TERMINAL_PROCEDURE'), noAction: () => setStep('EVALUATE_DATA'),
-                    yesText: "Sí, tiene terminales", noText: "No, es equipo único", type: 'question'
-                },
-                TERMINAL_PROCEDURE: {
-                    title: "Protocolo de Actualización de Binarios", desc: "Se detectaron terminales. Limpieza manual requerida.",
-                    instructions: [
-                        "Solicitar acceso remoto a Servidor y Terminales.",
-                        "En Terminales: Descargar UPD, renombrar a .zip y descomprimir.",
-                        "En Terminales (Carpeta SICAR): Borrar 'bundle', 'lib', 'mark', 'modulos', 'tools', 'SICAR.jar', 'sicar.ksf', 'SICAR.binx'.",
-                        "Copiar del UPD descomprimido las 5 carpetas y 2 archivos a la carpeta de instalación.",
-                        "Redireccionar las terminales."
-                    ],
-                    nextStep: 'EVALUATE_DATA', nextText: "Continuar a Evaluación de Datos", type: 'manual_procedure'
-                },
-                EVALUATE_DATA: {
-                    title: "Evaluación de Conservación", desc: "Determine el destino de la información actual.",
-                    question: "¿El cliente desea conservar algún catálogo?",
-                    yesAction: () => setStep('SELECT_OS_KEEP'), noAction: () => setStep('SELECT_OS_CLEAN'),
-                    yesText: "Sí, conservar datos", noText: "No, borrar todo", type: 'question'
-                },
-                SELECT_OS_KEEP: {
-                    title: "Sistema Operativo (Conservar Datos)", desc: "Seleccione el SO para mostrar herramientas adecuadas.",
-                    customButtons: [ { label: "Windows", action: () => setStep('KEEP_DATA_WINDOWS'), icon: "🪟" }, { label: "Mac / Linux", action: () => setStep('KEEP_DATA_MAC_LINUX'), icon: "🍎/🐧" } ], type: 'selection'
-                },
-                SELECT_OS_CLEAN: {
-                    title: "Sistema Operativo (Borrado Total)", desc: "Seleccione el SO para protocolo de eliminación.",
-                    customButtons: [ { label: "Windows", action: () => setStep('CLEAN_INSTALL_WINDOWS'), icon: "🪟" }, { label: "Mac / Linux", action: () => setStep('CLEAN_INSTALL_MAC_LINUX'), icon: "🍎/🐧" } ], type: 'selection'
-                },
-                KEEP_DATA_WINDOWS: {
-                    title: "Conservar Datos (Windows)", desc: "Protocolo para conservar catálogos en Windows.",
-                    instructions: [ "CRÍTICO: Generar Respaldo Previo.", "Exportar catálogos y configuraciones.", "Reinstalar sistema o borrar BD con GuiTools/SicarTool.", "Re-importar información.", "Configurar respaldos, impresoras y redireccionar terminales." ], final: true, finalType: 'info'
-                },
-                KEEP_DATA_MAC_LINUX: {
-                    title: "Conservar Datos (Mac/Linux)", desc: "Protocolo para conservar catálogos en Mac/Linux. NO desinstalar App.",
-                    instructions: [ "CRÍTICO: Generar Respaldo Previo.", "Exportar catálogos.", "Borrar ÚNICAMENTE la BD usando SicarTools/DBeaver.", "Instalar nueva instancia de BD.", "Re-importar información.", "Configurar respaldos, impresoras y redireccionar terminales." ], final: true, finalType: 'info'
-                },
-                CLEAN_INSTALL_WINDOWS: {
-                    title: "Instalación Limpia (Windows)", desc: "Borrado total e inicio desde cero.",
-                    instructions: [ "CRÍTICO: Respaldo Previo.", "Desactivar Licencia.", "Eliminar carpeta de instalación y BD.", "Instalación limpia.", "Configurar respaldos, impresoras y redireccionar terminales." ], final: true, finalType: 'danger'
-                },
-                CLEAN_INSTALL_MAC_LINUX: {
-                    title: "Instalación Limpia (Mac/Linux)", desc: "Protocolo de borrado seguro para Unix.",
-                    instructions: [ "CRÍTICO: Respaldo Previo.", "Desactivar Licencia.", "NO desinstalar aplicación.", "Borrar BD actual con SicarTools/DBeaver.", "Instalar BD limpia.", "Aplicar UPD si es necesario.", "Configurar respaldos, impresoras y redireccionar terminales." ], final: true, finalType: 'danger'
-                }
-            };
-            const current = content[step];
+            const steps = [
+                { title: "Generar Respaldo Previo", desc: "Antes de cualquier acción, asegure la integridad de los datos actuales generando un backup completo." },
+                { title: "Desactivar Licencia", desc: "Libere la licencia del nodo actual para evitar conflictos futuros." },
+                { title: "Consulta de Datos Críticos", desc: "Pregunte al cliente explícitamente si necesita conservar: Clientes, Artículos o Proveedores.", highlight: true }
+            ];
+
             return (
                 <div className="flex flex-col h-full bg-gray-50 fade-in">
-                    <div className="bg-red-600 p-4 text-white flex items-center shadow-md"><button onClick={onBack} className="mr-4 hover:bg-red-700 p-2 rounded-full transition"><IconArrowLeft /></button><h2 className="text-xl font-bold flex items-center gap-2"><IconTrash /> Guía de Borrado de BD</h2></div>
-                    <div className="flex-grow flex flex-col items-center justify-center p-8"><div className="max-w-xl w-full bg-white p-8 rounded-xl shadow-lg border-t-4 border-red-500">
-                        <h3 className="text-2xl font-bold text-gray-800 mb-4">{current.title}</h3><p className="text-gray-600 mb-6 text-lg leading-relaxed">{current.desc}</p>
-                        {current.type === 'manual_procedure' && (<div className="animate-fade-in"><ul className="space-y-3 mb-8">{current.instructions.map((inst, i) => (<li key={i} className="flex items-start gap-3 text-sm text-gray-700 border-b border-gray-100 pb-2 last:border-0"><IconFolder size={18} className="text-gray-400 mt-0.5" /><span>{inst}</span></li>))}</ul><button onClick={() => setStep(current.nextStep)} className="w-full py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition shadow-lg">{current.nextText} →</button></div>)}
-                        {current.final && (<div className="animate-fade-in"><ul className="space-y-3 mb-8">{current.instructions.map((inst, i) => (<li key={i} className="flex items-start gap-3 text-gray-700"><div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${current.finalType==='danger'?'bg-red-500':'bg-blue-500'}`}></div><span className={inst.includes("CRÍTICO")?"font-bold text-red-600":""}>{inst}</span></li>))}</ul><button onClick={() => setStep('CHECK_TERMINALS')} className="w-full py-3 border-2 border-gray-200 text-gray-600 font-semibold rounded-lg hover:bg-gray-50 transition">Reiniciar Guía</button></div>)}
-                        {current.type === 'question' && (<div className="space-y-4"><div className="grid grid-cols-2 gap-4"><button onClick={current.yesAction} className="bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition shadow-sm flex justify-center items-center gap-2"><IconCheck size={18} /> {current.yesText}</button><button onClick={current.noAction} className="bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition shadow-sm">{current.noText}</button></div></div>)}
-                        {current.type === 'selection' && (<div className="grid gap-4">{current.customButtons.map((btn, idx) => (<button key={idx} onClick={btn.action} className="flex items-center justify-between p-4 border-2 border-red-100 rounded-lg hover:border-red-500 hover:bg-red-50 transition group"><span className="font-bold text-gray-700 group-hover:text-red-700">{btn.label}</span><span className="text-2xl">{btn.icon}</span></button>))}</div>)}
-                    </div></div>
+                    <div className="bg-red-600 p-4 text-white flex items-center shadow-md">
+                        <button onClick={onBack} className="mr-4 hover:bg-red-700 p-2 rounded-full transition"><IconArrowLeft size={24} /></button>
+                        <h2 className="text-xl font-bold flex items-center gap-2"><IconTrash size={24} /> Guía de Borrado de Base de Datos</h2>
+                    </div>
+                    
+                    <div className="p-8 flex-grow overflow-y-auto">
+                        <div className="space-y-6 max-w-2xl mx-auto">
+                            <p className="text-gray-600 mb-6 bg-white p-4 rounded-lg shadow-sm border-l-4 border-red-500">
+                                Siga estos pasos estrictamente para evitar pérdida de información valiosa del cliente.
+                            </p>
+
+                            {steps.map((step, idx) => (
+                                <div key={idx} className={`relative pl-8 pb-8 border-l-2 ${idx === steps.length - 1 ? 'border-transparent' : 'border-red-200'}`}>
+                                    <div className="absolute -left-[11px] top-0 bg-red-100 border-2 border-red-500 text-red-700 font-bold rounded-full w-6 h-6 flex items-center justify-center text-xs">
+                                        {idx + 1}
+                                    </div>
+                                    <div className={`bg-white p-6 rounded-lg shadow-sm border ${step.highlight ? 'border-orange-300 bg-orange-50' : 'border-gray-100'}`}>
+                                        <h3 className="font-bold text-lg text-gray-800 mb-2">{step.title}</h3>
+                                        <p className="text-gray-600">{step.desc}</p>
+                                        {step.highlight && (
+                                            <div className="mt-4 flex gap-2 flex-wrap">
+                                                <span className="px-3 py-1 bg-white border border-orange-200 text-orange-700 rounded-full text-sm font-medium">Clientes</span>
+                                                <span className="px-3 py-1 bg-white border border-orange-200 text-orange-700 rounded-full text-sm font-medium">Artículos</span>
+                                                <span className="px-3 py-1 bg-white border border-orange-200 text-orange-700 rounded-full text-sm font-medium">Proveedores</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+
+                            <div className="bg-green-50 p-4 rounded-lg border border-green-200 text-green-800 text-center font-medium">
+                                <IconCheck className="inline mb-1 mr-2" size={18} /> Proceso completado.
+                            </div>
+                        </div>
+                    </div>
                 </div>
             );
         };
@@ -610,64 +480,39 @@
         const ReplacementGuide = ({ onBack }) => {
             const [step, setStep] = useState('START');
             const content = {
-                START: { 
-                    title: "Verificación de Respaldo del Cliente", 
-                    desc: "Iniciaremos verificando si el cliente posee copias de seguridad válidas.", 
-                    question: "¿El cliente cuenta con respaldos?", 
-                    yesAction: () => setStep('VERIFY_DATE'), 
-                    noAction: () => setStep('CHECK_SLAVE'), 
-                    type: 'question' 
-                },
-                VERIFY_DATE: { 
-                    title: "Verificación de Fecha", 
-                    desc: "Es crucial asegurar que la información sea reciente y útil para el cliente.", 
-                    question: "Revise la fecha del respaldo y notifique al cliente. ¿El cliente está de acuerdo con la fecha del respaldo?", 
-                    yesAction: () => setStep('SELECT_OS'), 
-                    noAction: () => setStep('CHECK_SLAVE'), 
-                    yesText: "Sí, proceder", 
-                    noText: "No, buscar otra opción", 
-                    type: 'question' 
-                },
-                SELECT_OS: { title: "Selección de Sistema Operativo", desc: "Seleccione el sistema operativo donde se realizará la restauración.", customButtons: [{label:"Windows", action:()=>setStep('TOOLS_WINDOWS_MENU'), icon:"🪟"}, {label:"Mac / Linux", action:()=>setStep('TOOLS_MAC_MENU'), icon:"🍎/🐧"}], type: 'selection' },
-                TOOLS_WINDOWS_MENU: { title: "Herramienta de Restauración (Windows)", desc: "Seleccione la herramienta que utilizará para el proceso.", customButtons: [{label:"GuiTools (Recomendado)", action:()=>setStep('WINDOWS_PREP'), icon:"🛠️"}, {label:"Sicar Tool", action:()=>setStep('TOOLS_WINDOWS_LEGACY'), icon:"📦"}], type: 'selection' },
-                WINDOWS_PREP: { title: "1. Preparación e Instalación", desc: "Prepare el respaldo y el sistema base antes de intentar restaurar.", instructions: ["Cambiar extensión del respaldo de .sr a .zip y descomprimir.", "Instalar SICAR en blanco.", "IMPORTANTE: Al instalar, nombrar la carpeta como servidor: SICAR-S-LICENCIA (ej. SICAR-S-ED849)."], nextStep: 'WINDOWS_RESTORE', nextText: "Siguiente: Restauración", type: 'manual_procedure' },
-                WINDOWS_RESTORE: { title: "2. Restauración con GuiTools", desc: "Ejecute GuiTools para inyectar la base de datos.", instructions: ["Descomprimir archivo 'db.properties' para obtener credenciales de conexión.", "Abrir GuiTools y conectar a la base de datos.", "Usar función 'Restore'.", "Seleccionar el archivo SQL descomprimido.", "Marcar casillas: 'Crear base de datos si no existe' e 'Ignorar errores'.", "Proceder con la restauración."], nextStep: 'WINDOWS_POST', nextText: "Siguiente: Finalización", type: 'manual_procedure' },
-                WINDOWS_POST: { title: "3. Finalización de Restauración", desc: "Limpieza final para permitir el acceso al sistema.", instructions: ["Borrar el archivo de licencia o registros antiguos.", "Abrir el sistema SICAR para verificar acceso."], nextStep: 'CHECK_CLOUD', nextText: "Continuar a Verificación Nube", type: 'manual_procedure' },
-                TOOLS_MAC_MENU: { title: "Herramienta de Restauración (Mac/Linux)", desc: "Seleccione la herramienta de gestión de base de datos.", customButtons: [{label:"DBeaver (Recomendado)", action:()=>setStep('MAC_PREP'), icon:"🦫"}, {label:"Sicar Tool", action:()=>setStep('MAC_PREP'), icon:"🧰"}], type: 'selection' },
-                MAC_PREP: { title: "1. Validación de Entorno (Mac/Linux)", desc: "Preparación del entorno MySQL y el archivo de respaldo.", instructions: ["Validar instancias: Asegurar que NO exista otro servidor ejecutándose (Single Instance).", "Si ya existe un servidor instalado: Crear una nueva base de datos (ej. 'sicar1', 'sicar2').", "Cambiar extensión del respaldo de .sr a .zip y descomprimir para obtener el SQL."], nextStep: 'MAC_RESTORE', nextText: "Siguiente: Restauración y Fix", type: 'manual_procedure' },
-                MAC_RESTORE: { title: "2. Restauración y Win to Mac", desc: "Proceso de inyección de datos y corrección de compatibilidad.", instructions: ["Abrir DBeaver o SicarTool y conectar a la instancia local.", "Ejecutar el script SQL del respaldo en la base de datos destino.", "CRÍTICO: Aplicar proceso 'Win to Mac'.", "Explicación: Esto renombra las tablas para que sean legibles en sistemas Case Sensitive (Linux/Mac).", "Sin este paso, el sistema marcará errores de tablas inexistentes."], nextStep: 'MAC_POST', nextText: "Siguiente: Finalización", type: 'manual_procedure' },
-                MAC_POST: { title: "3. Verificación de Acceso", desc: "Validar que el sistema inicie correctamente con los datos restaurados.", instructions: ["Iniciar SICAR apuntando a la base de datos correcta (sicar, sicar1, etc).", "Verificar acceso con credenciales del cliente."], nextStep: 'CHECK_CLOUD', nextText: "Continuar a Verificación Nube", type: 'manual_procedure' },
-                CHECK_CLOUD: { title: "Verificación de Servicios Nube", desc: "Validación de conectividad con servicios online.", question: "¿El cliente cuenta con servicio de Nube?", yesAction: () => setStep('CLOUD_PROCEDURE'), noAction: () => setStep('NO_CLOUD_ACTIVATION'), yesText: "Sí, tiene nube", noText: "No", type: 'question' },
-                CLOUD_PROCEDURE: { title: "Protocolo de Validación de Nube", desc: "Es necesario validar los IDs para evitar conflictos.", instructions: ["Cancelar y clonar la licencia actual.", "Activar la licencia en el sistema.", "En Administrador (CRM): Activar la póliza de la licencia.", "Abrir SICAR mediante CMD (Símbolo del sistema).", "Asociar la nube desde el sistema.", "Copiar los IDs de nube generados.", "Enviar a asesor de Nube: IDs + Cuenta de Nube + Nombre de Sucursal.", "SI ASESOR CONFIRMA: Dejar asociada.", "SI ASESOR RECHAZA: Borrar nube y activar como nueva sucursal."], nextStep: 'CHECK_TERMINALS_REP', nextText: "Continuar a Terminales", type: 'manual_procedure' },
-                NO_CLOUD_ACTIVATION: { title: "Activación de Licencia (Sin Nube)", desc: "Procedimiento para reactivar la licencia en el nuevo equipo.", instructions: ["Cancelar la licencia anterior y clonarla.", "Activar la licencia en el sistema."], nextStep: 'CHECK_TERMINALS_REP', nextText: "Continuar a Terminales", type: 'manual_procedure' },
-                CHECK_TERMINALS_REP: { title: "Verificación de Terminales", desc: "¿Existen equipos adicionales conectados?", question: "¿El sistema cuenta con terminales?", yesAction: () => setStep('TERMINALS_REP_PROCEDURE'), noAction: () => setStep('FINISH_REPLACEMENT'), yesText: "Sí", noText: "No", type: 'question' },
-                TERMINALS_REP_PROCEDURE: { title: "Reconexión de Terminales", desc: "Restablecer conexión de red.", instructions: ["Redireccionar IP en las terminales hacia el servidor nuevo.", "Nota: Regularmente NO es necesario aplicar UPD.", "Si marca error F4 al abrir: Solucionar reactivando la terminal."], nextStep: 'FINISH_REPLACEMENT', nextText: "Ir a Configuraciones Finales", type: 'manual_procedure' },
-                FINISH_REPLACEMENT: { title: "Configuraciones Finales y Cierre", desc: "Realice las últimas configuraciones para garantizar la seguridad y operatividad.", instructions: ["Configurar respaldos automáticos: Locales y en Google Drive.", "Preguntar al cliente su hora de cierre y programar el respaldo 30 minutos antes.", "Configurar impresoras y periféricos.", "Revisar y validar series de facturación.", "Verificar funcionamiento general del sistema."], final: true, finalType: 'success' },
-                TOOLS_WINDOWS_LEGACY: { title: "Herramientas para Windows (Básico)", desc: "Herramientas alternativas:", instructions: ["Sicar Tool"], final: true, finalType: 'info' },
-                CHECK_SLAVE: { title: "Acceso Físico al Disco", desc: "Al no contar con un respaldo válido, debemos intentar la recuperación física.", question: "¿El cliente tiene acceso al disco duro y puede conectarlo como esclavo?", yesAction: () => setStep('SLAVE_OPTIONS'), noAction: () => setStep('CHECK_CLOUD_SCRATCH'), type: 'question' },
-                SLAVE_OPTIONS: { title: "Método de Recuperación (Disco Esclavo)", desc: "Seleccione el tipo de búsqueda a realizar en el disco conectado.", customButtons: [{label:"1. Buscar Respaldos (.sr/.zip)", action:()=>setStep('SLAVE_SEARCH_BACKUPS'), icon:"🔍"}, {label:"2. Recuperación Técnica (ibdata)", action:()=>setStep('SLAVE_IBDATA_TUTORIAL'), icon:"🔧"}], type: 'selection' },
-                SLAVE_SEARCH_BACKUPS: { title: "Búsqueda de Respaldos", desc: "Indague en las carpetas del usuario del disco esclavo.", instructions: ["Revisar carpeta 'Documentos', 'Escritorio' y 'Descargas'.", "Buscar archivos con extensión .sr o .zip.", "Si encuentra uno válido, proceda al menú de Herramientas de Restauración."], nextStep: 'SELECT_OS', nextText: "Ir a Herramientas de Restauración", type: 'manual_procedure' },
-                SLAVE_IBDATA_TUTORIAL: { title: "Mini-Tutorial: Recuperación por ibdata", desc: "Protocolo avanzado de extracción de datos crudos.", instructions: ["1. Instalar un SICAR en blanco (Instalación Temporal).", "2. Detener el servicio de MySQL de esta nueva instalación.", "3. En la carpeta 'db' de la instalación LIMPIA: Eliminar carpetas 'sicar', 'racis' y el archivo 'ibdata1'.", "4. Ubicar carpeta 'db' en el DISCO ESCLAVO.", "5. Copiar 'sicar', 'racis' e 'ibdata1' del esclavo y pegarlos en la instalación limpia.", "6. Iniciar el servicio de MySQL.", "7. SI INICIA: Usar GuiTools o SicarTool (función Backup) para generar un respaldo nuevo.", "8. FINAL: Instalar un SICAR NUEVO en otro puerto (Regla: SICAR-S-LICENCIA) y restaurar ese respaldo con GuiTools."], nextStep: 'CHECK_CLOUD', nextText: "Continuar a Verificación Nube", type: 'manual_procedure' },
-                CHECK_CLOUD_SCRATCH: { title: "Instalación desde Cero", desc: "No hay respaldos ni acceso físico. Se procederá con una instalación limpia.", question: "¿El cliente cuenta con servicio de Nube contratado?", yesAction: () => setStep('CLOUD_RESTORE'), noAction: () => setStep('TOTAL_RESET'), type: 'question' },
-                CLOUD_RESTORE: { title: "Instalación con Nube", desc: "El cliente tiene servicio de nube.", instructions: ["Realizar instalación en blanco.", "La Nube descargará automáticamente el catálogo de artículos.", "Nota: Historiales y configuraciones locales se perderán, solo se recuperan artículos."], nextStep: 'FINISH_REPLACEMENT', nextText: "Ir a Configuraciones Finales", type: 'manual_procedure' },
-                TOTAL_RESET: { title: "Inicio Totalmente desde Cero", desc: "Sin respaldo y sin nube.", instructions: ["El cliente debe comenzar desde cero.", "Realizar instalación limpia.", "El cliente deberá capturar toda su información nuevamente."], nextStep: 'FINISH_REPLACEMENT', nextText: "Ir a Configuraciones Finales", type: 'manual_procedure' }
+                START: { title: "Verificación de Respaldo del Cliente", desc: "Iniciaremos verificando si el cliente posee copias de seguridad válidas.", question: "¿El cliente cuenta con respaldos?", yesAction: () => setStep('VERIFY_DATE'), noAction: () => setStep('CHECK_SLAVE'), type: 'question' },
+                VERIFY_DATE: { title: "Verificación de Fecha", desc: "Es crucial asegurar que la información sea reciente.", question: "Revise la fecha del respaldo. ¿El cliente está de acuerdo con la fecha?", yesAction: () => setStep('SELECT_OS'), noAction: () => setStep('CHECK_SLAVE'), yesText: "Sí, proceder", noText: "No, buscar otra opción", type: 'question' },
+                SELECT_OS: { title: "Selección de Sistema Operativo", desc: "Seleccione el sistema operativo donde se realizará la restauración.", customButtons: [{label:"Windows", action:()=>setStep('TOOLS_WINDOWS'), icon:"🪟"}, {label:"Mac / Linux", action:()=>setStep('TOOLS_MAC_LINUX'), icon:"🍎/🐧"}], type: 'selection' },
+                TOOLS_WINDOWS: { title: "Herramientas para Windows", desc: "Utilice las siguientes herramientas recomendadas:", instructions: ["GuiTools", "Sicar Tool"], final: true, finalType: 'success' },
+                TOOLS_MAC_LINUX: { title: "Herramientas para Mac / Linux", desc: "Utilice las siguientes herramientas recomendadas:", instructions: ["SicarTools", "DBeaver (Gestión de BD)"], final: true, finalType: 'success' },
+                CHECK_SLAVE: { title: "Acceso Físico al Disco", desc: "Al no contar con respaldo válido, intentamos recuperación física.", question: "¿El cliente tiene acceso al disco duro como esclavo?", yesAction: () => setStep('SLAVE_RECOVERY'), noAction: () => setStep('CHECK_CLOUD'), type: 'question' },
+                SLAVE_RECOVERY: { title: "Recuperación vía Disco Esclavo", desc: "Proceda con la extracción manual.", instructions: ["Indagar en archivos de instalación original.", "Intentar reposición manual de archivos de datos.", "Obtener respaldo con 'ivedata'."], final: true, finalType: 'warning' },
+                CHECK_CLOUD: { title: "Instalación desde Cero", desc: "No hay respaldos ni acceso físico.", question: "¿El cliente cuenta con servicio de Nube?", yesAction: () => setStep('CLOUD_RESTORE'), noAction: () => setStep('TOTAL_RESET'), type: 'question' },
+                CLOUD_RESTORE: { title: "Instalación con Nube", desc: "El cliente tiene servicio de nube.", instructions: ["Realizar instalación en blanco.", "La Nube descargará catálogo de artículos.", "Nota: Se pierde historial."], final: true, finalType: 'info' },
+                TOTAL_RESET: { title: "Inicio Totalmente desde Cero", desc: "Sin respaldo y sin nube.", instructions: ["El cliente debe comenzar desde cero.", "Realizar instalación limpia.", "Capturar información nuevamente."], final: true, finalType: 'danger' }
             };
             const current = content[step];
+
             return (
                 <div className="flex flex-col h-full bg-gray-50 fade-in">
-                    <div className="bg-blue-600 p-4 text-white flex items-center shadow-md"><button onClick={onBack} className="mr-4 hover:bg-blue-700 p-2 rounded-full transition"><IconArrowLeft /></button><h2 className="text-xl font-bold flex items-center gap-2"><IconRefresh /> Guía de Reposiciones</h2></div>
-                    <div className="flex-grow flex flex-col items-center justify-center p-8"><div className="max-w-xl w-full bg-white p-8 rounded-xl shadow-lg border-t-4 border-blue-500">
-                        <h3 className="text-2xl font-bold text-gray-800 mb-4">{current.title}</h3><p className="text-gray-600 mb-6 text-lg leading-relaxed">{current.desc}</p>
-                        {current.type === 'manual_procedure' && (<div className="animate-fade-in"><div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6"><div className="flex items-center gap-2 font-bold text-blue-700 mb-2"><IconSettings size={20} /> Instrucciones Técnicas</div></div><ul className="space-y-3 mb-8">{current.instructions.map((inst, i) => (<li key={i} className="flex items-start gap-3 text-sm text-gray-700 border-b border-gray-100 pb-2 last:border-0"><IconCheck className="flex-shrink-0 text-blue-500 mt-0.5" size={18} /><span>{inst}</span></li>))}</ul><button onClick={() => setStep(current.nextStep)} className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition shadow-lg">{current.nextText} <span className="ml-2">→</span></button></div>)}
-                        {current.final && (<div className="animate-fade-in"><h4 className="font-bold text-gray-700 mb-3 border-b pb-2">Resumen de acciones:</h4><ul className="space-y-3 mb-8">{current.instructions.map((inst, i) => (<li key={i} className="flex items-start gap-3 text-gray-700"><div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${current.finalType==='success'?'bg-green-500':current.finalType==='warning'?'bg-orange-500':current.finalType==='info'?'bg-blue-500':'bg-red-500'}`}></div>{inst}</li>))}</ul><button onClick={() => setStep('START')} className="w-full py-3 border-2 border-gray-200 text-gray-600 font-semibold rounded-lg hover:bg-gray-50 transition">Reiniciar Guía</button></div>)}
-                        {current.type === 'question' && (<div className="space-y-4"><div className="bg-blue-50 p-4 rounded-lg text-blue-800 font-medium mb-6 flex items-start gap-3"><IconAlert className="flex-shrink-0 mt-1"/>{current.question}</div><div className="grid grid-cols-2 gap-4"><button onClick={current.yesAction} className="bg-green-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-green-700 transition shadow-sm flex justify-center items-center gap-2"><IconCheck size={18} /> {current.yesText || "SÍ"}</button><button onClick={current.noAction} className="bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition shadow-sm">{current.noText || "NO"}</button></div></div>)}
-                        {current.type === 'selection' && (<div className="grid gap-4">{current.customButtons.map((btn, idx) => (<button key={idx} onClick={btn.action} className="flex items-center justify-between p-4 border-2 border-blue-100 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition group"><span className="font-bold text-gray-700 group-hover:text-blue-700">{btn.label}</span><span className="text-2xl">{btn.icon}</span></button>))}</div>)}
-                    </div></div>
+                     <div className="bg-blue-600 p-4 text-white flex items-center shadow-md">
+                        <button onClick={onBack} className="mr-4 hover:bg-blue-700 p-2 rounded-full transition"><IconArrowLeft size={24} /></button>
+                        <h2 className="text-xl font-bold flex items-center gap-2"><IconRefresh size={24} /> Guía de Reposiciones</h2>
+                    </div>
+                    <div className="flex-grow flex flex-col items-center justify-center p-8">
+                        <div className="max-w-xl w-full bg-white p-8 rounded-xl shadow-lg border-t-4 border-blue-500">
+                            <h3 className="text-2xl font-bold text-gray-800 mb-4">{current.title}</h3>
+                            <p className="text-gray-600 mb-6 text-lg leading-relaxed">{current.desc}</p>
+                            {current.final && (<div className="animate-fade-in"><h4 className="font-bold text-gray-700 mb-3 border-b pb-2">Acciones a realizar:</h4><ul className="space-y-3 mb-8">{current.instructions.map((inst, i) => (<li key={i} className="flex items-start gap-3 text-gray-700"><div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${current.finalType==='success'?'bg-green-500':current.finalType==='warning'?'bg-orange-500':current.finalType==='info'?'bg-blue-500':'bg-red-500'}`}></div>{inst}</li>))}</ul><button onClick={() => setStep('START')} className="w-full py-3 border-2 border-gray-200 text-gray-600 font-semibold rounded-lg hover:bg-gray-50 transition">Reiniciar Guía</button></div>)}
+                            {current.type === 'question' && (<div className="space-y-4"><div className="bg-blue-50 p-4 rounded-lg text-blue-800 font-medium mb-6 flex items-start gap-3"><IconAlert className="flex-shrink-0 mt-1" size={20}/>{current.question}</div><div className="grid grid-cols-2 gap-4"><button onClick={current.yesAction} className="bg-green-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-green-700 transition shadow-sm flex justify-center items-center gap-2"><IconCheck size={18} /> {current.yesText || "SÍ"}</button><button onClick={current.noAction} className="bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition shadow-sm">{current.noText || "NO"}</button></div></div>)}
+                            {current.type === 'selection' && (<div className="grid gap-4">{current.customButtons.map((btn, idx) => (<button key={idx} onClick={btn.action} className="flex items-center justify-between p-4 border-2 border-blue-100 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition group"><span className="font-bold text-gray-700 group-hover:text-blue-700">{btn.label}</span><span className="text-2xl">{btn.icon}</span></button>))}</div>)}
+                        </div>
+                    </div>
                 </div>
             );
         };
 
-        // --- Migration Guide (FULL IMPLEMENTATION) ---
+        // --- Migration Guide (RESTAURADO COMPLETO) ---
         const MigrationGuide = ({ onBack }) => {
             const [step, setStep] = useState('START');
             const content = {
@@ -681,13 +526,13 @@
                     type: 'selection' 
                 },
                 
-                // --- WINDOWS FLOW (SIMPLIFICADO) ---
+                // --- WINDOWS FLOW ---
                 WIN_CHECK_TERMINALS: { 
                     title: "Infraestructura", 
                     desc: "¿Servidor actual con terminales?", 
                     question: "¿Hay terminales?", 
-                    yesAction: () => setStep('WIN_WITH_TERMINALS'), // Directo a pasos con terminales
-                    noAction: () => setStep('WIN_SIMPLE'),          // Directo a pasos sin terminales
+                    yesAction: () => setStep('WIN_WITH_TERMINALS'), 
+                    noAction: () => setStep('WIN_SIMPLE'),          
                     yesText: "Sí", 
                     noText: "No", 
                     type: 'question' 
@@ -762,7 +607,7 @@
             const current = content[step];
             return (
                 <div className="flex flex-col h-full bg-gray-50 fade-in">
-                    <div className="bg-indigo-600 p-4 text-white flex items-center shadow-md"><button onClick={onBack} className="mr-4 hover:bg-indigo-700 p-2 rounded-full transition"><IconArrowLeft /></button><h2 className="text-xl font-bold flex items-center gap-2"><IconServer /> Guía de Migraciones</h2></div>
+                    <div className="bg-indigo-600 p-4 text-white flex items-center shadow-md"><button onClick={onBack} className="mr-4 hover:bg-indigo-700 p-2 rounded-full transition"><IconArrowLeft size={24} /></button><h2 className="text-xl font-bold flex items-center gap-2"><IconServer size={24} /> Guía de Migraciones</h2></div>
                     <div className="flex-grow flex flex-col items-center justify-center p-8"><div className="max-w-xl w-full bg-white p-8 rounded-xl shadow-lg border-t-4 border-indigo-500">
                         <h3 className="text-2xl font-bold text-gray-800 mb-4">{current.title}</h3><p className="text-gray-600 mb-6 text-lg leading-relaxed">{current.desc}</p>
                         {current.final && (<div className="animate-fade-in"><ul className="space-y-3 mb-8">{current.instructions.map((inst, i) => (<li key={i} className="flex items-start gap-3 text-gray-700"><div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${current.finalType==='success'?'bg-green-500': current.finalType==='info'?'bg-blue-500':'bg-orange-500'}`}></div><span className={inst.includes("CRÍTICO") || inst.includes("PRO TIP")?"font-bold text-indigo-700":""}>{inst}</span></li>))}</ul><button onClick={() => setStep('START')} className="w-full py-3 border-2 border-gray-200 text-gray-600 font-semibold rounded-lg hover:bg-gray-50 transition">Reiniciar Guía</button></div>)}
