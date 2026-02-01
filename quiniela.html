@@ -300,17 +300,28 @@
                 const matchdayBets = bets.filter(b => b.matchdayId === matchday.id);
                 if (matchdayBets.length === 0) { alert("No hay apuestas para generar reporte."); return; }
 
-                let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
+                // Helper para escapar campos CSV
+                const escapeCsv = (text) => {
+                    if (!text) return "";
+                    const stringText = String(text);
+                    if (stringText.includes(",") || stringText.includes("\"") || stringText.includes("\n")) {
+                         return `"${stringText.replace(/"/g, '""')}"`;
+                    }
+                    return stringText;
+                };
+
                 const headers = ["Jugador", "Referencia", "Estado", "Costo"];
                 matchday.matches.forEach(m => headers.push(`${m.home} vs ${m.away}`));
-                csvContent += headers.join(",") + "\n";
+                
+                // Construir filas
+                const rows = [headers.join(",")];
 
                 matchdayBets.forEach(bet => {
                     const row = [
-                        `"${bet.userFullName || bet.userName}"`,
-                        `"${bet.paymentRef}"`,
+                        escapeCsv(bet.userFullName || bet.userName),
+                        escapeCsv(bet.paymentRef),
                         bet.status === 'paid' ? "PAGADO" : "PENDIENTE",
-                        `$${bet.cost}`
+                        `$${bet.cost || matchday.price}`
                     ];
                     matchday.matches.forEach(m => {
                         const pred = bet.predictions.find(p => p.matchId === m.id);
@@ -321,16 +332,21 @@
                         }
                         row.push(val);
                     });
-                    csvContent += row.join(",") + "\n";
+                    rows.push(row.join(","));
                 });
 
-                const encodedUri = encodeURI(csvContent);
+                // Usar Blob en lugar de URI encoding para soportar grandes cantidades de datos
+                const csvString = "\uFEFF" + rows.join("\n"); 
+                const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+
                 const link = document.createElement("a");
-                link.setAttribute("href", encodedUri);
+                link.setAttribute("href", url);
                 link.setAttribute("download", `Reporte_${matchday.name.replace(/\s+/g, '_')}.csv`);
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
+                URL.revokeObjectURL(url);
             };
 
             return html`
