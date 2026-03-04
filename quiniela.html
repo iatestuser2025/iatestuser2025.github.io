@@ -892,6 +892,25 @@
             `;
         }
 
+        // --- COMPONENTE WIDGET SOCCERSAPI ---
+        function SoccersApiWidget() {
+            useEffect(() => {
+                const scriptId = 'soccersapi-script-widget';
+                let script = document.getElementById(scriptId);
+                
+                if (!script) {
+                    script = document.createElement('script');
+                    script.id = scriptId;
+                    script.type = 'text/javascript';
+                    script.src = 'https://ls.soccersapi.com/widget/res/wo_w69a8b5fa9ca15a79c8eb61ae_69a8b63a45834/widget.js';
+                    script.async = true;
+                    document.body.appendChild(script);
+                }
+            }, []);
+
+            return html`<div id="ls-widget" data-w="wo_w69a8b5fa9ca15a79c8eb61ae_69a8b63a45834" className="livescore-widget w-full h-full"></div>`;
+        }
+
         function UserResults({ matchdays, bets, messages, user, appId, db }) {
             const [selId, setSelId] = useState('');
             const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
@@ -1096,44 +1115,58 @@
                             </div>
 
                             ${isLive && html`
-                                <div className="bg-white rounded-xl border shadow-sm flex flex-col mt-6 animate-fade-in" style=${{height: '400px'}}>
-                                    <div className="bg-blue-600 p-3 font-bold text-white flex items-center gap-2 shrink-0 rounded-t-xl">
-                                        <${MessageCircle} size=${18}/> Chat en Vivo de la Jornada
+                                <div className="grid md:grid-cols-2 gap-4 mt-6 animate-fade-in">
+                                
+                                <div className="bg-white rounded-xl border shadow-sm flex flex-col overflow-hidden" style=${{height: '500px'}}>
+                                    <div className="bg-gray-900 p-3 font-bold text-white flex items-center gap-2 shrink-0">
+                                        <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                                        Marcadores en Vivo
                                     </div>
-                                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 flex flex-col hide-scrollbar">
-                                        ${chatMessages.length === 0 ? html`
-                                            <div className="m-auto text-center text-gray-400 italic text-sm">
-                                                <${MessageCircle} size=${32} className="mx-auto mb-2 opacity-50"/>
-                                                Sé el primero en enviar un mensaje...
-                                            </div>
-                                        ` : chatMessages.map(msg => {
-                                            const isMe = msg.userName === user.username;
-                                            return html`
-                                                <div key=${msg.id} className=${`flex flex-col w-full ${isMe ? 'items-end' : 'items-start'}`}>
-                                                    <span className="text-[10px] text-gray-400 mb-0.5 mx-1 font-bold capitalize">${msg.userFullName}</span>
-                                                    <div className=${`px-4 py-2 rounded-2xl max-w-[85%] text-sm shadow-sm ${isMe ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white border text-gray-700 rounded-tl-none'}`}>
-                                                        ${msg.text}
-                                                    </div>
-                                                </div>
-                                            `;
-                                        })}
-                                        <div ref=${chatEndRef}></div>
+                                    <div className="flex-1 w-full relative overflow-y-auto bg-white p-2">
+                                        <${SoccersApiWidget} />
                                     </div>
-                                    <div className="bg-white border-t p-3 shrink-0 rounded-b-xl">
-                                        <div className="flex gap-2 mb-2 px-1">
-                                            ${['⚽', '🔥', '😂', '😱', '🏆', 'VAR'].map(emo => html`
-                                                <button key=${emo} type="button" onClick=${() => setMsgText(prev => prev + emo)} className="text-lg hover:scale-125 transition-transform bg-gray-100 rounded-full w-8 h-8 flex items-center justify-center">
-                                                    ${emo}
-                                                </button>
-                                            `)}
+                                </div>
+
+                                <div className="bg-white rounded-xl border shadow-sm flex flex-col overflow-hidden" style=${{height: '500px'}}>
+                                    <div className="bg-blue-600 p-3 font-bold text-white flex items-center gap-2 shrink-0">
+                                            <${MessageCircle} size=${18}/> Chat en Vivo de la Jornada
                                         </div>
-                                        <form onSubmit=${handleSendMsg} className="flex gap-2">
-                                            <input type="text" value=${msgText} onChange=${e => setMsgText(e.target.value)} placeholder="Escribe un mensaje..." className="flex-1 p-2 md:p-3 border rounded-full text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                                            <button type="submit" disabled=${!msgText.trim()} className="bg-blue-600 text-white w-10 md:w-12 h-10 md:h-12 rounded-full flex items-center justify-center hover:bg-blue-700 transition disabled:opacity-50 shrink-0">
-                                                <${Send} size=${18} className="-ml-0.5 mt-0.5" />
-                                            </button>
-                                        </form>
+                                        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 flex flex-col hide-scrollbar">
+                                            ${chatMessages.length === 0 ? html`
+                                                <div className="m-auto text-center text-gray-400 italic text-sm">
+                                                    <${MessageCircle} size=${32} className="mx-auto mb-2 opacity-50"/>
+                                                    Sé el primero en enviar un mensaje...
+                                                </div>
+                                            ` : chatMessages.map(msg => {
+                                                const isMe = msg.userName === user.username;
+                                                return html`
+                                                    <div key=${msg.id} className=${`flex flex-col w-full ${isMe ? 'items-end' : 'items-start'}`}>
+                                                        <span className="text-[10px] text-gray-400 mb-0.5 mx-1 font-bold capitalize">${msg.userFullName}</span>
+                                                        <div className=${`px-4 py-2 rounded-2xl max-w-[85%] text-sm shadow-sm ${isMe ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white border text-gray-700 rounded-tl-none'}`}>
+                                                            ${msg.text}
+                                                        </div>
+                                                    </div>
+                                                `;
+                                            })}
+                                            <div ref=${chatEndRef}></div>
+                                        </div>
+                                        <div className="bg-white border-t p-3 shrink-0">
+                                            <div className="flex gap-2 mb-2 px-1">
+                                                ${['⚽', '🔥', '😂', '😱', '🏆', 'VAR'].map(emo => html`
+                                                    <button key=${emo} type="button" onClick=${() => setMsgText(prev => prev + emo)} className="text-lg hover:scale-125 transition-transform bg-gray-100 rounded-full w-8 h-8 flex items-center justify-center">
+                                                        ${emo}
+                                                    </button>
+                                                `)}
+                                            </div>
+                                            <form onSubmit=${handleSendMsg} className="flex gap-2">
+                                                <input type="text" value=${msgText} onChange=${e => setMsgText(e.target.value)} placeholder="Escribe un mensaje..." className="flex-1 p-2 md:p-3 border rounded-full text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                                <button type="submit" disabled=${!msgText.trim()} className="bg-blue-600 text-white w-10 md:w-12 h-10 md:h-12 rounded-full flex items-center justify-center hover:bg-blue-700 transition disabled:opacity-50 shrink-0">
+                                                    <${Send} size=${18} className="-ml-0.5 mt-0.5" />
+                                                </button>
+                                            </form>
+                                        </div>
                                     </div>
+                                    
                                 </div>
                             `}
                         </div>
