@@ -1048,14 +1048,12 @@
         function UserStats({ matchdays, bets, user }) {
             const statsData = useMemo(() => {
                 const finalizedMatchdays = matchdays.filter(m => m.status === 'finalized');
-                const myPaidBets = bets.filter(b => b.userName === user.username && b.status === 'paid');
+                const paidBets = bets.filter(b => b.status === 'paid');
 
-                let totalPoints = 0;
-                let totalPossiblePoints = 0;
-                const history = [];
-
-                // Analizamos cada quiniela pagada
-                myPaidBets.forEach(bet => {
+                // 1. CALCULAMOS EL RANKING GLOBAL (Todos los usuarios)
+                const scoreboard = {};
+                
+                paidBets.forEach(bet => {
                     const m = finalizedMatchdays.find(md => md.id === bet.matchdayId);
                     if (m) {
                         let points = 0;
@@ -1068,9 +1066,54 @@
                         });
                         
                         const validMatchesCount = m.matches.filter(ma => ma.result && ma.result !== 'suspended').length;
-                        totalPoints += points;
-                        totalPossiblePoints += validMatchesCount;
+                        
+                        // Inicializamos al usuario en el tablero si no existe
+                        if (!scoreboard[bet.userName]) {
+                            scoreboard[bet.userName] = {
+                                userName: bet.userName,
+                                fullName: bet.userFullName || bet.userName,
+                                totalPoints: 0,
+                                possiblePoints: 0,
+                                totalPlayed: 0
+                            };
+                        }
+                        
+                        scoreboard[bet.userName].totalPoints += points;
+                        scoreboard[bet.userName].possiblePoints += validMatchesCount;
+                        scoreboard[bet.userName].totalPlayed += 1;
+                    }
+                });
 
+                // Convertimos el tablero a un array y lo ordenamos por puntos (y efectividad en caso de empate)
+                const ranking = Object.values(scoreboard).sort((a, b) => {
+                    if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+                    const effA = a.possiblePoints > 0 ? (a.totalPoints / a.possiblePoints) : 0;
+                    const effB = b.possiblePoints > 0 ? (b.totalPoints / b.possiblePoints) : 0;
+                    return effB - effA;
+                });
+
+                // 2. EXTRAEMOS LOS DATOS DEL USUARIO ACTUAL
+                const myData = scoreboard[user.username] || { totalPoints: 0, possiblePoints: 0, totalPlayed: 0 };
+                const myRankIndex = ranking.findIndex(r => r.userName === user.username);
+                const myRank = myRankIndex !== -1 ? myRankIndex + 1 : 0;
+                const totalPlayers = ranking.length;
+                const topPlayer = ranking.length > 0 ? ranking[0] : null;
+
+                // 3. HISTORIAL RECIENTE PARA LA GRÁFICA (Solo mis apuestas)
+                const myPaidBets = paidBets.filter(b => b.userName === user.username);
+                const history = [];
+                
+                myPaidBets.forEach(bet => {
+                    const m = finalizedMatchdays.find(md => md.id === bet.matchdayId);
+                    if (m) {
+                        let points = 0;
+                        bet.predictions.forEach(pred => {
+                            const match = m.matches.find(ma => ma.id === pred.matchId);
+                            const userPicks = normalizePred(pred.prediction);
+                            if (match?.result && match.result !== 'suspended' && userPicks.includes(match.result)) points++;
+                        });
+                        const validMatchesCount = m.matches.filter(ma => ma.result && ma.result !== 'suspended').length;
+                        
                         history.push({
                             id: bet.id,
                             matchdayName: m.name,
@@ -1081,16 +1124,17 @@
                     }
                 });
 
-                // Ordenamos por fecha de más antiguo a más reciente para la gráfica
                 history.sort((a, b) => a.date - b.date);
-                // Tomamos solo las últimas 10 jugadas para no saturar la gráfica
                 const recentHistory = history.slice(-10);
 
                 return {
-                    totalFinished: history.length,
-                    totalPoints,
-                    effectiveness: totalPossiblePoints > 0 ? ((totalPoints / totalPossiblePoints) * 100).toFixed(1) : 0,
-                    recentHistory
+                    totalFinished: myData.totalPlayed,
+                    totalPoints: myData.totalPoints,
+                    effectiveness: myData.possiblePoints > 0 ? ((myData.totalPoints / myData.possiblePoints) * 100).toFixed(1) : 0,
+                    recentHistory,
+                    myRank,
+                    totalPlayers,
+                    topPlayer
                 };
             }, [matchdays, bets, user]);
 
@@ -1123,6 +1167,40 @@
                             <p className="text-[10px] md:text-xs font-bold text-purple-800 uppercase tracking-wider">Quinielas Jugadas</p>
                             <p className="text-2xl md:text-4xl font-black text-purple-600">${statsData.totalFinished}</p>
                         </div>
+                    </div>
+
+                    {/* NUEVO: SECCIÓN DE RANKING Y COMPARATIVA */}
+                    <div className="grid md:grid-cols-2 gap-4">
+                        <div className="bg-white p-4 rounded-xl border shadow-sm flex items-center justify-between">
+                            <div>
+                                <p className="text-xs font-bold text-gray-500 uppercase">Tu Posición Global</p>
+                                <div className="text-2xl font-black text-gray-800">
+                                    Lugar #${statsData.myRank} <span className="text-sm font-normal text-gray-500">de ${statsData.totalPlayers}</span>
+                                </div>
+                            </div>
+                            <div className="bg-blue-50 p-3 rounded-full"><${Medal} size=${28} className="text-blue-500" /></div>
+                        </div>
+
+                        ${statsData.topPlayer && statsData.topPlayer.userName !== user.username ? html`
+                            <div className="bg-gradient-to-r from-orange-50 to-red-50 p-4 rounded-xl border border-orange-200 shadow-sm flex justify-between items-center">
+                                <div className="overflow-hidden pr-2">
+                                    <p className="text-xs font-bold text-orange-800 uppercase flex items-center gap-1"><${Trophy} size=${12}/> El Rival a Vencer</p>
+                                    <p className="font-bold text-gray-800 truncate text-sm md:text-base capitalize">${statsData.topPlayer.fullName}</p>
+                                </div>
+                                <div className="text-right shrink-0">
+                                    <p className="text-2xl font-black text-orange-600">${statsData.topPlayer.totalPoints} pts</p>
+                                    <p className="text-[10px] text-orange-800 font-medium">Ef: ${((statsData.topPlayer.totalPoints / statsData.topPlayer.possiblePoints) * 100).toFixed(1)}%</p>
+                                </div>
+                            </div>
+                        ` : html`
+                            <div className="bg-gradient-to-r from-yellow-100 to-yellow-50 p-4 rounded-xl border border-yellow-200 shadow-sm flex items-center justify-center gap-3">
+                                <${Trophy} className="text-yellow-600 shrink-0" size=${32} />
+                                <div>
+                                    <p className="font-black text-yellow-800 text-lg">¡Eres el #1!</p>
+                                    <p className="text-xs text-yellow-700">Liderando el ranking global.</p>
+                                </div>
+                            </div>
+                        `}
                     </div>
 
                     <div className="bg-white p-4 md:p-6 rounded-xl border shadow-sm">
