@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>¡Feliz Cumpleaños! 🎉</title>
+
+<style>
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    background: linear-gradient(135deg, #4facfe, #00f2fe);
+    color: white;
+    overflow: hidden;
+  }
+
+  h1 {
+    margin-top: 60px;
+    font-size: 3em;
+  }
+
+  p {
+    font-size: 1.3em;
+  }
+
+  button {
+    margin-top: 20px;
+    padding: 12px 25px;
+    font-size: 18px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    background: white;
+    color: #007BFF;
+  }
+
+  #mensaje {
+    display: none;
+    margin-top: 30px;
+    font-size: 1.5em;
+  }
+
+  /* Confeti */
+  .confetti {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: white;
+    top: -10px;
+    animation: caer 3s linear infinite;
+  }
+
+  @keyframes caer {
+    to {
+      transform: translateY(100vh) rotate(360deg);
+    }
+  }
+</style>
+</head>
+
+<body>
+
+<h1>🎉 ¡Feliz Cumpleaños! 🎂</h1>
+<p>De parte de todo el equipo, te deseamos un excelente día lleno de éxitos.</p>
+
+<button onclick="mostrar()">Ver mensaje 🎁</button>
+
+<div id="mensaje">
+  <p>🎈 Gracias por ser parte de nuestro equipo.</p>
+  <p>¡Que este nuevo año esté lleno de logros y momentos increíbles! 🚀</p>
+</div>
+
+<script>
+function mostrar() {
+  document.getElementById("mensaje").style.display = "block";
+  lanzarConfeti();
+}
+
+function lanzarConfeti() {
+  for (let i = 0; i < 50; i++) {
+    let confeti = document.createElement("div");
+    confeti.classList.add("confetti");
+    confeti.style.left = Math.random() * window.innerWidth + "px";
+    confeti.style.animationDuration = (Math.random() * 3 + 2) + "s";
+    document.body.appendChild(confeti);
+
+    setTimeout(() => confeti.remove(), 5000);
+  }
+}
+</script>
+
+</body>
+</html>
